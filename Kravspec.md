@@ -32,6 +32,10 @@
 * Legge til medlemmer
 * Opprette betts
 * Slette betts
+* De som har opprettet et bett
+* * Kan endre Tittel
+* * Kan endre alternativer og odds
+* * Kan legge inn riktig alternativ
 
 ### Venner-skjerm
 * Invitere til appen via link
@@ -60,4 +64,5 @@
 ### Bet
 * Har en tittel
 * Har betting alternativer med odds
+* Riktig svar blir registrert av den som opprettet 
 * Tilhører en gruppe
