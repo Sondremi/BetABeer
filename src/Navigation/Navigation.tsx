@@ -30,9 +30,9 @@ const Navigation = () => {
           tabBarIcon: ({ color, size }) => {
             let iconName: string = 'home';
 
-            if (route.name === 'ProfileTab') iconName = 'person';
-            else if (route.name === 'Groups') iconName = 'people';
-            else if (route.name === 'Friends') iconName = 'heart';
+            if (route.name === 'ProfileTab') iconName = 'person-circle-outline';
+            else if (route.name === 'Groups') iconName = 'beer-outline';
+            else if (route.name === 'Friends') iconName = 'people-outline';
 
             return <Icon name={iconName} size={size} color={color} />;
           },
