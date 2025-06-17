@@ -1,12 +1,12 @@
 import React from 'react';
 import {View, Text, StyleSheet} from 'react-native';
 
-const GroupScreen = () => {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.text}>GroupScreen</Text>
-    </View>
-  )
+const FriendsScreen = () => {
+    return (
+        <View style={styles.container}>
+            <Text style={styles.text}>FriendsScreen</Text>
+        </View>
+    )
 }
 
 const styles = StyleSheet.create({
@@ -21,4 +21,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default GroupScreen
+export default FriendsScreen
