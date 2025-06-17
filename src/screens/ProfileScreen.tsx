@@ -1,13 +1,13 @@
-import React, { JSX } from 'react';
-import { SafeAreaView, Text, StyleSheet } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 
-function App(): JSX.Element {
+const ProfileScreen = () => {
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Text style={styles.text}>Brukernavn: sondre</Text>
-    </SafeAreaView>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -21,4 +21,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default App;
+export default ProfileScreen;
