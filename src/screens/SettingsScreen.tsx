@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+
+const PencilIcon = require('../../assets/icons/noun-pencil-969012.png')
+const DeleteIcon = require('../../assets/icons/noun-delete-7938028.png')
 
 const SettingsScreen = () => {
   // Dummy data - will be replaced with database data later
@@ -129,7 +132,7 @@ const SettingsScreen = () => {
               </View>
             ) : (
               <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
-                <Icon name="pencil-outline" size={20} color="#007AFF" />
+                <Image source={PencilIcon} style={{ width: 20, height: 20, tintColor: '#007AFF' }} />
                 <Text style={styles.editButtonText}>Rediger informasjon</Text>
               </TouchableOpacity>
             )}
@@ -140,7 +143,7 @@ const SettingsScreen = () => {
         <View style={styles.dangerSection}>
           <Text style={styles.dangerSectionTitle}>Farlig sone</Text>
           <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteUser}>
-            <Icon name="trash-outline" size={20} color="#FF3B30" />
+            <Image source={DeleteIcon} style={{ width: 20, height: 20, tintColor: '#FF3B30' }} />
             <Text style={styles.deleteButtonText}>Slett bruker</Text>
           </TouchableOpacity>
         </View>

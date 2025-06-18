@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, FlatList, Image, Alert, Share, ScrollView } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
+const InviteIcon = require('../../assets/icons/noun-share-1713270.png');
+const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
+const RemoveFriendIcon = require('../../assets/icons/noun-user-removed-7856287.png');
+const PeopleIcon = require('../../assets/icons/noun-people-2196504.png')
 
 type Friend = {
   id: string;
@@ -79,9 +82,9 @@ const FriendsScreen = () => {
   const handleInviteFriends = async () => {
     try {
       const result = await Share.share({
-        message: `Bli med meg på BetBuddies! Bruk denne linken: ${inviteLink}`,
+        message: `Bli med meg på BetABeer! Bruk denne linken: ${inviteLink}`,
         url: inviteLink,
-        title: 'Inviter venner til BetBuddies',
+        title: 'Inviter venner til BetABeer',
       });
     } catch (error) {
       Alert.alert('Feil', 'Kunne ikke dele invitasjonslenken');
@@ -125,7 +128,7 @@ const FriendsScreen = () => {
         style={styles.removeFriendButton}
         onPress={() => handleRemoveFriend(item)}
       >
-        <Icon name="close-circle-outline" size={24} color="#FF3B30" />
+      <Image source={RemoveFriendIcon} style={{ width: 24, height: 24, tintColor: '#FF0000' }} />
       </TouchableOpacity>
     </View>
   );
@@ -141,7 +144,7 @@ const FriendsScreen = () => {
         style={styles.addFriendButton}
         onPress={() => handleAddFriend(item)}
       >
-        <Icon name="person-add-outline" size={20} color="#007AFF" />
+      <Image source={AddFriendIcon} style={{ width: 24, height: 24, tintColor: '#007AFF' }} />
       </TouchableOpacity>
     </View>
   );
@@ -156,8 +159,8 @@ const FriendsScreen = () => {
       {/* Invite friends section */}
       <View style={styles.inviteSection}>
         <TouchableOpacity style={styles.inviteButton} onPress={handleInviteFriends}>
-          <Icon name="share-outline" size={24} color="#007AFF" />
           <Text style={styles.inviteButtonText}>Inviter venner</Text>
+          <Image source={InviteIcon} style={{ width: 24, height: 24, tintColor: '#007AFF' }} />
         </TouchableOpacity>
         <Text style={styles.inviteDescription}>
           Del lenken med venner for å invitere dem til appen
@@ -177,7 +180,7 @@ const FriendsScreen = () => {
           />
         ) : (
           <View style={styles.emptyState}>
-            <Icon name="people-outline" size={48} color="#ccc" />
+            <Image source={AddFriendIcon} style={{ width: 20, height: 20, tintColor: '#007AFF' }} />
             <Text style={styles.emptyStateText}>Du har ingen venner ennå</Text>
             <Text style={styles.emptyStateSubtext}>
               Inviter venner for å komme i gang!
@@ -202,7 +205,7 @@ const FriendsScreen = () => {
           />
         ) : (
           <View style={styles.emptyState}>
-            <Icon name="people-outline" size={48} color="#ccc" />
+            <Image source={PeopleIcon} style={{ width: 24, height: 24, tintColor: '#ccc' }} />
             <Text style={styles.emptyStateText}>Ingen forslag tilgjengelig</Text>
           </View>
         )}
