@@ -15,7 +15,16 @@
 * Bette på opprettet betts i en gruppe
 * Statistikk over betts for gruppen
 * Statistikk over betts for bruker
+* Statistikk over hvem som har blitt tildelt flest drinker
+* Statistikk over hvem som har drukket flest enheter
 * Kunne være i flere grupper
+* Kunne varlse om at et bett er vunnet (alle i gruppen vil bli varslet)
+** Vinner av et bet får da opp hvor mange slurker som kan deles ut, og en visning av profilen til alle i gruppen
+** vinner kan da fordele slurkene ved å trykke på hvert medlem
+* Hente data fra en alkometer tester 
+** Lage funksjonalitet som oppdaterer måleren med hver enhet en bruker drikker (enkel knapp)
+** Ha en visning som oppdaterer seg automatisk med et anslag på nåværende promille og maksimal promille neste timene
+** Kan legge til høyde, vekt og kjønn i profilen slik at promilleanslaget blir så nøyaktig som mulig og samtidig slippe å måtte skrive det inn før hvert spill
 
 ## Design
 ### Profil-skjerm
@@ -63,6 +72,8 @@
 
 ### Bet
 * Har en tittel
+* Har en type det bettes om (slurker øl/cider, hele enheter eller shots)
 * Har betting alternativer med odds
 * Riktig svar blir registrert av den som opprettet 
 * Tilhører en gruppe
+
