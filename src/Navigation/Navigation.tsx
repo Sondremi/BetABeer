@@ -15,11 +15,20 @@ const Stack = createNativeStackNavigator();
 function ProfileStack() {
   return (
     <Stack.Navigator>
-      <Stack.Screen name="Profile" component={ProfileScreen} />
-      <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ title: 'Innstillinger' }}
+      />
     </Stack.Navigator>
   );
 }
+
 
 const Navigation = () => {
   return (
@@ -39,7 +48,7 @@ const Navigation = () => {
         })}
       >
         <Tab.Screen name="Groups" component={GroupScreen} />
-        <Tab.Screen name="ProfileTab" component={ProfileStack} options={{ title: 'Profile' }} />
+        <Tab.Screen name="Profile" component={ProfileStack} />
         <Tab.Screen name="Friends" component={FriendsScreen} />
       </Tab.Navigator>
     </NavigationContainer>
