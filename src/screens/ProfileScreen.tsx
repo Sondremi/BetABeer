@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, FlatList } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
@@ -19,16 +20,17 @@ type ProfileStackParamList = {
 };
 
 type RootTabParamList = {
-  Groups: undefined;
-  ProfileTab: undefined;
+  Groups: { selectedGroup?: Group };
+  Profile: undefined;
   Friends: undefined;
 };
 
-type NavigationProp = NativeStackNavigationProp<ProfileStackParamList, 'Profile'>;
+type ProfileNavigationProp = NativeStackNavigationProp<ProfileStackParamList, 'Profile'>;
+type TabNavigationProp = BottomTabNavigationProp<RootTabParamList>;
 
 const ProfileScreen = () => {
-  const navigation = useNavigation<NavigationProp>();
-  const tabNavigation = useNavigation<any>();
+  const navigation = useNavigation<ProfileNavigationProp>();
+  const tabNavigation = useNavigation<TabNavigationProp>();
 
   // Mock data for groups - replace with real data later
   const groups: Group[] = [
@@ -50,15 +52,18 @@ const ProfileScreen = () => {
       memberCount: 12,
       image: require('../../assets/images/image_missing.png'),
     },
-    
   ];
 
   const navigateToSettings = () => {
     navigation.navigate('Settings');
   };
 
+  const navigateToGroup = (group: Group) => {
+    tabNavigation.navigate('Groups', { selectedGroup: group });
+  };
+
   const renderGroupItem = ({ item }: { item: Group }) => (
-    <TouchableOpacity style={styles.groupItem}>
+    <TouchableOpacity style={styles.groupItem} onPress={() => navigateToGroup(item)}>
       <Image source={item.image} style={styles.groupImage} />
       <View style={styles.groupOverlay}>
         <Text style={styles.groupName}>{item.name}</Text>
