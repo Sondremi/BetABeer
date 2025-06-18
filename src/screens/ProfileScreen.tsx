@@ -3,9 +3,10 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, FlatList }
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import Icon from 'react-native-vector-icons/Ionicons';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
+const ImageMissing = require('../../assets/images/image_missing.png')
+const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png')
 
 type Group = {
   id: string;
@@ -38,19 +39,19 @@ const ProfileScreen = () => {
       id: '1',
       name: 'Gutta',
       memberCount: 8,
-      image: require('../../assets/images/image_missing.png'),
+      image: ImageMissing,
     },
     {
       id: '2',
       name: 'Vors',
       memberCount: 15,
-      image: require('../../assets/images/image_missing.png'),
+      image: ImageMissing,
     },
     {
       id: '3',
       name: 'Fredag',
       memberCount: 12,
-      image: require('../../assets/images/image_missing.png'),
+      image: ImageMissing,
     },
   ];
 
@@ -78,7 +79,10 @@ const ProfileScreen = () => {
       <View style={styles.header}>
         <View style={styles.headerButtons}>
           <TouchableOpacity style={styles.headerButton} onPress={navigateToSettings}>
-            <Icon name="settings-outline" size={24} color="#333" />
+            <Image 
+              source={SettingsIcon} 
+              style={{ width: 20, height: 20, tintColor: '#000000' }}
+            />
           </TouchableOpacity>
         </View>
       </View>
