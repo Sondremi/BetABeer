@@ -34,36 +34,27 @@ const ProfileScreen = () => {
   const groups: Group[] = [
     {
       id: '1',
-      name: 'Familie',
+      name: 'Gutta',
       memberCount: 8,
-      image: require('../../assets/images/default_profilepicture.png'), // Replace with group image
+      image: require('../../assets/images/image_missing.png'),
     },
     {
       id: '2',
-      name: 'Jobben',
+      name: 'Vors',
       memberCount: 15,
-      image: require('../../assets/images/default_profilepicture.png'), // Replace with group image
+      image: require('../../assets/images/image_missing.png'),
     },
     {
       id: '3',
-      name: 'Studievennene',
+      name: 'Fredag',
       memberCount: 12,
-      image: require('../../assets/images/default_profilepicture.png'), // Replace with group image
+      image: require('../../assets/images/image_missing.png'),
     },
-    {
-      id: '4',
-      name: 'Fotball',
-      memberCount: 22,
-      image: require('../../assets/images/default_profilepicture.png'), // Replace with group image
-    },
+    
   ];
 
   const navigateToSettings = () => {
     navigation.navigate('Settings');
-  };
-
-  const navigateToFriends = () => {
-    tabNavigation.navigate('Friends');
   };
 
   const renderGroupItem = ({ item }: { item: Group }) => (
@@ -83,9 +74,6 @@ const ProfileScreen = () => {
         <View style={styles.headerButtons}>
           <TouchableOpacity style={styles.headerButton} onPress={navigateToSettings}>
             <Icon name="settings-outline" size={24} color="#333" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton} onPress={navigateToFriends}>
-            <Icon name="people-outline" size={24} color="#333" />
           </TouchableOpacity>
         </View>
       </View>
