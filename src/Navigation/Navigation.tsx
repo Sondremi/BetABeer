@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { Image } from 'react-native';
 
 import ProfileScreen from '../screens/ProfileScreen';
 import GroupScreen from '../screens/GroupScreen';
@@ -11,6 +11,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+
+const BeerIcon = require('../../assets/icons/noun-beer-7644526.png')
+const ProfileIcon = require('../../assets/icons/noun-profile-4808974.png')
+const FriendsIcon = require('../../assets/icons/noun-friends-4464219.png')
+
 
 function ProfileStack() {
   return (
@@ -37,13 +42,15 @@ const Navigation = () => {
         screenOptions={({ route }) => ({
           headerShown: false,
           tabBarIcon: ({ color, size }) => {
-            let iconName: string = 'home';
-
-            if (route.name === 'ProfileTab') iconName = 'person-circle-outline';
-            else if (route.name === 'Groups') iconName = 'beer-outline';
-            else if (route.name === 'Friends') iconName = 'people-outline';
-
-            return <Icon name={iconName} size={size} color={color} />;
+            if (route.name === 'Groups') {
+              return <Image source={BeerIcon} style={{ width: size, height: size, tintColor: color }} />;
+            }
+            if (route.name === 'Profile') {
+              return <Image source={ProfileIcon} style={{ width: size, height: size, tintColor: color }} />;
+            }
+            if (route.name === 'Friends') {
+              return <Image source={FriendsIcon} style={{ width: size, height: size, tintColor: color }} />;
+            }
           },
         })}
       >

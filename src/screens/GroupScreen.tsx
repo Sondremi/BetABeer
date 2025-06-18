@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, FlatList } from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/Ionicons';
+
+const ImageMissing = require('../../assets/images/image_missing.png')
+const CreateBetIcon = require('../../assets/icons/noun-add-2037478.png');
 
 type Group = {
   id: string;
@@ -39,7 +41,7 @@ const GroupScreen = () => {
     id: 'default',
     name: 'Alle grupper',
     memberCount: 0,
-    image: require('../../assets/images/image_missing.png'),
+    image: ImageMissing,
   };
 
   const currentGroup = selectedGroup || defaultGroup;
@@ -116,7 +118,10 @@ const GroupScreen = () => {
       {/* Create bet button */}
       <View style={styles.createBetSection}>
         <TouchableOpacity style={styles.createBetButton}>
-          <Icon name="add-circle-outline" size={24} color="#007AFF" />
+          <Image 
+            source={CreateBetIcon} 
+            style={{ width: 24, height: 24, tintColor: '#007AFF' }} 
+          />
           <Text style={styles.createBetText}>Opprett nytt bet</Text>
         </TouchableOpacity>
       </View>
