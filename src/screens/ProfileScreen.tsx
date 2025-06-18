@@ -1,10 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, FlatList } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
+
+type Group = {
+  id: string;
+  name: string;
+  memberCount: number;
+  image: any; // For require() images
+};
 
 type ProfileStackParamList = {
   Profile: undefined;
@@ -23,6 +30,34 @@ const ProfileScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const tabNavigation = useNavigation<any>();
 
+  // Mock data for groups - replace with real data later
+  const groups: Group[] = [
+    {
+      id: '1',
+      name: 'Familie',
+      memberCount: 8,
+      image: require('../../assets/images/default_profilepicture.png'), // Replace with group image
+    },
+    {
+      id: '2',
+      name: 'Jobben',
+      memberCount: 15,
+      image: require('../../assets/images/default_profilepicture.png'), // Replace with group image
+    },
+    {
+      id: '3',
+      name: 'Studievennene',
+      memberCount: 12,
+      image: require('../../assets/images/default_profilepicture.png'), // Replace with group image
+    },
+    {
+      id: '4',
+      name: 'Fotball',
+      memberCount: 22,
+      image: require('../../assets/images/default_profilepicture.png'), // Replace with group image
+    },
+  ];
+
   const navigateToSettings = () => {
     navigation.navigate('Settings');
   };
@@ -31,8 +66,18 @@ const ProfileScreen = () => {
     tabNavigation.navigate('Friends');
   };
 
+  const renderGroupItem = ({ item }: { item: Group }) => (
+    <TouchableOpacity style={styles.groupItem}>
+      <Image source={item.image} style={styles.groupImage} />
+      <View style={styles.groupOverlay}>
+        <Text style={styles.groupName}>{item.name}</Text>
+        <Text style={styles.groupMembers}>{item.memberCount} medlemmer</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       {/* Header with navigation buttons */}
       <View style={styles.header}>
         <View style={styles.headerButtons}>
@@ -59,7 +104,21 @@ const ProfileScreen = () => {
         <Text style={styles.name}>Sondre</Text>
         <Text style={styles.username}>sondremi</Text>
       </View>
-    </View>
+
+      {/* Groups section */}
+      <View style={styles.groupsSection}>
+        <Text style={styles.sectionTitle}>Mine grupper</Text>
+        <FlatList
+          data={groups}
+          renderItem={renderGroupItem}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={styles.groupRow}
+          scrollEnabled={false}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
+    </ScrollView>
   );
 };
 
@@ -84,10 +143,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   profileContent: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
+    paddingBottom: 30,
   },
   profileImageContainer: {
     marginBottom: 30,
@@ -108,6 +167,52 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#666',
     fontWeight: '400',
+  },
+  groupsSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
+  },
+  groupRow: {
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  groupItem: {
+    width: '48%',
+    height: 140,
+    borderRadius: 15,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  groupImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  groupOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  groupName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 2,
+  },
+  groupMembers: {
+    fontSize: 12,
+    color: '#fff',
+    opacity: 0.9,
   },
 });
 
