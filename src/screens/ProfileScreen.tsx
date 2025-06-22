@@ -5,28 +5,29 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
-const ImageMissing = require('../../assets/images/image_missing.png')
-const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png')
+const ImageMissing = require('../../assets/images/image_missing.png');
+const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png');
 
 type Group = {
   id: string;
   name: string;
   memberCount: number;
-  image: any; // For require() images
+  image: any;
 };
 
+// Updated to match new navigation structure
 type ProfileStackParamList = {
-  Profile: undefined;
+  ProfileHome: undefined;
   Settings: undefined;
 };
 
 type RootTabParamList = {
-  Groups: { selectedGroup?: Group };
-  Profile: undefined;
-  Friends: undefined;
+  GroupsTab: { selectedGroup?: Group };
+  ProfileTab: undefined;
+  FriendsTab: undefined;
 };
 
-type ProfileNavigationProp = NativeStackNavigationProp<ProfileStackParamList, 'Profile'>;
+type ProfileNavigationProp = NativeStackNavigationProp<ProfileStackParamList, 'ProfileHome'>;
 type TabNavigationProp = BottomTabNavigationProp<RootTabParamList>;
 
 const ProfileScreen = () => {
@@ -60,7 +61,7 @@ const ProfileScreen = () => {
   };
 
   const navigateToGroup = (group: Group) => {
-    tabNavigation.navigate('Groups', { selectedGroup: group });
+    tabNavigation.navigate('GroupsTab', { selectedGroup: group });
   };
 
   const renderGroupItem = ({ item }: { item: Group }) => (
