@@ -1,11 +1,19 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+type RootStackParamList = {
+  Login: undefined;
+};
 
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png')
 const DeleteIcon = require('../../assets/icons/noun-delete-7938028.png')
+const LogoutIcon = require('../../assets/icons/noun-login-7932862.png') // Reusing login icon for logout
 
 const SettingsScreen = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
   // Dummy data - will be replaced with database data later
   const [userInfo, setUserInfo] = useState({
     username: 'sondremi', // This should not be editable
@@ -27,6 +35,31 @@ const SettingsScreen = () => {
   const handleCancel = () => {
     setEditedInfo(userInfo);
     setIsEditing(false);
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logg ut',
+      'Er du sikker på at du vil logge ut?',
+      [
+        {
+          text: 'Avbryt',
+          style: 'cancel',
+        },
+        {
+          text: 'Logg ut',
+          style: 'default',
+          onPress: () => {
+            // Here you would clear any stored user data/tokens
+            // For now, just navigate back to login
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Login' }],
+            });
+          },
+        },
+      ]
+    );
   };
 
   const handleDeleteUser = () => {
@@ -139,6 +172,15 @@ const SettingsScreen = () => {
           </View>
         </View>
 
+        {/* Account Actions Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Konto</Text>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Image source={LogoutIcon} style={{ width: 20, height: 20, tintColor: '#FF9500' }} />
+            <Text style={styles.logoutButtonText}>Logg ut</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Danger Zone */}
         <View style={styles.dangerSection}>
           <Text style={styles.dangerSectionTitle}>Farlig sone</Text>
@@ -245,6 +287,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     fontWeight: '600',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 15,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FF9500',
+  },
+  logoutButtonText: {
+    fontSize: 16,
+    color: '#FF9500',
+    fontWeight: '600',
+    marginLeft: 8,
   },
   dangerSection: {
     marginTop: 30,
