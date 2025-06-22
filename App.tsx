@@ -1,5 +1,5 @@
 import React, { JSX } from 'react';
-import Navigation from './src/Navigation/Navigation';
+import Navigation from './src/navigation/Navigation';
 
 function App(): JSX.Element {
   return <Navigation />;
