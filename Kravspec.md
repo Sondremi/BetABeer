@@ -1,12 +1,3 @@
-## Dev stack-oversikt
-| Lag      | Teknologi                              |
-| -------- | -------------------------------------- |
-| Frontend | React Native (TypeScript)              |
-| Backend  | Node.js (Express el. Nest.js)          |
-| Database | PostgreSQL                             |
-| ORM      | Prisma                                 |
-| Hosting  | Railway, Supabase eller Render for dev |
-
 ## Krav
 * Logge inn med bruker - navn, brukernavn, telefon, mail
 * Legge til og invitere venner - forslag til venner av venner
@@ -27,6 +18,10 @@
 ** Kan legge til høyde, vekt og kjønn i profilen slik at promilleanslaget blir så nøyaktig som mulig og samtidig slippe å måtte skrive det inn før hvert spill
 
 ## Design
+### Login-skjerm
+* Logge inn med brukernavn og passord
+* Opprette ny bruker
+
 ### Profil-skjerm
 * Se navn, brukernavn og profilbilde
 * Se grupper man er lagt til i
@@ -76,4 +71,3 @@
 * Har betting alternativer med odds
 * Riktig svar blir registrert av den som opprettet 
 * Tilhører en gruppe
-
