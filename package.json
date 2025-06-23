@@ -11,9 +11,6 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
-    "@react-native-firebase/app": "^22.2.1",
-    "@react-native-firebase/auth": "^22.2.1",
-    "@react-native-firebase/firestore": "^22.2.1",
     "@react-native/new-app-screen": "0.80.0",
     "@react-navigation/bottom-tabs": "^7.3.15",
     "@react-navigation/native": "^7.1.11",
