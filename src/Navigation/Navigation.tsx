@@ -28,7 +28,13 @@ const ProfileStackNavigator = () => {
       <Stack.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{ title: 'Innstillinger' }}
+        options={{ 
+          title: 'Innstillinger',
+          headerBackTitle: 'Tilbake', // Set back button text
+          headerStyle: { backgroundColor: '#181A20' },
+          headerTintColor: '#FFD700',
+          headerTitleStyle: { color: '#FFD700', fontWeight: 'bold' },
+        }}
       />
     </Stack.Navigator>
   );
@@ -41,6 +47,12 @@ const MainTabNavigator = () => {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: false,
+        tabBarStyle: {
+          backgroundColor: '#181A20', // dark background
+          borderTopWidth: 0,
+        },
+        tabBarActiveTintColor: '#FFD700', // gold
+        tabBarInactiveTintColor: '#B0B0B0', // gray
         tabBarIcon: ({ color, size }) => {
           if (route.name === 'GroupsTab') {
             return <Image source={BeerIcon} style={{ width: size, height: size, tintColor: color }} />;
