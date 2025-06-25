@@ -171,6 +171,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               placeholder="Skriv inn brukernavn"
               autoCapitalize="none"
               autoCorrect={false}
+              placeholderTextColor="#FFD700"
+              selectionColor="#FFD700"
             />
           </View>
 
@@ -183,6 +185,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   value={formData.name}
                   onChangeText={(text) => setFormData({ ...formData, name: text })}
                   placeholder="Skriv inn fullt navn"
+                  placeholderTextColor="#FFD700"
+                  selectionColor="#FFD700"
                 />
               </View>
 
@@ -196,6 +200,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  placeholderTextColor="#FFD700"
+                  selectionColor="#FFD700"
                 />
               </View>
 
@@ -207,6 +213,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   onChangeText={(text) => setFormData({ ...formData, phone: text })}
                   placeholder="Skriv inn telefonnummer"
                   keyboardType="phone-pad"
+                  placeholderTextColor="#FFD700"
+                  selectionColor="#FFD700"
                 />
               </View>
             </>
@@ -222,6 +230,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
+              placeholderTextColor="#FFD700"
+              selectionColor="#FFD700"
             />
           </View>
 
@@ -236,6 +246,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
+                placeholderTextColor="#FFD700"
+                selectionColor="#FFD700"
               />
             </View>
           )}
@@ -279,7 +291,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#181818', // Dark background
   },
   scrollContent: {
     flexGrow: 1,
@@ -293,19 +305,25 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#FFC857', // Gold/amber
     marginBottom: 10,
+    letterSpacing: 1,
   },
   welcomeText: {
     fontSize: 18,
-    color: '#666',
+    color: '#F3F3F3', // Light text
     textAlign: 'center',
   },
   formContainer: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    padding: 20,
+    backgroundColor: '#232323', // Slightly lighter dark
+    borderRadius: 18,
+    padding: 24,
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   inputGroup: {
     marginBottom: 20,
@@ -313,32 +331,39 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFC857', // Gold/amber
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
+    borderColor: '#FFC857', // Gold border
+    borderRadius: 12,
+    padding: 14,
     fontSize: 16,
-    backgroundColor: '#fff',
+    backgroundColor: '#181818', // Match background
+    color: '#F3F3F3', // Light text
   },
   actionButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#FFC857', // Gold/amber
     paddingVertical: 15,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
     marginTop: 10,
     marginBottom: 20,
+    shadowColor: '#FFC857',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 2,
   },
   disabledButton: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#555',
   },
   actionButtonText: {
     fontSize: 16,
-    color: '#fff',
-    fontWeight: '600',
+    color: '#181818', // Dark text on gold
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   toggleContainer: {
     alignItems: 'center',
@@ -346,13 +371,13 @@ const styles = StyleSheet.create({
   },
   toggleText: {
     fontSize: 14,
-    color: '#666',
+    color: '#F3F3F3', // Light text
     marginBottom: 5,
   },
   toggleLink: {
     fontSize: 14,
-    color: '#007AFF',
-    fontWeight: '600',
+    color: '#FFC857', // Gold/amber
+    fontWeight: '700',
   },
 });
 
