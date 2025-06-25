@@ -82,7 +82,7 @@ const ProfileScreen = () => {
           <TouchableOpacity style={styles.headerButton} onPress={navigateToSettings}>
             <Image 
               source={SettingsIcon} 
-              style={{ width: 20, height: 20, tintColor: '#000000' }}
+              style={{ width: 20, height: 20, tintColor: '#FFD700' }} // Changed to gold for visibility
             />
           </TouchableOpacity>
         </View>
@@ -96,11 +96,22 @@ const ProfileScreen = () => {
             source={DefaultProfilePicture}
             style={styles.profileImage}
           />
+          <TouchableOpacity style={styles.editProfileImageButton} onPress={() => {/* Legg til bildebytte senere */}}>
+            <Image
+              source={require('../../assets/icons/noun-pencil-969012.png')}
+              style={{ width: 18, height: 18, tintColor: '#FFD700' }}
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Name and username */}
         <Text style={styles.name}>Sondre</Text>
         <Text style={styles.username}>sondremi</Text>
+
+        {/* Create group button */}
+        <TouchableOpacity style={styles.createGroupButton}>
+          <Text style={styles.createGroupButtonText}>Opprett gruppe</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Groups section */}
@@ -123,7 +134,7 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#181A20', // dark background
   },
   header: {
     paddingTop: 50,
@@ -138,7 +149,7 @@ const styles = StyleSheet.create({
   headerButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#23242A',
   },
   profileContent: {
     justifyContent: 'center',
@@ -148,23 +159,52 @@ const styles = StyleSheet.create({
   },
   profileImageContainer: {
     marginBottom: 30,
+    position: 'relative',
   },
   profileImage: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#23242A',
+    borderWidth: 2,
+    borderColor: '#FFD700',
+  },
+  editProfileImageButton: {
+    position: 'absolute',
+    right: 4,
+    bottom: 4,
+    backgroundColor: '#23242A',
+    borderRadius: 12,
+    padding: 2,
+    borderWidth: 2,
+    borderColor: '#FFD700',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   name: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#FFD700',
     marginBottom: 8,
   },
   username: {
     fontSize: 18,
-    color: '#666',
+    color: '#B0B0B0',
     fontWeight: '400',
+    marginBottom: 20,
+  },
+  createGroupButton: {
+    backgroundColor: '#FFD700',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  createGroupButtonText: {
+    color: '#181A20',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   groupsSection: {
     paddingHorizontal: 20,
@@ -173,7 +213,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#FFD700',
     marginBottom: 20,
   },
   groupRow: {
@@ -186,25 +226,29 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     overflow: 'hidden',
     position: 'relative',
+    backgroundColor: '#23242A',
+    borderWidth: 2,
+    borderColor: '#FFD700',
   },
   groupImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+    opacity: 0.7,
   },
   groupOverlay: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(24, 26, 32, 0.7)',
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   groupName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#FFD700',
     marginBottom: 2,
   },
   groupMembers: {

@@ -141,10 +141,10 @@ const FriendsScreen = () => {
         <Text style={styles.friendUsername}>@{item.username}</Text>
       </View>
       <TouchableOpacity
-        style={styles.addFriendButton}
         onPress={() => handleAddFriend(item)}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-      <Image source={AddFriendIcon} style={{ width: 24, height: 24, tintColor: '#007AFF' }} />
+        <Image source={AddFriendIcon} style={{ width: 24, height: 24, tintColor: '#FFD700' }} />
       </TouchableOpacity>
     </View>
   );
@@ -160,7 +160,6 @@ const FriendsScreen = () => {
       <View style={styles.inviteSection}>
         <TouchableOpacity style={styles.inviteButton} onPress={handleInviteFriends}>
           <Text style={styles.inviteButtonText}>Inviter venner</Text>
-          <Image source={InviteIcon} style={{ width: 24, height: 24, tintColor: '#007AFF' }} />
         </TouchableOpacity>
         <Text style={styles.inviteDescription}>
           Del lenken med venner for å invitere dem til appen
@@ -217,7 +216,7 @@ const FriendsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#181A20', // dark background
   },
   header: {
     paddingTop: 50,
@@ -227,7 +226,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#FFD700', // gold
   },
   inviteSection: {
     paddingHorizontal: 20,
@@ -239,21 +238,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 15,
     paddingHorizontal: 20,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#23242A',
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: '#FFD700',
     marginBottom: 10,
   },
   inviteButtonText: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#FFD700',
     fontWeight: '600',
     marginLeft: 8,
   },
   inviteDescription: {
     fontSize: 14,
-    color: '#666',
+    color: '#B0B0B0',
     textAlign: 'center',
   },
   section: {
@@ -263,12 +262,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#FFD700',
     marginBottom: 8,
   },
   sectionDescription: {
     fontSize: 14,
-    color: '#666',
+    color: '#B0B0B0',
     marginBottom: 20,
   },
   friendItem: {
@@ -276,7 +275,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#23242A',
     borderRadius: 12,
     marginBottom: 8,
   },
@@ -285,6 +284,9 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     marginRight: 15,
+    borderWidth: 2,
+    borderColor: '#FFD700',
+    backgroundColor: '#23242A',
   },
   friendInfo: {
     flex: 1,
@@ -292,19 +294,16 @@ const styles = StyleSheet.create({
   friendName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#fff',
     marginBottom: 2,
   },
   friendUsername: {
     fontSize: 14,
-    color: '#666',
+    color: '#FFD700',
   },
   addFriendButton: {
     padding: 8,
-    backgroundColor: '#f0f8ff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#007AFF',
+    // Removed backgroundColor, borderRadius, borderWidth, borderColor for clean icon
   },
   removeFriendButton: {
     padding: 8,
@@ -316,13 +315,13 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#666',
+    color: '#FFD700',
     marginTop: 15,
     marginBottom: 5,
   },
   emptyStateSubtext: {
     fontSize: 14,
-    color: '#999',
+    color: '#B0B0B0',
     textAlign: 'center',
   },
 });
