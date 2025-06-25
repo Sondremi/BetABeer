@@ -36,7 +36,7 @@ Opprett grupper, inviter venner og utfordre dem med ulike bets — og betal i sl
 | -------- | --------------------------------- |
 | Frontend | React Native (TypeScript)         |
 | Backend  | Node.js                           |
-| Database | PostgreSQL                        |
+| Database | Firebase                          |
 | ORM      | Prisma                            |
 | Hosting  | Railway, Supabase, Render         |
 
