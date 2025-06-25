@@ -48,7 +48,7 @@ Opprett grupper, inviter venner og utfordre dem med ulike bets — og betal i sl
 
 - Xcode (via App Store)
 - Xcode CLI tools (`xcode-select --install`)
-- Node.js (`nvm install --lts`)
+- Node.js (`brew install node`)
 - CocoaPods (`brew install cocoapods`)
 
 ---
