@@ -78,18 +78,6 @@ cd ios && pod install && cd ..
 
 ---
 
-### 🧠 4. Åpne i Xcode
-
-```bash
-open ios/BetABeer.xcworkspace
-```
-
-- Velg simulator eller enhet
-- Gå til `Signing & Capabilities`
-- Sett Apple ID som "Team"
-
----
-
 ### ▶️ 5. Kjør appen
 
 #### Via Xcode:
