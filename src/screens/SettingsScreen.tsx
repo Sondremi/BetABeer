@@ -88,7 +88,7 @@ const SettingsScreen = () => {
       <View style={styles.content}>
         {/* User Information Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Brukerinformasjon</Text>
+          <Text style={styles.sectionTitle}>Profil</Text>
           
           {/* Username - not editable */}
           <View style={styles.inputGroup}>
@@ -165,27 +165,30 @@ const SettingsScreen = () => {
               </View>
             ) : (
               <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
-                <Image source={PencilIcon} style={{ width: 20, height: 20, tintColor: '#007AFF' }} />
+                <Image source={PencilIcon} style={{ width: 20, height: 20, tintColor: '#FFD700' }} />
                 <Text style={styles.editButtonText}>Rediger informasjon</Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
 
+        {/* Divider between edit info and logout */}
+        <View style={styles.divider} />
+
         {/* Account Actions Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Konto</Text>
+          <Text style={styles.sectionTitle}>Logg ut</Text>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Image source={LogoutIcon} style={{ width: 20, height: 20, tintColor: '#FF9500' }} />
+            <Image source={LogoutIcon} style={{ width: 20, height: 20, tintColor: '#FFD700' }} />
             <Text style={styles.logoutButtonText}>Logg ut</Text>
           </TouchableOpacity>
         </View>
 
         {/* Danger Zone */}
         <View style={styles.dangerSection}>
-          <Text style={styles.dangerSectionTitle}>Farlig sone</Text>
+          <Text style={styles.dangerSectionTitle}>Slett bruker</Text>
           <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteUser}>
-            <Image source={DeleteIcon} style={{ width: 20, height: 20, tintColor: '#FF3B30' }} />
+            <Image source={DeleteIcon} style={{ width: 20, height: 20, tintColor: '#FF2222' }} />
             <Text style={styles.deleteButtonText}>Slett bruker</Text>
           </TouchableOpacity>
         </View>
@@ -197,7 +200,7 @@ const SettingsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#181A20',
   },
   content: {
     padding: 20,
@@ -208,7 +211,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#FFD700',
     marginBottom: 20,
   },
   inputGroup: {
@@ -217,27 +220,28 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFD700',
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#FFD700',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#fff',
+    backgroundColor: '#23242A',
+    color: '#fff',
   },
   readOnlyInput: {
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#23242A',
     borderRadius: 8,
     padding: 12,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#23242A',
   },
   readOnlyText: {
     fontSize: 16,
-    color: '#666',
+    color: '#fff',
   },
   buttonContainer: {
     marginTop: 20,
@@ -247,14 +251,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 15,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#23242A',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: '#FFD700',
   },
   editButtonText: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#FFD700',
     fontWeight: '600',
     marginLeft: 8,
   },
@@ -265,27 +269,27 @@ const styles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     padding: 15,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#2D2D2D', // Slightly lighter dark for contrast
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#6c757d',
+    borderColor: '#FFD700', // Gold border for visibility
     alignItems: 'center',
   },
   cancelButtonText: {
     fontSize: 16,
-    color: '#6c757d',
+    color: '#FFD700', // Gold text for visibility
     fontWeight: '600',
   },
   saveButton: {
     flex: 1,
     padding: 15,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#FFD700',
     borderRadius: 8,
     alignItems: 'center',
   },
   saveButtonText: {
     fontSize: 16,
-    color: '#fff',
+    color: '#181A20',
     fontWeight: '600',
   },
   logoutButton: {
@@ -293,27 +297,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 15,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#23242A',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FF9500',
+    borderColor: '#FFD700', // Match editButton
   },
   logoutButtonText: {
     fontSize: 16,
-    color: '#FF9500',
+    color: '#FFD700', // Match editButton
     fontWeight: '600',
     marginLeft: 8,
+  },
+  divider: {
+    borderTopWidth: 1,
+    borderTopColor: '#23242A',
+    marginVertical: 20,
   },
   dangerSection: {
     marginTop: 30,
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
+    borderTopColor: '#23242A',
   },
   dangerSectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FF3B30',
+    color: '#FF2222', // Stronger red
     marginBottom: 15,
   },
   deleteButton: {
@@ -321,14 +330,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 15,
-    backgroundColor: '#fff',
+    backgroundColor: '#23242A',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FF3B30',
+    borderColor: '#FF2222', // Stronger red
   },
   deleteButtonText: {
     fontSize: 16,
-    color: '#FF3B30',
+    color: '#FF2222', // Stronger red
     fontWeight: '600',
     marginLeft: 8,
   },

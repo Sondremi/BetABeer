@@ -120,7 +120,7 @@ const GroupScreen = () => {
         <TouchableOpacity style={styles.createBetButton}>
           <Image 
             source={CreateBetIcon} 
-            style={{ width: 24, height: 24, tintColor: '#007AFF' }} 
+            style={{ width: 24, height: 24, tintColor: '#FFD700' }} 
           />
           <Text style={styles.createBetText}>Opprett nytt bet</Text>
         </TouchableOpacity>
@@ -144,25 +144,26 @@ const GroupScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#181A20',
   },
   groupHeader: {
-    height: 200,
+    height: 260, // Increased height for larger image
     position: 'relative',
   },
   groupHeaderImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+    opacity: 0.7,
   },
   groupHeaderOverlay: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    backgroundColor: 'rgba(24, 26, 32, 0.7)',
+    paddingHorizontal: 12, // Less padding for smaller box
+    paddingVertical: 8, // Less padding for smaller box
   },
   groupHeaderInfo: {
     alignItems: 'flex-start',
@@ -170,12 +171,12 @@ const styles = StyleSheet.create({
   groupHeaderName: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#FFD700',
     marginBottom: 4,
   },
   groupHeaderMembers: {
     fontSize: 16,
-    color: '#fff',
+    color: '#FFD700',
     opacity: 0.9,
   },
   createBetSection: {
@@ -188,15 +189,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 15,
     paddingHorizontal: 20,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#23242A',
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#007AFF',
-    borderStyle: 'dashed',
+    borderColor: '#FFD700',
+    // Removed borderStyle: 'dashed' for solid border
   },
   createBetText: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#FFD700',
     fontWeight: '600',
     marginLeft: 8,
   },
@@ -207,45 +208,49 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#FFD700',
     marginBottom: 20,
   },
   betContainer: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#23242A',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFD700',
   },
   betTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#FFD700',
     marginBottom: 12,
   },
   optionsContainer: {
     gap: 8,
+    flexDirection: 'row',
+    justifyContent: 'center', // Center betting options
   },
   bettingOption: {
-    backgroundColor: '#fff',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    backgroundColor: '#181A20',
+    paddingVertical: 12, // Slightly larger
+    paddingHorizontal: 16, // Slightly larger
     borderRadius: 8,
     marginRight: 8,
-    minWidth: 100,
+    minWidth: 90, // Slightly larger
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#FFD700',
   },
   optionName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: '#fff',
     marginBottom: 4,
   },
   optionOdds: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#FFD700',
   },
 });
 
