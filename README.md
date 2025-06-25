@@ -75,6 +75,10 @@ npm install
 ```bash
 cd ios && pod install && cd ..
 ```
+Hvis det oppstår problemer med BoringSSL kjør denne istedet:
+```bash
+env PATH=/usr/bin:"$PATH" npx pod-install
+```
 
 ---
 
