@@ -56,6 +56,14 @@ npm install
 
 ---
 
+### 🔐 3. Deploy Firestore-regler
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+---
+
 ### ▶️ 3. Start prosjektet
 
 ```bash
