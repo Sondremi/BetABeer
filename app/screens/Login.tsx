@@ -181,6 +181,7 @@ const LoginScreen: React.FC = () => {
                 value={formData.email}
                 onChangeText={(text) => setFormData({ ...formData, email: text })}
                 placeholder="Skriv inn e-postadresse"
+                placeholderTextColor="#E0E0E0"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -195,6 +196,7 @@ const LoginScreen: React.FC = () => {
                   value={formData.username}
                   onChangeText={(text) => setFormData({ ...formData, username: text })}
                   placeholder="Skriv inn brukernavn"
+                  placeholderTextColor="#E0E0E0"
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
@@ -206,6 +208,7 @@ const LoginScreen: React.FC = () => {
                   value={formData.name}
                   onChangeText={(text) => setFormData({ ...formData, name: text })}
                   placeholder="Skriv inn fullt navn"
+                  placeholderTextColor="#E0E0E0"
                 />
               </View>
               <View style={styles.inputGroup}>
@@ -215,6 +218,7 @@ const LoginScreen: React.FC = () => {
                   value={formData.email}
                   onChangeText={(text) => setFormData({ ...formData, email: text })}
                   placeholder="Skriv inn e-postadresse"
+                  placeholderTextColor="#E0E0E0"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -227,6 +231,7 @@ const LoginScreen: React.FC = () => {
                   value={formData.phone}
                   onChangeText={(text) => setFormData({ ...formData, phone: text })}
                   placeholder="Skriv inn telefonnummer"
+                  placeholderTextColor="#E0E0E0"
                   keyboardType="phone-pad"
                 />
               </View>
@@ -240,6 +245,7 @@ const LoginScreen: React.FC = () => {
               value={formData.password}
               onChangeText={(text) => setFormData({ ...formData, password: text })}
               placeholder="Skriv inn passord"
+              placeholderTextColor="#E0E0E0"
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
@@ -255,6 +261,7 @@ const LoginScreen: React.FC = () => {
                 value={formData.confirmPassword}
                 onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
                 placeholder="Bekreft passord"
+                placeholderTextColor="#E0E0E0"
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
