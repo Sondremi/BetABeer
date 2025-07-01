@@ -1,8 +1,5 @@
-import React, { JSX } from 'react';
-import Navigation from './src/navigation/Navigation';
+import { Slot } from 'expo-router';
 
-function App(): JSX.Element {
-  return <Navigation />;
+export default function App() {
+  return <Slot />;
 }
-
-export default App;
