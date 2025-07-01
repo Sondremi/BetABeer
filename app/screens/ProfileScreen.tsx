@@ -1,12 +1,10 @@
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React from 'react';
 import { FlatList, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const ImageMissing = require('../../assets/images/image_missing.png');
 const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png');
+const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 
 type Group = {
   id: string;
@@ -15,7 +13,6 @@ type Group = {
   image: any;
 };
 
-// Updated to match new navigation structure
 type ProfileStackParamList = {
   ProfileHome: undefined;
   Settings: undefined;
@@ -28,9 +25,6 @@ type RootTabParamList = {
 };
 
 const ProfileScreen = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
-  const tabNavigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
-
   // Mock data for groups - replace with real data later
   const groups: Group[] = [
     {
@@ -53,16 +47,13 @@ const ProfileScreen = () => {
     },
   ];
 
-  // Expo Router navigation
   const { router } = require('expo-router');
 
   const navigateToSettings = () => {
-    // Bruk router.push i stedet for replace for å få tilbakeknapp
     router.push('/settings');
   };
 
   const navigateToGroup = (group: Group) => {
-    // Naviger til groups-tab og send valgt gruppe via query-string (expo-router støtter dette)
     router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(group) } });
   };
 
@@ -98,6 +89,9 @@ const ProfileScreen = () => {
             source={DefaultProfilePicture}
             style={styles.profileImage}
           />
+          <TouchableOpacity style={styles.editProfileImageButton} onPress={() => {/* TODO: implement backend for editing profile picture */}}>
+            <Image source={PencilIcon} style={{ width: 18, height: 18, tintColor: '#FFD700' }} />
+          </TouchableOpacity>
         </View>
 
         {/* Name and username */}
@@ -132,7 +126,7 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#181A20', // dark background
+    backgroundColor: '#181A20',
   },
   header: {
     paddingTop: 50,
@@ -170,7 +164,7 @@ const styles = StyleSheet.create({
   editProfileImageButton: {
     position: 'absolute',
     right: 4,
-    bottom: 4,
+    bottom: 4, // moved back up to original position
     backgroundColor: '#23242A',
     borderRadius: 12,
     padding: 2,
@@ -178,6 +172,11 @@ const styles = StyleSheet.create({
     borderColor: '#FFD700',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
   },
   name: {
     fontSize: 28,
