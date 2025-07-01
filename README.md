@@ -1,44 +1,31 @@
-# 🍻 Bet-A-Beer
+# 🍻 BetABeer
 
-**Bet-A-Beer** er en sosial drikkelek-app der du kan opprette morsomme bets med venner. Gjør vorspielet eller kvelden på byen enda gøyere ved å kombinere spilling, konkurranse og alkohol.
-
-Opprett grupper, inviter venner og utfordre dem med ulike bets — og betal i slurker, øl eller shots.
-
----
-
-## 🎯 Hva kan du bruke appen til?
-
-- Opprette og delta i betting-grupper med venner
-- Lage egne bets med odds, f.eks. "Hvem kommer ikke inn på byen?"
-- Bette med shots, øl, cider eller slurker
-- Få statistikk over hvem som vinner mest (eller drikker mest!)
-- Måle estimert promille og historikk for drikkeenheter
-- Gjør det til en konkurransebasert drikkelek — enkelt og morsomt
+**Bet-A-Beer** er en sosial drikkelek-app der du og vennene dine kan lage og delta i morsomme bets – og betale med slurker, øl eller shots. Perfekt for vors, fest og kveld på byen.
 
 ---
 
 ## ✨ Funksjoner
 
-- 🔐 Logg inn med navn, brukernavn, telefon og e-post
-- 👥 Legg til og inviter venner
-- 🥇 Opprett og delta i grupper med egne bets
-- 🍺 Bett på alternativer og se live odds og resultater
-- 📊 Se detaljerte bet-statistikker for deg og gruppene dine
-- 🍻 Visuell fordeling av "slurker" etter vinner er kåret
-- 🧪 Innebygd promillekalkulator med høyde, vekt og kjønn
-- 📱 Moderne React Native UI med mørkt tema og custom ikoner
+- Opprett og bli med i grupper med egne bets
+- Sett odds og alternativer i hvert bet
+- Bette med slurker, øl, cider eller shots
+- Inviter og legg til venner
+- Se live resultater og odds
+- Visuell fordeling av slurker når vinner kåres
+- Statistikk over hvem som vinner mest – eller drikker mest
+- Innebygd promillekalkulator basert på høyde, vekt og kjønn
+- Moderne UI med mørkt tema og tilpassede ikoner
+
 
 ---
 
 ## 🧱 Teknologi
 
-| Lag      | Teknologi                         |
-| -------- | --------------------------------- |
-| Frontend | React Native (TypeScript)         |
-| Backend  | Node.js                           |
-| Database | Firebase                          |
-| ORM      | Prisma                            |
-| Hosting  | Railway, Supabase, Render         |
+| Lag      | Teknologi                  |
+| -------- | -------------------------- |
+| Frontend | React Native + Expo (TS)   |
+| Backend  | Node.js                    |
+| Database | Firebase                   |
 
 ---
 
@@ -46,10 +33,9 @@ Opprett grupper, inviter venner og utfordre dem med ulike bets — og betal i sl
 
 ### 🧰 Forutsetninger
 
-- Xcode (via App Store)
-- Xcode CLI tools (`xcode-select --install`)
 - Node.js (`brew install node`)
-- CocoaPods (`brew install cocoapods`)
+- Expo CLI (`npm install -g expo-cli`)
+- Expo Go (last ned til Android/iOS for testing)
 
 ---
 
@@ -70,44 +56,33 @@ npm install
 
 ---
 
-### 🍎 3. Installer iOS-avhengigheter
+### ▶️ 3. Start prosjektet
 
 ```bash
-cd ios && pod install && cd ..
-```
-> 🔧 Hvis det oppstår problemer med BoringSSL kjør denne istedet:
-```bash
-env PATH=/usr/bin:"$PATH" npx pod-install
+npx expo start
 ```
 
----
-
-### ▶️ 5. Kjør appen
-
-#### Via Xcode:
-`Cmd + R` eller klikk ▶️
-
-#### Via terminal:
-
-```bash
-npx react-native run-ios
-```
-
-For fysisk enhet:
-```bash
-npx react-native run-ios --device
-```
+- Skann QR-koden med **Expo Go**
+- Eller trykk `i` for iOS-simulator, `a` for Android
 
 ---
 
 ## 🛠 Nyttige kommandoer
 
-Start Metro bundler:
+Start prosjektet:
+
 ```bash
-npx react-native start
+npx expo start
 ```
 
 Resett cache:
+
 ```bash
-npx react-native start --reset-cache
+npx expo start --clear
+```
+
+Eject fra Expo (hvis du trenger native moduler senere):
+
+```bash
+npx expo prebuild
 ```
