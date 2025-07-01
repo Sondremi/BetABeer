@@ -302,7 +302,7 @@ const LoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#181818', // Dark background
+    backgroundColor: '#181818',
   },
   scrollContent: {
     flexGrow: 1,
@@ -316,17 +316,17 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#FFC857', // Gold/amber
+    color: '#FFC857',
     marginBottom: 10,
     letterSpacing: 1,
   },
   welcomeText: {
     fontSize: 18,
-    color: '#F3F3F3', // Light text
+    color: '#F3F3F3',
     textAlign: 'center',
   },
   formContainer: {
-    backgroundColor: '#232323', // Slightly lighter dark
+    backgroundColor: '#232323',
     borderRadius: 18,
     padding: 24,
     marginBottom: 20,
@@ -342,20 +342,20 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFC857', // Gold/amber
+    color: '#FFC857',
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#FFC857', // Gold border
+    borderColor: '#FFC857',
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    backgroundColor: '#181818', // Match background
-    color: '#F3F3F3', // Light text
+    backgroundColor: '#181818',
+    color: '#F3F3F3',
   },
   actionButton: {
-    backgroundColor: '#FFC857', // Gold/amber
+    backgroundColor: '#FFC857',
     paddingVertical: 15,
     borderRadius: 12,
     alignItems: 'center',
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: 16,
-    color: '#181818', // Dark text on gold
+    color: '#181818',
     fontWeight: '700',
     letterSpacing: 0.5,
   },
@@ -382,12 +382,12 @@ const styles = StyleSheet.create({
   },
   toggleText: {
     fontSize: 14,
-    color: '#F3F3F3', // Light text
+    color: '#F3F3F3',
     marginBottom: 5,
   },
   toggleLink: {
     fontSize: 14,
-    color: '#FFC857', // Gold/amber
+    color: '#FFC857',
     fontWeight: '700',
   },
 });

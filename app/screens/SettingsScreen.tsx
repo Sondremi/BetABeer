@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
     color: '#FFD700',
   },
   headerPlaceholder: {
-    width: 40, // For å balansere header layout
+    width: 40,
   },
   content: {
     padding: 20,

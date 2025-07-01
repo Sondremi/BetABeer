@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Alert, FlatList, Image, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
-const InviteIcon = require('../../assets/icons/noun-share-1713270.png');
 const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
 const RemoveFriendIcon = require('../../assets/icons/noun-user-removed-7856287.png');
 const PeopleIcon = require('../../assets/icons/noun-people-2196504.png');
@@ -37,7 +36,6 @@ const FriendsScreen = () => {
       profilePicture: DefaultProfilePicture,
     },
   ]);
-
   const [friendsOfFriends] = useState<Friend[]>([
     {
       id: '5',
@@ -213,7 +211,7 @@ const FriendsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#181A20', // dark background
+    backgroundColor: '#181A20',
   },
   header: {
     paddingTop: 20,
@@ -223,7 +221,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#FFD700', // gold
+    color: '#FFD700',
   },
   inviteSection: {
     paddingHorizontal: 20,
@@ -300,7 +298,6 @@ const styles = StyleSheet.create({
   },
   addFriendButton: {
     padding: 8,
-    // Removed backgroundColor, borderRadius, borderWidth, borderColor for clean icon
   },
   removeFriendButton: {
     padding: 8,

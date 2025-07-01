@@ -1,4 +1,4 @@
-// Denne filen er kun for å unngå route warning i tabs. Kan tilpasses senere.
+// This file exists only to avoid a route warning. Can be customized later.
 import { Redirect } from 'expo-router';
 
 export default function TabIndex() {

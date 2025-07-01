@@ -1,9 +1,8 @@
-import { RouteProp } from '@react-navigation/native';
 import React from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import { FlatList, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
-const CreateBetIcon = require('../../assets/icons/noun-add-2037478.png');
 
 type Group = {
   id: string;
@@ -30,14 +29,9 @@ type RootTabParamList = {
   Friends: undefined;
 };
 
-type GroupScreenRouteProp = RouteProp<RootTabParamList, 'Groups'>;
-
-import { useLocalSearchParams } from 'expo-router';
 
 const GroupScreen = () => {
-  // Hent valgt gruppe fra params (expo-router)
   const params = useLocalSearchParams();
-  // Expo Router sender query-parametere som string eller array, håndter begge
   let selectedGroup = null;
   if (params.selectedGroup) {
     try {
@@ -154,7 +148,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#181A20',
   },
   groupHeader: {
-    height: 260, // Increased height for larger image
+    height: 260,
     position: 'relative',
   },
   groupHeaderImage: {
@@ -169,8 +163,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: 'rgba(24, 26, 32, 0.7)',
-    paddingHorizontal: 12, // Less padding for smaller box
-    paddingVertical: 8, // Less padding for smaller box
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   groupHeaderInfo: {
     alignItems: 'flex-start',
@@ -200,7 +194,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: '#FFD700',
-    // Removed borderStyle: 'dashed' for solid border
   },
   createBetText: {
     fontSize: 16,
@@ -235,15 +228,15 @@ const styles = StyleSheet.create({
   optionsContainer: {
     gap: 8,
     flexDirection: 'row',
-    justifyContent: 'center', // Center betting options
+    justifyContent: 'center',
   },
   bettingOption: {
     backgroundColor: '#181A20',
-    paddingVertical: 12, // Slightly larger
-    paddingHorizontal: 16, // Slightly larger
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 8,
     marginRight: 8,
-    minWidth: 90, // Slightly larger
+    minWidth: 90,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#FFD700',
