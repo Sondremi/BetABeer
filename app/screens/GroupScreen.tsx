@@ -124,13 +124,7 @@ const GroupScreen = () => {
     odds: number;
   };
 
-  type Bet = {
-    id: string;
-    title: string;
-    options: BettingOption[];
-  };
-
-  // Hent betts for valgt gruppe
+  // Get betts for selected group
   useEffect(() => {
     if (!selectedGroup) {
       setBetts([]);
@@ -152,24 +146,20 @@ const GroupScreen = () => {
     return () => { isMounted = false; };
   }, [selectedGroup]);
 
-  // Funksjon for å åpne bett-modal
   const openBetModal = () => {
     setBetTitle('');
     setBetOptions([{ name: '', odds: '' }]);
     setBetModalVisible(true);
   };
 
-  // Funksjon for å legge til flere alternativer
   const addBetOption = () => {
     setBetOptions([...betOptions, { name: '', odds: '' }]);
   };
 
-  // Funksjon for å oppdatere alternativer
   const updateBetOption = (idx: number, field: 'name' | 'odds', value: string) => {
     setBetOptions(prev => prev.map((opt, i) => i === idx ? { ...opt, [field]: value } : opt));
   };
 
-  // Funksjon for å lagre nytt bett
   const handleSaveBet = async () => {
     if (!selectedGroup) return;
     if (!betTitle.trim()) {
@@ -211,7 +201,7 @@ const GroupScreen = () => {
     </TouchableOpacity>
   );
 
-  // --- Rediger bett ---
+  // Edit bett
   const [editBetModalVisible, setEditBetModalVisible] = useState(false);
   const [editBetIdx, setEditBetIdx] = useState<number | null>(null);
   const [editBetTitle, setEditBetTitle] = useState('');
@@ -269,7 +259,6 @@ const GroupScreen = () => {
     }
   };
 
-  // Slett bett
   const handleDeleteBet = async () => {
     if (editBetIdx === null || !selectedGroup) return;
     
@@ -350,7 +339,7 @@ const GroupScreen = () => {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Gruppe-header */}
+      {/* Group-header */}
       <View style={styles.groupHeader}>
         <Image source={currentGroup.image} style={styles.groupHeaderImage} />
         <View style={styles.groupHeaderOverlay}>
@@ -409,7 +398,7 @@ const GroupScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Modal for å opprette nytt bett */}
+      {/* Modal for creating bet */}
       <Modal
         visible={betModalVisible}
         animationType="slide"
@@ -472,7 +461,7 @@ const GroupScreen = () => {
           ListEmptyComponent={<Text style={{ color: '#B0B0B0', textAlign: 'center', marginTop: 20 }}>Ingen bets i denne gruppen ennå.</Text>}
         />
 
-        {/* Modal for å redigere bett */}
+        {/* Modal for editing bet */}
         <Modal
           visible={editBetModalVisible}
           animationType="slide"
@@ -528,7 +517,7 @@ const GroupScreen = () => {
           </View>
         </Modal>
       </View>
-      {/* Slett gruppe knapp */}
+      {/* Delete group */}
       {selectedGroup && selectedGroup.id !== 'default' && (
         <View style={{ padding: 20 }}>
           <TouchableOpacity
