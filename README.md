@@ -69,7 +69,7 @@ firebase deploy --only firestore:rules
 
 ---
 
-### ▶️ 3. Start prosjektet
+### ▶️ 4. Start prosjektet
 
 ```bash
 npx expo start
