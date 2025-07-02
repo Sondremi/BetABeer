@@ -1,49 +1,69 @@
-import React from 'react';
-import { useLocalSearchParams } from 'expo-router';
-import { FlatList, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, updateDoc, updateDoc as updateUserDoc, where } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import { Alert, FlatList, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../context/AuthContext';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
-
-type Group = {
-  id: string;
-  name: string;
-  memberCount: number;
-  image: any;
-};
-
-type BettingOption = {
-  id: string;
-  name: string;
-  odds: number;
-};
-
-type Bet = {
-  id: string;
-  title: string;
-  options: BettingOption[];
-};
-
-type RootTabParamList = {
-  Groups: { selectedGroup?: Group };
-  Profile: undefined;
-  Friends: undefined;
-};
-
+const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 
 const GroupScreen = () => {
   const params = useLocalSearchParams();
-  let selectedGroup = null;
-  if (params.selectedGroup) {
-    try {
-      if (Array.isArray(params.selectedGroup)) {
-        selectedGroup = JSON.parse(params.selectedGroup[0]);
-      } else {
-        selectedGroup = JSON.parse(params.selectedGroup);
+  const router = useRouter();
+  const { user } = useAuth();
+  const [groups, setGroups] = useState<any[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<any>(null);
+
+  // Hent grupper for bruker fra Firestore
+  useEffect(() => {
+    if (!user) return;
+    let isMounted = true;
+    const fetchGroups = async () => {
+      const firestore = getFirestore();
+      const q = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
+      const snapshot = await getDocs(q);
+      if (!isMounted) return;
+      const groupList = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        name: docSnap.data().name,
+        memberCount: docSnap.data().members.length,
+        image: ImageMissing,
+        createdBy: docSnap.data().createdBy,
+      }));
+      setGroups(groupList);
+
+      // Finn valgt gruppe fra params, eller fallback til første gruppe
+      let groupFromParams = null;
+      if (params.selectedGroup) {
+        try {
+          if (Array.isArray(params.selectedGroup)) {
+            groupFromParams = JSON.parse(params.selectedGroup[0]);
+          } else {
+            groupFromParams = JSON.parse(params.selectedGroup);
+          }
+        } catch (e) {
+          groupFromParams = null;
+        }
       }
-    } catch (e) {
-      selectedGroup = null;
-    }
-  }
+      // Hvis valgt gruppe finnes i listen, bruk den, ellers bruk første gruppe
+      let foundGroup = null;
+      if (groupFromParams) {
+        foundGroup = groupList.find(g => g.id === groupFromParams.id);
+      }
+      if (foundGroup) {
+        setSelectedGroup(foundGroup);
+      } else if (groupList.length > 0) {
+        setSelectedGroup(groupList[0]);
+        // Ikke naviger automatisk til første gruppe, bare sett valgt gruppe
+      } else {
+        setSelectedGroup(null);
+      }
+    };
+    fetchGroups();
+    return () => { isMounted = false; };
+  }, [user, params.selectedGroup]);
+
+  // Ikke opprett automatisk gruppe. Brukeren kan ha null grupper.
 
   // Default group if none selected (for when accessing from bottom tab)
   const defaultGroup: Group = {
@@ -53,7 +73,67 @@ const GroupScreen = () => {
     image: ImageMissing,
   };
 
-  const currentGroup = selectedGroup || defaultGroup;
+  const [editingName, setEditingName] = useState(false);
+  const [groupName, setGroupName] = useState(selectedGroup ? selectedGroup.name : '');
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const currentGroup = selectedGroup ? { ...selectedGroup, name: groupName } : { id: 'default', name: 'Sist valgte gruppe', memberCount: 0, image: ImageMissing };
+
+  // Oppdater groupName hvis selectedGroup endres (f.eks. etter navneendring i Firestore)
+  React.useEffect(() => {
+    if (selectedGroup && selectedGroup.name !== groupName) {
+      setGroupName(selectedGroup.name);
+    }
+  }, [selectedGroup]);
+
+  // Slett gruppe fra Firestore og fjern fra brukerens groups-array
+  const handleDeleteGroup = async () => {
+    const groupToDelete = currentGroup;
+    if (!groupToDelete || groupToDelete.id === 'default') return;
+    setDeleting(true);
+    try {
+      const firestore = getFirestore();
+      // Slett gruppen fra Firestore
+      await deleteDoc(doc(firestore, 'groups', groupToDelete.id));
+      // Fjern gruppe-id fra brukerens groups-array
+      const userId = groupToDelete.createdBy;
+      if (userId) {
+        const userRef = doc(firestore, 'users', userId);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userGroups: string[] = userSnap.data().groups || [];
+          const updatedGroups = userGroups.filter((gid: string) => gid !== groupToDelete.id);
+          await updateUserDoc(userRef, { groups: updatedGroups });
+        }
+      }
+      Alert.alert('Slettet', 'Gruppen er slettet.');
+      // Naviger tilbake til profilsiden etter sletting
+      router.replace('/profile');
+    } catch (error) {
+      Alert.alert('Feil', 'Kunne ikke slette gruppe.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  type Group = {
+    id: string;
+    name: string;
+    memberCount: number;
+    image: any;
+  };
+
+  type BettingOption = {
+    id: string;
+    name: string;
+    odds: number;
+  };
+
+  type Bet = {
+    id: string;
+    title: string;
+    options: BettingOption[];
+  };
 
   // Mock data for bets - replace with real data later
   const bets: Bet[] = [
@@ -107,6 +187,28 @@ const GroupScreen = () => {
     </View>
   );
 
+  const handleSaveGroupName = async () => {
+    if (!selectedGroup) return;
+    if (!groupName.trim()) {
+      Alert.alert('Feil', 'Gruppenavn kan ikke være tomt');
+      return;
+    }
+    setSaving(true);
+    try {
+      const firestore = getFirestore();
+      await updateDoc(doc(firestore, 'groups', selectedGroup.id), { name: groupName });
+      setEditingName(false);
+      Alert.alert('Gruppenavn oppdatert!');
+      // Hent siste group-data fra Firestore og oppdater selectedGroup
+      // (slik at navnet ikke vises på alle grupper)
+      // Dette forutsetter at du har en mekanisme for å oppdatere group-listen i ProfileScreen
+    } catch (error) {
+      Alert.alert('Feil', 'Kunne ikke oppdatere gruppenavn');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
       {/* Gruppe-header */}
@@ -114,7 +216,45 @@ const GroupScreen = () => {
         <Image source={currentGroup.image} style={styles.groupHeaderImage} />
         <View style={styles.groupHeaderOverlay}>
           <View style={styles.groupHeaderInfo}>
-            <Text style={styles.groupHeaderName}>{currentGroup.name}</Text>
+            {editingName ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TextInput
+                  value={groupName}
+                  onChangeText={setGroupName}
+                  style={{
+                    color: '#FFD700',
+                    fontSize: 24,
+                    fontWeight: 'bold',
+                    backgroundColor: '#23242A',
+                    borderRadius: 8,
+                    paddingHorizontal: 10,
+                    marginRight: 8,
+                    minWidth: 120,
+                  }}
+                  editable={!saving}
+                  autoFocus
+                  placeholder="Gruppenavn"
+                  placeholderTextColor="#B0B0B0"
+                  onSubmitEditing={handleSaveGroupName}
+                  returnKeyType="done"
+                />
+                <TouchableOpacity onPress={handleSaveGroupName} disabled={saving} style={{ marginRight: 8 }}>
+                  <Image source={PencilIcon} style={{ width: 20, height: 20, tintColor: '#FFD700' }} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setEditingName(false)} disabled={saving}>
+                  <Text style={{ color: '#FFD700', fontWeight: 'bold', fontSize: 16 }}>Avbryt</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.groupHeaderName}>{currentGroup.name}</Text>
+                {selectedGroup && (
+                  <TouchableOpacity onPress={() => setEditingName(true)} style={{ marginLeft: 8 }}>
+                    <Image source={PencilIcon} style={{ width: 20, height: 20, tintColor: '#FFD700' }} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
             <Text style={styles.groupHeaderMembers}>{currentGroup.memberCount} medlemmer</Text>
           </View>
         </View>
@@ -138,6 +278,28 @@ const GroupScreen = () => {
           showsVerticalScrollIndicator={false}
         />
       </View>
+      {/* Slett gruppe knapp */}
+      {selectedGroup && selectedGroup.id !== 'default' && (
+        <View style={{ padding: 20 }}>
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#B00020',
+              borderRadius: 10,
+              paddingVertical: 14,
+              alignItems: 'center',
+              marginTop: 20,
+              borderWidth: 1,
+              borderColor: '#FFD700',
+            }}
+            onPress={handleDeleteGroup}
+            disabled={deleting}
+          >
+            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>
+              {deleting ? 'Sletter...' : 'Slett gruppe'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </ScrollView>
   );
 };

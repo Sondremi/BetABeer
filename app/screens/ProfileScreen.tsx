@@ -1,4 +1,5 @@
-import React from 'react';
+import { addDoc, collection, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import React, { useState } from 'react';
 import { FlatList, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 
@@ -15,31 +16,41 @@ type Group = {
 };
 
 const ProfileScreen = () => {
-  // Mock data for groups - replace with real data later
-  const groups: Group[] = [
-    {
-      id: '1',
-      name: 'Gutta',
-      memberCount: 8,
-      image: ImageMissing,
-    },
-    {
-      id: '2',
-      name: 'Vors',
-      memberCount: 15,
-      image: ImageMissing,
-    },
-    {
-      id: '3',
-      name: 'Fredag',
-      memberCount: 12,
-      image: ImageMissing,
-    },
-  ];
-
+  const { user, loading } = useAuth();
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [creatingGroup, setCreatingGroup] = useState(false);
   const { router } = require('expo-router');
 
-  const { user, loading } = useAuth();
+  // Hent grupper for bruker fra Firestore, også når man kommer tilbake til skjermen
+  React.useEffect(() => {
+    if (!user) return;
+    let isMounted = true;
+    const fetchGroups = async () => {
+      const firestore = getFirestore();
+      const q = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
+      const snapshot = await getDocs(q);
+      if (!isMounted) return;
+      const groupList: Group[] = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        name: docSnap.data().name,
+        memberCount: docSnap.data().members.length,
+        image: ImageMissing,
+      }));
+      setGroups(groupList);
+    };
+    fetchGroups();
+    // Oppdater grupper når man kommer tilbake til skjermen eller når det skjer endringer i gruppene
+    const unsubscribeFocus = router.addListener ? router.addListener('focus', fetchGroups) : undefined;
+
+    // Poll Firestore for endringer hvert 2. sekund (kan byttes til onSnapshot for live updates hvis ønskelig)
+    const interval = setInterval(fetchGroups, 2000);
+
+    return () => {
+      isMounted = false;
+      if (unsubscribeFocus) unsubscribeFocus();
+      clearInterval(interval);
+    };
+  }, [user, router]);
 
   const navigateToSettings = () => {
     router.push('/settings');
@@ -58,6 +69,45 @@ const ProfileScreen = () => {
       </View>
     </TouchableOpacity>
   );
+
+  const handleCreateGroup = async () => {
+    if (!user) return;
+    setCreatingGroup(true);
+    try {
+      const firestore = getFirestore();
+      const groupDoc = await addDoc(collection(firestore, 'groups'), {
+        name: 'Gruppenavn',
+        image: 'image_missing',
+        members: [user.id],
+        betts: [],
+        createdAt: serverTimestamp(),
+        createdBy: user.id,
+      });
+      const userRef = doc(firestore, 'users', user.id);
+      const userSnap = await getDoc(userRef);
+      let userGroups = [];
+      if (userSnap.exists() && userSnap.data().groups) {
+        userGroups = userSnap.data().groups;
+      }
+      await updateDoc(userRef, {
+        groups: [...userGroups, groupDoc.id],
+      });
+      const newGroup = {
+        id: groupDoc.id,
+        name: 'Gruppenavn',
+        memberCount: 1,
+        image: ImageMissing,
+      };
+      setGroups(prev => [...prev, newGroup]);
+      router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(newGroup) } });
+    } catch (error) {
+      let msg = 'Kunne ikke opprette gruppe';
+      if (error instanceof Error) msg += ': ' + error.message;
+      alert(msg);
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -103,8 +153,8 @@ const ProfileScreen = () => {
       <View style={styles.groupsSection}>
         <View style={styles.groupsHeaderRowSpread}>
           <Text style={styles.sectionTitleLeft}>Mine grupper</Text>
-          <TouchableOpacity style={styles.createGroupButtonRight} onPress={() => {/* TODO: implement backend */}}>
-            <Text style={styles.createGroupButtonTextSmall}>Opprett ny gruppe</Text>
+          <TouchableOpacity style={styles.createGroupButtonRight} onPress={handleCreateGroup} disabled={creatingGroup}>
+            <Text style={styles.createGroupButtonTextSmall}>{creatingGroup ? 'Oppretter...' : 'Opprett ny gruppe'}</Text>
           </TouchableOpacity>
         </View>
         <FlatList

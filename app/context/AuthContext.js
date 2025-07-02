@@ -1,5 +1,6 @@
+
+import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { authService } from '../services/firebase/authService';
 
 const AuthContext = createContext();
@@ -18,7 +19,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = authService.onAuthStateChanged(async (firebaseUser) => {
+    const fetchAndSetUser = async (firebaseUser) => {
       if (firebaseUser) {
         try {
           const userDoc = await getDoc(doc(firestore, 'users', firebaseUser.uid));
@@ -40,8 +41,40 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
       }
       setLoading(false);
+    };
+
+    let userDocUnsubscribe = null;
+    let currentUid = null;
+    const unsubscribe = authService.onAuthStateChanged(async (firebaseUser) => {
+      await fetchAndSetUser(firebaseUser);
+      // Sett opp onSnapshot på riktig bruker hver gang innlogging endres
+      if (userDocUnsubscribe) {
+        userDocUnsubscribe();
+        userDocUnsubscribe = null;
+      }
+      if (firebaseUser) {
+        currentUid = firebaseUser.uid;
+        const userDocRef = doc(firestore, 'users', currentUid);
+        const { onSnapshot } = require('firebase/firestore');
+        userDocUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const userData = docSnap.data();
+            setUser((prev) => prev ? {
+              ...prev,
+              username: userData.username,
+              name: userData.name,
+              email: userData.email,
+              phone: userData.phone,
+            } : null);
+          }
+        });
+      }
     });
-    return unsubscribe;
+
+    return () => {
+      unsubscribe && unsubscribe();
+      userDocUnsubscribe && userDocUnsubscribe();
+    };
   }, []);
 
   const value = {
