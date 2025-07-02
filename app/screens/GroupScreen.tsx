@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
+const DeleteIcon = require('../../assets/icons/noun-delete-7938028.png');
 
 type DrinkType = 'øl' | 'cider' | 'hard_selzer' | 'vin' | 'sprit';
 type MeasureType = 'slurker' | 'shot' | 'chug';
@@ -538,9 +539,20 @@ const GroupScreen = () => {
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={styles.groupHeaderName}>{currentGroup.name}</Text>
                 {selectedGroup && (
-                  <TouchableOpacity onPress={() => setEditingName(true)} style={{ marginLeft: 8 }}>
-                    <Image source={PencilIcon} style={{ width: 20, height: 20, tintColor: '#FFD700' }} />
-                  </TouchableOpacity>
+                  <>
+                    <TouchableOpacity onPress={() => setEditingName(true)} style={{ marginLeft: 8 }}>
+                      <Image source={PencilIcon} style={{ width: 20, height: 20, tintColor: '#FFD700' }} />
+                    </TouchableOpacity>
+                    {selectedGroup.createdBy === user?.id && (
+                      <TouchableOpacity 
+                        onPress={handleDeleteGroup} 
+                        disabled={deleting}
+                        style={{ marginLeft: 8, opacity: deleting ? 0.5 : 1 }}
+                      >
+                        <Image source={DeleteIcon} style={{ width: 20, height: 20, tintColor: '#FF6B6B' }} />
+                      </TouchableOpacity>
+                    )}
+                  </>
                 )}
               </View>
             )}
@@ -766,19 +778,6 @@ const GroupScreen = () => {
           </View>
         </View>
       </Modal>
-
-      {/* Delete Group Button */}
-      {selectedGroup && selectedGroup.createdBy === user?.id && (
-        <TouchableOpacity 
-          style={[styles.deleteButton, { opacity: deleting ? 0.5 : 1 }]} 
-          onPress={handleDeleteGroup}
-          disabled={deleting}
-        >
-          <Text style={styles.deleteButtonText}>
-            {deleting ? 'Sletter gruppe...' : 'Slett gruppe'}
-          </Text>
-        </TouchableOpacity>
-      )}
     </ScrollView>
   );
 };
@@ -822,15 +821,21 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   createBetButton: {
-    backgroundColor: '#FFD700',
-    borderRadius: 12,
-    paddingVertical: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    backgroundColor: '#23242A',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#FFD700',
+    marginBottom: 12,
   },
   createBetText: {
-    color: '#000',
     fontSize: 16,
-    fontWeight: 'bold',
+    color: '#FFD700',
+    fontWeight: '600',
   },
   betContainer: {
     backgroundColor: '#23242A',
@@ -890,9 +895,10 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   userWagerText: {
-    color: '#B0B0B0',
+    color: '#000',
     fontSize: 12,
     marginTop: 2,
+    fontWeight: '500',
   },
   wagersSection: {
     marginTop: 12,
@@ -944,19 +950,6 @@ const styles = StyleSheet.create({
   },
   selectionButtonTextSelected: {
     color: '#000',
-  },
-  deleteButton: {
-    backgroundColor: '#FF6B6B',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  deleteButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });
 
