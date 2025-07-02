@@ -1,5 +1,6 @@
 import React from 'react';
 import { FlatList, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../context/AuthContext';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const ImageMissing = require('../../assets/images/image_missing.png');
@@ -11,17 +12,6 @@ type Group = {
   name: string;
   memberCount: number;
   image: any;
-};
-
-type ProfileStackParamList = {
-  ProfileHome: undefined;
-  Settings: undefined;
-};
-
-type RootTabParamList = {
-  GroupsTab: { selectedGroup?: Group };
-  ProfileTab: undefined;
-  FriendsTab: undefined;
 };
 
 const ProfileScreen = () => {
@@ -49,6 +39,8 @@ const ProfileScreen = () => {
 
   const { router } = require('expo-router');
 
+  const { user, loading } = useAuth();
+
   const navigateToSettings = () => {
     router.push('/settings');
   };
@@ -66,6 +58,14 @@ const ProfileScreen = () => {
       </View>
     </TouchableOpacity>
   );
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}> 
+        <Text style={styles.name}>Laster...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -95,10 +95,8 @@ const ProfileScreen = () => {
         </View>
 
         {/* Name and username */}
-        <Text style={styles.name}>Sondre</Text>
-        <Text style={styles.username}>sondremi</Text>
-
-        {/* Fjernet create group button her */}
+        <Text style={styles.name}>{user?.name || 'Navn'}</Text>
+        <Text style={styles.username}>{user?.username || 'Brukernavn'}</Text>
       </View>
 
       {/* Groups section */}
@@ -164,7 +162,7 @@ const styles = StyleSheet.create({
   editProfileImageButton: {
     position: 'absolute',
     right: 4,
-    bottom: 4, // moved back up to original position
+    bottom: 4,
     backgroundColor: '#23242A',
     borderRadius: 12,
     padding: 2,

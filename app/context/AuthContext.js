@@ -1,7 +1,9 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { authService } from '../services/firebase/authService';
 
 const AuthContext = createContext();
+const firestore = getFirestore();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -19,8 +21,8 @@ export const AuthProvider = ({ children }) => {
     const unsubscribe = authService.onAuthStateChanged(async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          const userDoc = await firestore().collection('users').doc(firebaseUser.uid).get();
-          if (userDoc.exists) {
+          const userDoc = await getDoc(doc(firestore, 'users', firebaseUser.uid));
+          if (userDoc.exists()) {
             const userData = userDoc.data();
             setUser({
               id: firebaseUser.uid,
