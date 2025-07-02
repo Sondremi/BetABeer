@@ -18,7 +18,7 @@ const GroupScreen = () => {
   const [groupName, setGroupName] = useState(selectedGroup ? selectedGroup.name : '');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const currentGroup = selectedGroup ? { ...selectedGroup, name: groupName } : { id: 'default', name: 'Sist valgte gruppe', memberCount: 0, image: ImageMissing };
+  const currentGroup = selectedGroup ? { ...selectedGroup, name: groupName } : { id: 'default', name: 'Gruppenavn', memberCount: 0, image: ImageMissing };
 
   useEffect(() => {
     if (!user) return;
