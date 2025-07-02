@@ -14,7 +14,12 @@ const GroupScreen = () => {
   const [groups, setGroups] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
 
-  // Hent grupper for bruker fra Firestore
+  const [editingName, setEditingName] = useState(false);
+  const [groupName, setGroupName] = useState(selectedGroup ? selectedGroup.name : '');
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const currentGroup = selectedGroup ? { ...selectedGroup, name: groupName } : { id: 'default', name: 'Sist valgte gruppe', memberCount: 0, image: ImageMissing };
+
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
@@ -31,8 +36,6 @@ const GroupScreen = () => {
         createdBy: docSnap.data().createdBy,
       }));
       setGroups(groupList);
-
-      // Finn valgt gruppe fra params, eller fallback til første gruppe
       let groupFromParams = null;
       if (params.selectedGroup) {
         try {
@@ -45,7 +48,6 @@ const GroupScreen = () => {
           groupFromParams = null;
         }
       }
-      // Hvis valgt gruppe finnes i listen, bruk den, ellers bruk første gruppe
       let foundGroup = null;
       if (groupFromParams) {
         foundGroup = groupList.find(g => g.id === groupFromParams.id);
@@ -54,7 +56,6 @@ const GroupScreen = () => {
         setSelectedGroup(foundGroup);
       } else if (groupList.length > 0) {
         setSelectedGroup(groupList[0]);
-        // Ikke naviger automatisk til første gruppe, bare sett valgt gruppe
       } else {
         setSelectedGroup(null);
       }
@@ -63,39 +64,19 @@ const GroupScreen = () => {
     return () => { isMounted = false; };
   }, [user, params.selectedGroup]);
 
-  // Ikke opprett automatisk gruppe. Brukeren kan ha null grupper.
-
-  // Default group if none selected (for when accessing from bottom tab)
-  const defaultGroup: Group = {
-    id: 'default',
-    name: 'Sist valgte gruppe',
-    memberCount: 0,
-    image: ImageMissing,
-  };
-
-  const [editingName, setEditingName] = useState(false);
-  const [groupName, setGroupName] = useState(selectedGroup ? selectedGroup.name : '');
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const currentGroup = selectedGroup ? { ...selectedGroup, name: groupName } : { id: 'default', name: 'Sist valgte gruppe', memberCount: 0, image: ImageMissing };
-
-  // Oppdater groupName hvis selectedGroup endres (f.eks. etter navneendring i Firestore)
   React.useEffect(() => {
     if (selectedGroup && selectedGroup.name !== groupName) {
       setGroupName(selectedGroup.name);
     }
   }, [selectedGroup]);
 
-  // Slett gruppe fra Firestore og fjern fra brukerens groups-array
   const handleDeleteGroup = async () => {
     const groupToDelete = currentGroup;
     if (!groupToDelete || groupToDelete.id === 'default') return;
     setDeleting(true);
     try {
       const firestore = getFirestore();
-      // Slett gruppen fra Firestore
       await deleteDoc(doc(firestore, 'groups', groupToDelete.id));
-      // Fjern gruppe-id fra brukerens groups-array
       const userId = groupToDelete.createdBy;
       if (userId) {
         const userRef = doc(firestore, 'users', userId);
@@ -107,20 +88,12 @@ const GroupScreen = () => {
         }
       }
       Alert.alert('Slettet', 'Gruppen er slettet.');
-      // Naviger tilbake til profilsiden etter sletting
       router.replace('/profile');
     } catch (error) {
       Alert.alert('Feil', 'Kunne ikke slette gruppe.');
     } finally {
       setDeleting(false);
     }
-  };
-
-  type Group = {
-    id: string;
-    name: string;
-    memberCount: number;
-    image: any;
   };
 
   type BettingOption = {
@@ -199,9 +172,6 @@ const GroupScreen = () => {
       await updateDoc(doc(firestore, 'groups', selectedGroup.id), { name: groupName });
       setEditingName(false);
       Alert.alert('Gruppenavn oppdatert!');
-      // Hent siste group-data fra Firestore og oppdater selectedGroup
-      // (slik at navnet ikke vises på alle grupper)
-      // Dette forutsetter at du har en mekanisme for å oppdatere group-listen i ProfileScreen
     } catch (error) {
       Alert.alert('Feil', 'Kunne ikke oppdatere gruppenavn');
     } finally {

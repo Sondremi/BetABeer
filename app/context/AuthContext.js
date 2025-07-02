@@ -47,7 +47,6 @@ export const AuthProvider = ({ children }) => {
     let currentUid = null;
     const unsubscribe = authService.onAuthStateChanged(async (firebaseUser) => {
       await fetchAndSetUser(firebaseUser);
-      // Sett opp onSnapshot på riktig bruker hver gang innlogging endres
       if (userDocUnsubscribe) {
         userDocUnsubscribe();
         userDocUnsubscribe = null;

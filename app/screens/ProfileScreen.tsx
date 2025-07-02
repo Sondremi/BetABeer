@@ -21,7 +21,6 @@ const ProfileScreen = () => {
   const [creatingGroup, setCreatingGroup] = useState(false);
   const { router } = require('expo-router');
 
-  // Hent grupper for bruker fra Firestore, også når man kommer tilbake til skjermen
   React.useEffect(() => {
     if (!user) return;
     let isMounted = true;
@@ -39,10 +38,8 @@ const ProfileScreen = () => {
       setGroups(groupList);
     };
     fetchGroups();
-    // Oppdater grupper når man kommer tilbake til skjermen eller når det skjer endringer i gruppene
     const unsubscribeFocus = router.addListener ? router.addListener('focus', fetchGroups) : undefined;
 
-    // Poll Firestore for endringer hvert 2. sekund (kan byttes til onSnapshot for live updates hvis ønskelig)
     const interval = setInterval(fetchGroups, 2000);
 
     return () => {
