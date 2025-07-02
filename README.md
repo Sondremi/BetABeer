@@ -35,6 +35,7 @@
 
 - Node.js (`brew install node`)
 - Expo CLI (`npm install -g expo-cli`)
+- Firebase CLI (`npm install -g firebase-tools`)
 - Expo Go (last ned til Android/iOS for testing)
 
 ---
@@ -56,7 +57,11 @@ npm install
 
 ---
 
-### 🔐 3. Deploy Firestore-regler
+### 🔐 3. Setup Firebase
+
+```bash
+firebase login
+```
 
 ```bash
 firebase deploy --only firestore:rules
