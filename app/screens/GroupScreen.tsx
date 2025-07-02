@@ -32,6 +32,8 @@ interface Bet {
   title: string;
   options: BettingOption[];
   wagers?: BetWager[];
+  correctOptionId?: string;
+  isFinished?: boolean;
 }
 
 const GroupScreen = () => {
@@ -58,6 +60,8 @@ const GroupScreen = () => {
   const [selectedMeasureType, setSelectedMeasureType] = useState<MeasureType>('slurker');
   const [betAmount, setBetAmount] = useState('1');
   const [placingBet, setPlacingBet] = useState(false);
+  const [selectCorrectModalVisible, setSelectCorrectModalVisible] = useState(false);
+  const [selectCorrectBetIdx, setSelectCorrectBetIdx] = useState<number | null>(null);
 
   const currentGroup = selectedGroup ? { ...selectedGroup, name: groupName } : { id: 'default', name: 'Gruppenavn', memberCount: 0, image: ImageMissing };
 
@@ -312,23 +316,44 @@ const GroupScreen = () => {
   const renderBettingOption = ({ item: option, bet }: { item: BettingOption, bet: Bet }) => {
     const userWager = getUserWagerForBet(bet);
     const isUserChoice = userWager?.optionId === option.id;
+    const isCorrect = bet.correctOptionId === option.id;
+    const isBetFinished = bet.isFinished;
     
     return (
       <TouchableOpacity 
-        style={[styles.bettingOption, isUserChoice && styles.bettingOptionSelected]} 
-        onPress={() => openPlaceBetModal(bet, option)}
+        style={[
+          styles.bettingOption, 
+          isUserChoice && styles.bettingOptionSelected,
+          isCorrect && styles.bettingOptionCorrect,
+          isBetFinished && !isCorrect && styles.bettingOptionIncorrect
+        ]} 
+        onPress={() => !isBetFinished && openPlaceBetModal(bet, option)}
+        disabled={isBetFinished}
       >
         <View style={{ flex: 1 }}>
-          <Text style={[styles.optionName, isUserChoice && styles.optionNameSelected]}>
-            {option.name}
+          <Text style={[
+            styles.optionName, 
+            isUserChoice && styles.optionNameSelected,
+            isCorrect && styles.optionNameCorrect,
+            isBetFinished && !isCorrect && styles.optionNameIncorrect
+          ]}>
+            {option.name} {isCorrect && '✓'}
           </Text>
           {isUserChoice && userWager && (
-            <Text style={styles.userWagerText}>
+            <Text style={[
+              styles.userWagerText,
+              isCorrect && styles.userWagerTextCorrect
+            ]}>
               Ditt bet: {userWager.amount} {userWager.measureType} {userWager.drinkType}
             </Text>
           )}
         </View>
-        <Text style={[styles.optionOdds, isUserChoice && styles.optionOddsSelected]}>
+        <Text style={[
+          styles.optionOdds, 
+          isUserChoice && styles.optionOddsSelected,
+          isCorrect && styles.optionOddsCorrect,
+          isBetFinished && !isCorrect && styles.optionOddsIncorrect
+        ]}>
           {option.odds.toFixed(1)}
         </Text>
       </TouchableOpacity>
@@ -346,7 +371,69 @@ const GroupScreen = () => {
     setEditBetIdx(idx);
     setEditBetTitle(bet.title);
     setEditBetOptions(bet.options.map((opt: any) => ({ name: opt.name, odds: opt.odds.toString() })));
-    setEditBetModalVisible(true);
+    
+    // Hvis bettet allerede er ferdig/har korrekt svar, åpne modal for å administrere det
+    if (bet.correctOptionId || bet.isFinished) {
+      setSelectCorrectBetIdx(idx);
+      setSelectCorrectModalVisible(true);
+    } else {
+      // Hvis bettet ikke er ferdig, gi brukeren valg mellom å redigere eller ferdigstille
+      Alert.alert(
+        'Administrer bet',
+        'Hva vil du gjøre med dette bettet?',
+        [
+          {
+            text: 'Rediger bet',
+            onPress: () => setEditBetModalVisible(true)
+          },
+          {
+            text: 'Marker som ferdig',
+            onPress: () => {
+              setSelectCorrectBetIdx(idx);
+              setSelectCorrectModalVisible(true);
+            }
+          },
+          {
+            text: 'Avbryt',
+            style: 'cancel'
+          }
+        ]
+      );
+    }
+  };
+
+  const handleSelectCorrectOption = async (optionId: string | null) => {
+    if (selectCorrectBetIdx === null || !selectedGroup) return;
+    
+    try {
+      const firestore = getFirestore();
+      const groupRef = doc(firestore, 'groups', selectedGroup.id);
+      const groupSnap = await getDoc(groupRef);
+      
+      if (groupSnap.exists()) {
+        const groupBetts = groupSnap.data().betts || [];
+        const newBetts = [...groupBetts];
+        
+        if (optionId === null) {
+          // Fjern korrekt svar og gjør bettet aktivt igjen
+          delete newBetts[selectCorrectBetIdx].correctOptionId;
+          newBetts[selectCorrectBetIdx].isFinished = false;
+        } else {
+          // Sett korrekt svar og ferdigstill bettet
+          newBetts[selectCorrectBetIdx].correctOptionId = optionId;
+          newBetts[selectCorrectBetIdx].isFinished = true;
+        }
+        
+        await updateDoc(groupRef, { betts: newBetts });
+        setBetts(newBetts);
+        setSelectCorrectModalVisible(false);
+        
+        Alert.alert('Suksess', optionId ? 'Riktig alternativ er markert!' : 'Bettet er aktivt igjen!');
+      }
+    } catch (error) {
+      Alert.alert('Feil', 'Kunne ikke oppdatere bett');
+      console.error('Select correct option error:', error);
+    }
   };
 
   const updateEditBetOption = (idx: number, field: 'name' | 'odds', value: string) => {
@@ -438,16 +525,32 @@ const GroupScreen = () => {
     return (
       <View style={styles.betContainer}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text style={styles.betTitle}>{item.title}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.betTitle}>{item.title}</Text>
+            {item.isFinished && (
+              <Text style={styles.betStatusText}>
+                Ferdig - Riktig svar: {getOptionName(item, item.correctOptionId || '')}
+              </Text>
+            )}
+          </View>
           <TouchableOpacity onPress={() => openEditBetModal(item, index)}>
             <Image source={PencilIcon} style={{ width: 18, height: 18, tintColor: '#FFD700' }} />
           </TouchableOpacity>
         </View>
         
         {userWager && (
-          <View style={styles.userBetSummary}>
-            <Text style={styles.userBetSummaryText}>
+          <View style={[
+            styles.userBetSummary,
+            item.isFinished && item.correctOptionId === userWager.optionId && styles.userBetSummaryWin,
+            item.isFinished && item.correctOptionId !== userWager.optionId && styles.userBetSummaryLose
+          ]}>
+            <Text style={[
+              styles.userBetSummaryText,
+              item.isFinished && item.correctOptionId === userWager.optionId && styles.userBetSummaryTextWin,
+              item.isFinished && item.correctOptionId !== userWager.optionId && styles.userBetSummaryTextLose
+            ]}>
               Du har satset: {userWager.amount} {userWager.measureType} {userWager.drinkType} på "{getOptionName(item, userWager.optionId)}"
+              {item.isFinished && (item.correctOptionId === userWager.optionId ? ' - DU VANT! 🎉' : ' - Du tapte 😢')}
             </Text>
           </View>
         )}
@@ -778,6 +881,72 @@ const GroupScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Modal for selecting correct option */}
+      <Modal
+        visible={selectCorrectModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSelectCorrectModalVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: '#23242A', borderRadius: 16, padding: 24, width: '90%' }}>
+            <Text style={{ color: '#FFD700', fontSize: 20, fontWeight: 'bold', marginBottom: 16 }}>
+              {selectCorrectBetIdx !== null && betts[selectCorrectBetIdx]?.isFinished 
+                ? 'Administrer ferdig bet' 
+                : 'Velg riktig alternativ'}
+            </Text>
+            
+            {selectCorrectBetIdx !== null && (
+              <>
+                <Text style={{ color: '#fff', fontSize: 16, marginBottom: 16 }}>
+                  {betts[selectCorrectBetIdx]?.title}
+                </Text>
+                
+                {betts[selectCorrectBetIdx]?.isFinished && (
+                  <TouchableOpacity
+                    style={[styles.selectionButton, { marginBottom: 16, backgroundColor: '#FF6B6B' }]}
+                    onPress={() => handleSelectCorrectOption(null)}
+                  >
+                    <Text style={[styles.selectionButtonText, { color: '#fff' }]}>
+                      Gjør bettet aktivt igjen
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                
+                <Text style={{ color: '#fff', fontSize: 14, marginBottom: 12 }}>
+                  {betts[selectCorrectBetIdx]?.isFinished ? 'Eller velg nytt riktig alternativ:' : 'Velg riktig alternativ:'}
+                </Text>
+                
+                {betts[selectCorrectBetIdx]?.options.map((option) => (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.selectionButton,
+                      { marginBottom: 8, width: '100%' },
+                      betts[selectCorrectBetIdx]?.correctOptionId === option.id && styles.selectionButtonSelected
+                    ]}
+                    onPress={() => handleSelectCorrectOption(option.id)}
+                  >
+                    <Text style={[
+                      styles.selectionButtonText,
+                      betts[selectCorrectBetIdx]?.correctOptionId === option.id && styles.selectionButtonTextSelected
+                    ]}>
+                      {option.name} (odds: {option.odds})
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
+
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
+              <TouchableOpacity onPress={() => setSelectCorrectModalVisible(false)}>
+                <Text style={{ color: '#B0B0B0', fontSize: 16 }}>Avbryt</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -950,6 +1119,49 @@ const styles = StyleSheet.create({
   },
   selectionButtonTextSelected: {
     color: '#000',
+  },
+  betStatusText: {
+    color: '#B0B0B0',
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  bettingOptionCorrect: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
+  bettingOptionIncorrect: {
+    backgroundColor: '#333',
+    borderColor: '#333',
+    opacity: 0.7,
+  },
+  optionNameCorrect: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  optionNameIncorrect: {
+    color: '#999',
+  },
+  optionOddsCorrect: {
+    color: '#fff',
+  },
+  optionOddsIncorrect: {
+    color: '#999',
+  },
+  userBetSummaryWin: {
+    backgroundColor: '#4CAF50',
+  },
+  userBetSummaryLose: {
+    backgroundColor: '#F44336',
+  },
+  userBetSummaryTextWin: {
+    color: '#fff',
+  },
+  userBetSummaryTextLose: {
+    color: '#fff',
+  },
+  userWagerTextCorrect: {
+    color: '#fff',
   },
 });
 
