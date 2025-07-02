@@ -7,7 +7,7 @@ service cloud.firestore {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
-    // Alle innloggede brukere kan opprette og skrive til grupper de er medlem av
+    // Alle innloggede brukere kan opprette, slette og skrive til grupper de er medlem av
     match /groups/{groupId} {
       allow read: if true;
       allow write: if request.auth != null && (
