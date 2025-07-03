@@ -1,7 +1,9 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { authService } from '../services/firebase/authService';
+import { globalStyles } from '../styles/globalStyles';
+import { loginStyles } from '../styles/components/loginStyles';
 
 const LoginScreen: React.FC = () => {
   const router = useRouter();
@@ -77,7 +79,7 @@ const LoginScreen: React.FC = () => {
         return false;
       }
     } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke validere brukernavn');
+      Alert.alert('Feil', 'Kunne ikke opprette bruker. Prøv igjen senere.');
       return false;
     }
 
@@ -153,31 +155,31 @@ const LoginScreen: React.FC = () => {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={globalStyles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
         contentContainerStyle={[
-          styles.scrollContent,
+          globalStyles.scrollContent,
           !isLoginMode && { paddingTop: 80 }
         ]}
         keyboardShouldPersistTaps="handled"
       >
         {/* Logo/Header */}
-        <View style={styles.header}>
-          <Text style={styles.appName}>BetABeer</Text>
-          <Text style={styles.welcomeText}>
+        <View style={globalStyles.headerCentered}>
+          <Text style={loginStyles.appName}>BetABeer</Text>
+          <Text style={loginStyles.welcomeText}>
             {isLoginMode ? 'Velkommen tilbake!' : 'Opprett ny bruker'}
           </Text>
         </View>
 
         {/* Login Form */}
-        <View style={styles.formContainer}>
+        <View style={globalStyles.formContainerAlt}>
           {isLoginMode ? (
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>E-postadresse</Text>
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>E-postadresse</Text>
               <TextInput
-                style={styles.input}
+                style={globalStyles.inputAlt}
                 value={formData.email}
                 onChangeText={(text) => setFormData({ ...formData, email: text })}
                 placeholder="Skriv inn e-postadresse"
@@ -189,10 +191,10 @@ const LoginScreen: React.FC = () => {
             </View>
           ) : (
             <>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Brukernavn</Text>
+              <View style={globalStyles.inputGroup}>
+                <Text style={globalStyles.label}>Brukernavn</Text>
                 <TextInput
-                  style={styles.input}
+                  style={globalStyles.inputAlt}
                   value={formData.username}
                   onChangeText={(text) => setFormData({ ...formData, username: text })}
                   placeholder="Skriv inn brukernavn"
@@ -201,20 +203,20 @@ const LoginScreen: React.FC = () => {
                   autoCorrect={false}
                 />
               </View>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Navn</Text>
+              <View style={globalStyles.inputGroup}>
+                <Text style={globalStyles.label}>Navn</Text>
                 <TextInput
-                  style={styles.input}
+                  style={globalStyles.inputAlt}
                   value={formData.name}
                   onChangeText={(text) => setFormData({ ...formData, name: text })}
                   placeholder="Skriv inn fullt navn"
                   placeholderTextColor="#E0E0E0"
                 />
               </View>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>E-postadresse</Text>
+              <View style={globalStyles.inputGroup}>
+                <Text style={globalStyles.label}>E-postadresse</Text>
                 <TextInput
-                  style={styles.input}
+                  style={globalStyles.inputAlt}
                   value={formData.email}
                   onChangeText={(text) => setFormData({ ...formData, email: text })}
                   placeholder="Skriv inn e-postadresse"
@@ -224,10 +226,10 @@ const LoginScreen: React.FC = () => {
                   autoCorrect={false}
                 />
               </View>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Telefonnummer</Text>
+              <View style={globalStyles.inputGroup}>
+                <Text style={globalStyles.label}>Telefonnummer</Text>
                 <TextInput
-                  style={styles.input}
+                  style={globalStyles.inputAlt}
                   value={formData.phone}
                   onChangeText={(text) => setFormData({ ...formData, phone: text })}
                   placeholder="Skriv inn telefonnummer"
@@ -238,10 +240,10 @@ const LoginScreen: React.FC = () => {
             </>
           )}
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Passord</Text>
+          <View style={globalStyles.inputGroup}>
+            <Text style={globalStyles.label}>Passord</Text>
             <TextInput
-              style={styles.input}
+              style={globalStyles.inputAlt}
               value={formData.password}
               onChangeText={(text) => setFormData({ ...formData, password: text })}
               placeholder="Skriv inn passord"
@@ -254,10 +256,10 @@ const LoginScreen: React.FC = () => {
           </View>
 
           {!isLoginMode && (
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Bekreft passord</Text>
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Bekreft passord</Text>
               <TextInput
-                style={styles.input}
+                style={globalStyles.inputAlt}
                 value={formData.confirmPassword}
                 onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
                 placeholder="Bekreft passord"
@@ -272,11 +274,11 @@ const LoginScreen: React.FC = () => {
 
           {/* Action Button */}
           <TouchableOpacity
-            style={[styles.actionButton, isLoading && styles.disabledButton]}
+            style={[globalStyles.primaryButtonShadow, isLoading && globalStyles.disabledButton]}
             onPress={isLoginMode ? handleLogin : handleRegister}
             disabled={isLoading}
           >
-            <Text style={styles.actionButtonText}>
+            <Text style={globalStyles.primaryButtonText}>
               {isLoading
                 ? 'Venter...'
                 : isLoginMode
@@ -287,15 +289,15 @@ const LoginScreen: React.FC = () => {
           </TouchableOpacity>
 
           {/* Toggle Mode */}
-          <View style={styles.toggleContainer}>
-            <Text style={styles.toggleText}>
+          <View style={loginStyles.toggleContainer}>
+            <Text style={loginStyles.toggleText}>
               {isLoginMode
                 ? 'Har du ikke en bruker?'
                 : 'Har du allerede en bruker?'
               }
             </Text>
             <TouchableOpacity onPress={toggleMode}>
-              <Text style={styles.toggleLink}>
+              <Text style={loginStyles.toggleLink}>
                 {isLoginMode ? 'Opprett ny bruker' : 'Logg inn her'}
               </Text>
             </TouchableOpacity>
@@ -305,98 +307,5 @@ const LoginScreen: React.FC = () => {
     </KeyboardAvoidingView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#181818',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 20,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  appName: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#FFC857',
-    marginBottom: 10,
-    letterSpacing: 1,
-  },
-  welcomeText: {
-    fontSize: 18,
-    color: '#F3F3F3',
-    textAlign: 'center',
-  },
-  formContainer: {
-    backgroundColor: '#232323',
-    borderRadius: 18,
-    padding: 24,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFC857',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#FFC857',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    backgroundColor: '#181818',
-    color: '#F3F3F3',
-  },
-  actionButton: {
-    backgroundColor: '#FFC857',
-    paddingVertical: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 20,
-    shadowColor: '#FFC857',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  disabledButton: {
-    backgroundColor: '#555',
-  },
-  actionButtonText: {
-    fontSize: 16,
-    color: '#181818',
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  toggleContainer: {
-    alignItems: 'center',
-    paddingTop: 10,
-  },
-  toggleText: {
-    fontSize: 14,
-    color: '#F3F3F3',
-    marginBottom: 5,
-  },
-  toggleLink: {
-    fontSize: 14,
-    color: '#FFC857',
-    fontWeight: '700',
-  },
-});
 
 export default LoginScreen;
