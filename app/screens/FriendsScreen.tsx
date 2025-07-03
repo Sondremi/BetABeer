@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { globalStyles } from '../styles/globalStyles';
+import { friendsStyles } from '../styles/components/friendsStyles';
 import { Alert, FlatList, Image, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, TextInput } from 'react-native';
 import { collection, query, where, getDocs, orderBy, doc } from 'firebase/firestore';
-import { firestore } from '../services/firebase/FirebaseConfig'; // juster path
+import { firestore } from '../services/firebase/FirebaseConfig';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
@@ -112,7 +114,7 @@ const FriendsScreen = () => {
       const result = await Share.share({
         message: `Bli med meg på BetABeer! Bruk denne linken: ${inviteLink}`,
         url: inviteLink,
-        title: 'Inviter venner til BetABeer',
+        title: 'Inv Magen til BetABeer',
       });
     } catch (error) {
       Alert.alert('Feil', 'Kunne ikke dele invitasjonslenken');
@@ -140,64 +142,64 @@ const FriendsScreen = () => {
             // Here you would remove friend from database
             Alert.alert('Venn fjernet', `${friend.name} er fjernet fra vennelisten din`);
           },
-        },
-      ]
+        }
+      ]        
     );
   };
 
   const renderFriend = ({ item }: { item: Friend }) => (
-    <View style={styles.friendItem}>
-      <Image source={item.profilePicture} style={styles.friendImage} />
-      <View style={styles.friendInfo}>
-        <Text style={styles.friendName}>{item.name}</Text>
-        <Text style={styles.friendUsername}>@{item.username}</Text>
+    <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]}>
+      <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]} />
+      <View style={globalStyles.itemInfo}>
+        <Text style={friendsStyles.friendName}>{item.name}</Text>
+        <Text style={globalStyles.secondaryText}>@{item.username}</Text>
       </View>
       <TouchableOpacity
         style={styles.removeFriendButton}
         onPress={() => handleRemoveFriend(item)}
       >
-      <Image source={RemoveFriendIcon} style={{ width: 24, height: 24, tintColor: '#FF0000' }} />
+        <Image source={RemoveFriendIcon} style={globalStyles.deleteIcon} />
       </TouchableOpacity>
     </View>
   );
 
   const renderFriendOfFriend = ({ item }: { item: Friend }) => (
-    <View style={styles.friendItem}>
-      <Image source={item.profilePicture} style={styles.friendImage} />
-      <View style={styles.friendInfo}>
-        <Text style={styles.friendName}>{item.name}</Text>
-        <Text style={styles.friendUsername}>@{item.username}</Text>
+    <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]}>
+      <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]} />
+      <View style={globalStyles.itemInfo}>
+        <Text style={friendsStyles.friendName}>{item.name}</Text>
+        <Text style={globalStyles.secondaryText}>@{item.username}</Text>
       </View>
       <TouchableOpacity
         style={styles.addFriendButton}
         onPress={() => handleAddFriend(item)}
       >
-      <Image source={AddFriendIcon} style={{ width: 24, height: 24, tintColor: '#007AFF' }} />
+        <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+    <SafeAreaView style={[globalStyles.container, { padding: 0 }]}>
+      <ScrollView contentContainerStyle={friendsStyles.fullWidthScrollContent}>
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Venner</Text>
+        <View style={globalStyles.header}>
+          <Text style={globalStyles.headerTitle}>Venner</Text>
         </View>
 
         {/* Invite friends section */}
-        <View style={styles.inviteSection}>
-          <TouchableOpacity style={styles.inviteButton} onPress={handleInviteFriends}>
-            <Text style={styles.inviteButtonText}>Inviter venner</Text>
+        <View style={friendsStyles.inviteSection}>
+          <TouchableOpacity style={globalStyles.outlineButtonGold} onPress={handleInviteFriends}>
+            <Text style={globalStyles.outlineButtonGoldText}>Inviter venner</Text>
           </TouchableOpacity>
-          <Text style={styles.inviteDescription}>
+          <Text style={globalStyles.sectionDescription}>
             Del lenken med venner for å invitere dem til appen
           </Text>
         </View>
 
         {/* Friends section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mine venner ({friends.length})</Text>
+        <View style={globalStyles.section}>
+          <Text style={globalStyles.sectionTitle}>Mine venner ({friends.length})</Text>
           {friends.length > 0 ? (
             <FlatList
               data={friends}
@@ -207,10 +209,10 @@ const FriendsScreen = () => {
               showsVerticalScrollIndicator={false}
             />
           ) : (
-            <View style={styles.emptyState}>
-              <Image source={AddFriendIcon} style={{ width: 20, height: 20, tintColor: '#007AFF' }} />
-              <Text style={styles.emptyStateText}>Du har ingen venner ennå</Text>
-              <Text style={styles.emptyStateSubtext}>
+            <View style={globalStyles.emptyState}>
+              <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
+              <Text style={globalStyles.emptyStateText}>Du har ingen venner ennå</Text>
+              <Text style={globalStyles.secondaryText}>
                 Inviter venner for å komme i gang!
               </Text>
             </View>
@@ -218,8 +220,8 @@ const FriendsScreen = () => {
         </View>
 
         {/* Search Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Søk etter brukere</Text>
+        <View style={globalStyles.section}>
+          <Text style={globalStyles.sectionTitle}>Søk etter brukere</Text>
           <View style={{ flexDirection: 'row', marginBottom: 10 }}>
             <TextInput
               placeholder="Skriv inn brukernavn"
@@ -268,9 +270,9 @@ const FriendsScreen = () => {
 
 
         {/* Friends of friends section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Venner av venner</Text>
-          <Text style={styles.sectionDescription}>
+        <View style={globalStyles.section}>
+          <Text style={globalStyles.sectionTitle}>Venner av venner</Text>
+          <Text style={globalStyles.sectionDescription}>
             Personer du kanskje kjenner gjennom dine venner
           </Text>
           {friendsOfFriends.length > 0 ? (
@@ -282,9 +284,9 @@ const FriendsScreen = () => {
               showsVerticalScrollIndicator={false}
             />
           ) : (
-            <View style={styles.emptyState}>
-              <Image source={PeopleIcon} style={{ width: 24, height: 24, tintColor: '#ccc' }} />
-              <Text style={styles.emptyStateText}>Ingen forslag tilgjengelig</Text>
+            <View style={globalStyles.emptyState}>
+              <Image source={PeopleIcon} style={globalStyles.settingsIcon} />
+              <Text style={globalStyles.emptyStateText}>Ingen forslag tilgjengelig</Text>
             </View>
           )}
         </View>
@@ -294,114 +296,11 @@ const FriendsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#181A20',
-  },
-  header: {
-    paddingTop: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFD700',
-  },
-  inviteSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 30,
-  },
-  inviteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    backgroundColor: '#23242A',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    marginBottom: 10,
-  },
-  inviteButtonText: {
-    fontSize: 16,
-    color: '#FFD700',
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  inviteDescription: {
-    fontSize: 14,
-    color: '#B0B0B0',
-    textAlign: 'center',
-  },
-  section: {
-    paddingHorizontal: 20,
-    paddingBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    marginBottom: 8,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    color: '#B0B0B0',
-    marginBottom: 20,
-  },
-  friendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#23242A',
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  friendImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 15,
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    backgroundColor: '#23242A',
-  },
-  friendInfo: {
-    flex: 1,
-  },
-  friendName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 2,
-  },
-  friendUsername: {
-    fontSize: 14,
-    color: '#FFD700',
-  },
   addFriendButton: {
     padding: 8,
   },
   removeFriendButton: {
     padding: 8,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFD700',
-    marginTop: 15,
-    marginBottom: 5,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: '#B0B0B0',
-    textAlign: 'center',
   },
 });
 

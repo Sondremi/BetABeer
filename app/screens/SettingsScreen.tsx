@@ -1,8 +1,11 @@
 import { useRouter } from 'expo-router';
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { authService } from '../services/firebase/authService';
+import { theme } from '../styles/theme';
+import { globalStyles } from '../styles/globalStyles';
+import { settingsStyles } from '../styles/components/settingsStyles';
 
 const DeleteIcon = require('../../assets/icons/noun-delete-7938028.png');
 const LogoutIcon = require('../../assets/icons/noun-login-7932862.png');
@@ -202,61 +205,61 @@ const SettingsScreen = () => {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={styles.loadingText}>Laster...</Text>
+      <View style={[globalStyles.container, globalStyles.centerContent]}>
+        <Text style={settingsStyles.loadingText}>Laster...</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={globalStyles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Text style={styles.backButtonText}>←</Text>
+      <View style={[globalStyles.header, globalStyles.rowSpread]}>
+        <TouchableOpacity style={settingsStyles.backButton} onPress={handleBack}>
+          <Text style={settingsStyles.backButtonText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Innstillinger</Text>
-        <View style={styles.headerPlaceholder} />
+        <Text style={globalStyles.headerTitleMedium}>Innstillinger</Text>
+        <View style={settingsStyles.headerPlaceholder} />
       </View>
 
-      <View style={styles.content}>
+      <View style={globalStyles.section}>
         {/* User Information Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Brukerinformasjon</Text>
+        <View style={globalStyles.inputGroup}>
+          <Text style={globalStyles.sectionTitle}>Brukerinformasjon</Text>
           
           {/* Username - not editable */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Brukernavn</Text>
-            <View style={styles.readOnlyInput}>
-              <Text style={styles.readOnlyText}>{userInfo.username}</Text>
+          <View style={globalStyles.inputGroup}>
+            <Text style={globalStyles.label}>Brukernavn</Text>
+            <View style={globalStyles.readOnlyInput}>
+              <Text style={settingsStyles.readOnlyText}>{userInfo.username}</Text>
             </View>
-            <Text style={styles.helpText}>Brukernavn kan ikke endres</Text>
+            <Text style={globalStyles.mutedText}>Brukernavn kan ikke endres</Text>
           </View>
 
           {/* Name */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Navn</Text>
+          <View style={globalStyles.inputGroup}>
+            <Text style={globalStyles.label}>Navn</Text>
             {isEditing ? (
               <TextInput
-                style={styles.input}
+                style={globalStyles.input}
                 value={editedInfo.name}
                 onChangeText={(text) => setEditedInfo({ ...editedInfo, name: text })}
                 placeholder="Skriv inn navn"
                 placeholderTextColor="#888"
               />
             ) : (
-              <View style={styles.readOnlyInput}>
-                <Text style={styles.readOnlyText}>{userInfo.name}</Text>
+              <View style={globalStyles.readOnlyInput}>
+                <Text style={settingsStyles.readOnlyText}>{userInfo.name}</Text>
               </View>
             )}
           </View>
 
           {/* Phone */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Telefonnummer</Text>
+          <View style={globalStyles.inputGroup}>
+            <Text style={globalStyles.label}>Telefonnummer</Text>
             {isEditing ? (
               <TextInput
-                style={styles.input}
+                style={globalStyles.input}
                 value={editedInfo.phone}
                 onChangeText={(text) => setEditedInfo({ ...editedInfo, phone: text })}
                 placeholder="Skriv inn telefonnummer"
@@ -264,18 +267,18 @@ const SettingsScreen = () => {
                 keyboardType="phone-pad"
               />
             ) : (
-              <View style={styles.readOnlyInput}>
-                <Text style={styles.readOnlyText}>{userInfo.phone}</Text>
+              <View style={globalStyles.readOnlyInput}>
+                <Text style={settingsStyles.readOnlyText}>{userInfo.phone}</Text>
               </View>
             )}
           </View>
 
           {/* Email */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>E-postadresse</Text>
+          <View style={globalStyles.inputGroup}>
+            <Text style={globalStyles.label}>E-postadresse</Text>
             {isEditing ? (
               <TextInput
-                style={styles.input}
+                style={globalStyles.input}
                 value={editedInfo.email}
                 onChangeText={(text) => setEditedInfo({ ...editedInfo, email: text })}
                 placeholder="Skriv inn e-postadresse"
@@ -284,253 +287,64 @@ const SettingsScreen = () => {
                 autoCapitalize="none"
               />
             ) : (
-              <View style={styles.readOnlyInput}>
-                <Text style={styles.readOnlyText}>{userInfo.email}</Text>
+              <View style={globalStyles.readOnlyInput}>
+                <Text style={settingsStyles.readOnlyText}>{userInfo.email}</Text>
               </View>
             )}
           </View>
 
           {/* Edit/Save/Cancel buttons */}
-          <View style={styles.buttonContainer}>
+          <View style={settingsStyles.buttonRowNoGap}>
             {isEditing ? (
-              <View style={styles.editButtonsContainer}>
-                <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-                  <Text style={styles.cancelButtonText}>Avbryt</Text>
+              <>
+                <TouchableOpacity style={[settingsStyles.halfWidthCancelButton, isLoading && globalStyles.disabledButton]} onPress={handleCancel} disabled={isLoading}>
+                  <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={[styles.saveButton, isLoading && styles.disabledButton]} 
+                  style={[settingsStyles.halfWidthSaveButton, isLoading && globalStyles.disabledButton]} 
                   onPress={handleSave}
                   disabled={isLoading}
                 >
-                  <Text style={styles.saveButtonText}>
+                  <Text style={globalStyles.saveButtonTextAlt}>
                     {isLoading ? 'Lagrer...' : 'Lagre'}
                   </Text>
                 </TouchableOpacity>
-              </View>
+              </>
             ) : (
-              <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
-                <Text style={styles.editButtonText}>Rediger informasjon</Text>
+              <TouchableOpacity style={settingsStyles.fullWidthButton} onPress={() => setIsEditing(true)}>
+                <Text style={globalStyles.outlineButtonText}>Rediger informasjon</Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
 
         {/* Account Actions Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Konto</Text>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Image source={LogoutIcon} style={{ width: 20, height: 20, tintColor: '#FF9500' }} />
-            <Text style={styles.logoutButtonText}>Logg ut</Text>
+        <View style={globalStyles.inputGroup}>
+          <Text style={globalStyles.sectionTitle}>Konto</Text>
+          <TouchableOpacity style={globalStyles.outlineButton} onPress={handleLogout}>
+            <Image source={LogoutIcon} style={{ width: 20, height: 20, tintColor: '#FFD700' }} />
+            <Text style={globalStyles.outlineButtonText}>Logg ut</Text>
           </TouchableOpacity>
         </View>
 
         {/* Danger Zone */}
-        <View style={styles.dangerSection}>
-          <Text style={styles.dangerSectionTitle}>Farlig sone</Text>
-          <Text style={styles.dangerWarning}>
+        <View style={globalStyles.dangerSection}>
+          <Text style={globalStyles.dangerSectionTitle}>Farlig sone</Text>
+          <Text style={[globalStyles.mutedText, { color: theme.colors.dangerLight, lineHeight: 20 }]}>
             Sletting av bruker vil permanent fjerne all data knyttet til brukeren din. Dette kan ikke angres.
           </Text>
           <TouchableOpacity 
-            style={[styles.deleteButton, isLoading && styles.disabledButton]} 
+            style={[globalStyles.dangerButton, isLoading && globalStyles.disabledButton]} 
             onPress={handleDeleteUser}
             disabled={isLoading}
           >
-            <Image source={DeleteIcon} style={{ width: 20, height: 20, tintColor: '#FF3B30' }} />
-            <Text style={styles.deleteButtonText}>Slett bruker permanent</Text>
+            <Image source={DeleteIcon} style={globalStyles.deleteIcon} />
+            <Text style={globalStyles.dangerButtonText}>Slett bruker permanent</Text>
           </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#181A20',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: '#FFD700',
-    minWidth: 40,
-    alignItems: 'center',
-  },
-  backButtonText: {
-    fontSize: 20,
-    color: '#181A20',
-    fontWeight: 'bold',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFD700',
-  },
-  headerPlaceholder: {
-    width: 40,
-  },
-  content: {
-    padding: 20,
-  },
-  loadingText: {
-    color: '#FFD700',
-    fontSize: 16,
-  },
-  section: {
-    marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    marginBottom: 20,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFD700',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#FFD700',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#23242A',
-    color: '#fff',
-  },
-  readOnlyInput: {
-    borderWidth: 1,
-    borderColor: '#23242A',
-    borderRadius: 8,
-    padding: 12,
-    backgroundColor: '#23242A',
-  },
-  readOnlyText: {
-    fontSize: 16,
-    color: '#fff',
-  },
-  helpText: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
-  buttonContainer: {
-    marginTop: 20,
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 15,
-    backgroundColor: '#23242A',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FFD700',
-  },
-  editButtonText: {
-    fontSize: 16,
-    color: '#FFD700',
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  editButtonsContainer: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  cancelButton: {
-    flex: 1,
-    padding: 15,
-    backgroundColor: '#2D2D2D',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FFD700',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    color: '#FFD700',
-    fontWeight: '600',
-  },
-  saveButton: {
-    flex: 1,
-    padding: 15,
-    backgroundColor: '#FFD700',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    fontSize: 16,
-    color: '#181A20',
-    fontWeight: '600',
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 15,
-    backgroundColor: '#23242A',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FFD700',
-  },
-  logoutButtonText: {
-    fontSize: 16,
-    color: '#FFD700',
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  dangerSection: {
-    marginTop: 30,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#23242A',
-  },
-  dangerSectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FF2222',
-    marginBottom: 15,
-  },
-  dangerWarning: {
-    fontSize: 14,
-    color: '#FF6B6B',
-    marginBottom: 15,
-    lineHeight: 20,
-    fontStyle: 'italic',
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 15,
-    backgroundColor: '#23242A',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FF2222',
-  },
-  deleteButtonText: {
-    fontSize: 16,
-    color: '#FF2222',
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-});
 
 export default SettingsScreen;
