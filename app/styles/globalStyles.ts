@@ -14,7 +14,7 @@ export const globalStyles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: theme.spacing.xl,
+    padding: 0,
   },
   section: {
     paddingHorizontal: theme.spacing.xl,
@@ -47,34 +47,56 @@ export const globalStyles = StyleSheet.create({
     marginTop: theme.spacing.md,
     gap: theme.spacing.lg,
   },
-  contentCard: {
-    backgroundColor: theme.colors.surface,
-    marginHorizontal: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-  },
   headerContainer: {
     height: 200,
     position: 'relative',
+    width: '100%',
   },
   headerInfo: {
     alignItems: 'flex-start',
+    paddingHorizontal: theme.spacing.sm,
+  },
+  contentCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    marginHorizontal: 0,
   },
   listContainer: {
     paddingVertical: theme.spacing.sm,
+    paddingHorizontal: 0,
   },
   sectionDivider: {
     marginTop: theme.spacing.sm,
     paddingTop: theme.spacing.sm,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
+    paddingHorizontal: 0,
   },
   listItemRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  itemInfo: {
+    flex: 1,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.huge,
+  },
+  emptyStateText: {
+    fontSize: theme.fonts.lg,
+    fontWeight: '600',
+    color: theme.colors.primary,
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.xs,
   },
 
   // Headers
@@ -136,6 +158,7 @@ export const globalStyles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceAlt,
     borderRadius: theme.borderRadius.xl,
     padding: theme.spacing.xxl,
+    marginHorizontal: theme.spacing.md,
     marginBottom: theme.spacing.xl,
     ...theme.shadows.small,
   },
@@ -263,7 +286,7 @@ export const globalStyles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: theme.fonts.md,
-    color: theme.colors.primary,
+    color: theme.colors.background,
     fontWeight: '600',
   },
   dangerButton: {
@@ -285,7 +308,6 @@ export const globalStyles = StyleSheet.create({
   deleteButtonText: {
     fontSize: theme.fonts.md,
     color: theme.colors.danger,
-    marginTop: theme.spacing.md,
     fontWeight: '600',
   },
   selectionButton: {
