@@ -41,6 +41,41 @@ export const globalStyles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.colors.surface,
   },
+  editButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: theme.spacing.md,
+    gap: theme.spacing.lg,
+  },
+  contentCard: {
+    backgroundColor: theme.colors.surface,
+    marginHorizontal: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+  },
+  headerContainer: {
+    height: 200,
+    position: 'relative',
+  },
+  headerInfo: {
+    alignItems: 'flex-start',
+  },
+  listContainer: {
+    paddingVertical: theme.spacing.sm,
+  },
+  sectionDivider: {
+    marginTop: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  listItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.xs,
+  },
 
   // Headers
   header: {
@@ -228,7 +263,7 @@ export const globalStyles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: theme.fonts.md,
-    color: theme.colors.background,
+    color: theme.colors.primary,
     fontWeight: '600',
   },
   dangerButton: {
@@ -246,6 +281,38 @@ export const globalStyles = StyleSheet.create({
     color: theme.colors.danger,
     fontWeight: '600',
     marginLeft: theme.spacing.sm,
+  },
+  deleteButtonText: {
+    fontSize: theme.fonts.md,
+    color: theme.colors.danger,
+    marginTop: theme.spacing.md,
+    fontWeight: '600',
+  },
+  selectionButton: {
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.borderRadius.sm,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    marginRight: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  selectionButtonSelected: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  selectionButtonText: {
+    color: theme.colors.text,
+    fontSize: theme.fonts.sm,
+    fontWeight: '500',
+  },
+  selectionButtonTextSelected: {
+    color: theme.colors.background,
+  },
+  addOptionText: {
+    color: theme.colors.primary,
+    fontWeight: 'bold',
+    fontSize: theme.fonts.sm,
   },
   disabledButton: {
     opacity: 0.5,
@@ -317,6 +384,11 @@ export const globalStyles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   coverImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  groupHeaderImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
