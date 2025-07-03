@@ -1,7 +1,10 @@
+
+import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { authService } from '../services/firebase/authService';
 
 const AuthContext = createContext();
+const firestore = getFirestore();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -16,11 +19,11 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = authService.onAuthStateChanged(async (firebaseUser) => {
+    const fetchAndSetUser = async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          const userDoc = await firestore().collection('users').doc(firebaseUser.uid).get();
-          if (userDoc.exists) {
+          const userDoc = await getDoc(doc(firestore, 'users', firebaseUser.uid));
+          if (userDoc.exists()) {
             const userData = userDoc.data();
             setUser({
               id: firebaseUser.uid,
@@ -38,8 +41,39 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
       }
       setLoading(false);
+    };
+
+    let userDocUnsubscribe = null;
+    let currentUid = null;
+    const unsubscribe = authService.onAuthStateChanged(async (firebaseUser) => {
+      await fetchAndSetUser(firebaseUser);
+      if (userDocUnsubscribe) {
+        userDocUnsubscribe();
+        userDocUnsubscribe = null;
+      }
+      if (firebaseUser) {
+        currentUid = firebaseUser.uid;
+        const userDocRef = doc(firestore, 'users', currentUid);
+        const { onSnapshot } = require('firebase/firestore');
+        userDocUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const userData = docSnap.data();
+            setUser((prev) => prev ? {
+              ...prev,
+              username: userData.username,
+              name: userData.name,
+              email: userData.email,
+              phone: userData.phone,
+            } : null);
+          }
+        });
+      }
     });
-    return unsubscribe;
+
+    return () => {
+      unsubscribe && unsubscribe();
+      userDocUnsubscribe && userDocUnsubscribe();
+    };
   }, []);
 
   const value = {

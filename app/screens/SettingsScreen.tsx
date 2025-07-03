@@ -210,7 +210,7 @@ const SettingsScreen = () => {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Header med tilbakeknapp */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <Text style={styles.backButtonText}>←</Text>
