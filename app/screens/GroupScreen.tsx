@@ -522,65 +522,67 @@ const GroupScreen = () => {
     const userWager = getUserWagerForBet(item);
 
     return (
-      <View style={[globalStyles.contentCard, groupStyles.betSpacing]}>
-        <View style={globalStyles.rowSpread}>
-          <View style={{ flex: 1 }}>
-            <Text style={groupStyles.betTitle}>{item.title}</Text>
-            {item.isFinished && (
-              <Text style={groupStyles.betStatusText}>
-                Ferdig - Riktig svar: {getOptionName(item, item.correctOptionId || '')}
-              </Text>
-            )}
+      <View style={groupStyles.betContainer}>
+        <View style={[globalStyles.contentCard, groupStyles.betSpacing]}>
+          <View style={globalStyles.rowSpread}>
+            <View style={{ flex: 1 }}>
+              <Text style={groupStyles.betTitle}>{item.title}</Text>
+              {item.isFinished && (
+                <Text style={groupStyles.betStatusText}>
+                  Ferdig - Riktig svar: {getOptionName(item, item.correctOptionId || '')}
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity onPress={() => openEditBetModal(item, index)}>
+              <Image source={PencilIcon} style={globalStyles.pencilIcon} />
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity onPress={() => openEditBetModal(item, index)}>
-            <Image source={PencilIcon} style={globalStyles.pencilIcon} />
-          </TouchableOpacity>
-        </View>
 
-        {userWager && (
-          <View
-            style={[
-              groupStyles.userBetSummary,
-              item.isFinished && item.correctOptionId === userWager.optionId && groupStyles.userBetSummaryWin,
-              item.isFinished && item.correctOptionId !== userWager.optionId && groupStyles.userBetSummaryLose,
-            ]}
-          >
-            <Text
+          {userWager && (
+            <View
               style={[
-                groupStyles.userBetSummaryText,
-                item.isFinished && item.correctOptionId === userWager.optionId && groupStyles.userBetSummaryTextWin,
-                item.isFinished && item.correctOptionId !== userWager.optionId && groupStyles.userBetSummaryTextLose,
+                groupStyles.userBetSummary,
+                item.isFinished && item.correctOptionId === userWager.optionId && groupStyles.userBetSummaryWin,
+                item.isFinished && item.correctOptionId !== userWager.optionId && groupStyles.userBetSummaryLose,
               ]}
             >
-              Du har satset: {userWager.amount} {userWager.measureType} {userWager.drinkType} på "{getOptionName(item, userWager.optionId)}"
-              {item.isFinished && (item.correctOptionId === userWager.optionId ? ' - DU VANT! 🎉' : ' - Du tapte 😢')}
-            </Text>
-          </View>
-        )}
+              <Text
+                style={[
+                  groupStyles.userBetSummaryText,
+                  item.isFinished && item.correctOptionId === userWager.optionId && groupStyles.userBetSummaryTextWin,
+                  item.isFinished && item.correctOptionId !== userWager.optionId && groupStyles.userBetSummaryTextLose,
+                ]}
+              >
+                Du har satset: {userWager.amount} {userWager.measureType} {userWager.drinkType} på "{getOptionName(item, userWager.optionId)}"
+                {item.isFinished && (item.correctOptionId === userWager.optionId ? ' - DU VANT! 🎉' : ' - Du tapte 😢')}
+              </Text>
+            </View>
+          )}
 
-        <FlatList
-          data={item.options}
-          renderItem={({ item: option }) => renderBettingOption({ item: option, bet: item })}
-          keyExtractor={(option) => option.id}
-          horizontal={false}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={globalStyles.listContainer}
-          scrollEnabled={false}
-        />
+          <FlatList
+            data={item.options}
+            renderItem={({ item: option }) => renderBettingOption({ item: option, bet: item })}
+            keyExtractor={(option) => option.id}
+            horizontal={false}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={globalStyles.listContainer}
+            scrollEnabled={false}
+          />
 
-        {item.wagers && item.wagers.length > 0 && (
-          <View style={globalStyles.sectionDivider}>
-            <Text style={groupStyles.wagersSectionTitle}>Plasserte bets ({item.wagers.length}):</Text>
-            {item.wagers.map((wager, idx) => (
-              <View key={idx} style={globalStyles.listItemRow}>
-                <Text style={groupStyles.wagerUser}>{wager.username}</Text>
-                <Text style={groupStyles.wagerDetails}>
-                  {wager.amount} {wager.measureType} {wager.drinkType} på "{getOptionName(item, wager.optionId)}"
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
+          {item.wagers && item.wagers.length > 0 && (
+            <View style={globalStyles.sectionDivider}>
+              <Text style={groupStyles.wagersSectionTitle}>Plasserte bets ({item.wagers.length}):</Text>
+              {item.wagers.map((wager, idx) => (
+                <View key={idx} style={globalStyles.listItemRow}>
+                  <Text style={groupStyles.wagerUser}>{wager.username}</Text>
+                  <Text style={groupStyles.wagerDetails}>
+                    {wager.amount} {wager.measureType} {wager.drinkType} på "{getOptionName(item, wager.optionId)}"
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
       </View>
     );
   };

@@ -34,6 +34,9 @@ export const groupStyles = StyleSheet.create({
   betSpacing: {
     marginBottom: theme.spacing.lg,
   },
+  betContainer: {
+    paddingHorizontal: theme.spacing.md,
+  },
   userBetSummary: {
     backgroundColor: theme.colors.primary,
     borderRadius: theme.borderRadius.sm,
