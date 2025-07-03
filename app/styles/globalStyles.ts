@@ -286,6 +286,11 @@ export const globalStyles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: theme.fonts.md,
+    color: theme.colors.primary,
+    fontWeight: '600',
+  },
+  saveButtonTextAlt: {
+    fontSize: theme.fonts.md,
     color: theme.colors.background,
     fontWeight: '600',
   },
