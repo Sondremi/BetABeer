@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "betabeer-3b7fb"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }
