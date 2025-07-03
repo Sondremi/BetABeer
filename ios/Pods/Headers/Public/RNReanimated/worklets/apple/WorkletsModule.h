@@ -1,1 +1,0 @@
-../../../../../../../node_modules/react-native-reanimated/apple/worklets/apple/WorkletsModule.h
