@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Alert, FlatList, Image, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { globalStyles } from '../styles/globalStyles';
 import { friendsStyles } from '../styles/components/friendsStyles';
+import { Alert, FlatList, Image, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, TextInput } from 'react-native';
+import { collection, query, where, getDocs, orderBy, doc } from 'firebase/firestore';
+import { firestore } from '../services/firebase/FirebaseConfig';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
@@ -11,6 +13,8 @@ const PeopleIcon = require('../../assets/icons/noun-people-2196504.png');
 type Friend = { id: string; name: string; username: string; profilePicture: any };
 
 const FriendsScreen = () => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<Friend[]>([]);
   // Dummy data - will be replaced with database data later
   const [friends] = useState<Friend[]>([
     {
@@ -70,6 +74,37 @@ const FriendsScreen = () => {
       profilePicture: DefaultProfilePicture,
     },
   ]);
+
+  const friendSearch = async (searchTerm: string) => {
+    if (!searchTerm) return [];
+
+    const usersRef = collection(firestore, "users");
+
+    const q = query(
+      usersRef,
+      orderBy("username"),
+      where("username", ">=", searchTerm),
+      where("username", "<=", searchTerm + "\uf8ff")
+    );
+
+    try {
+      const querySnapshot = await getDocs(q);
+      const result = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      return result;
+    } catch(error) {
+        console.error("Feil under søk: " + error);
+        return [];
+    }
+  };
+
+  const handleSearch = async () => {
+    const results = await friendSearch(searchTerm);
+    setSearchResults(results as Friend[]);
+  };
+
 
   // Dummy invite link - will be replaced with actual link generation later
   const inviteLink = 'https://app.example.com/invite/abc123xyz';
@@ -183,6 +218,56 @@ const FriendsScreen = () => {
             </View>
           )}
         </View>
+
+        {/* Search Section */}
+        <View style={globalStyles.section}>
+          <Text style={globalStyles.sectionTitle}>Søk etter brukere</Text>
+          <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+            <TextInput
+              placeholder="Skriv inn brukernavn"
+              placeholderTextColor="#aaa"
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+              autoCapitalize="none"
+              style={{
+                flex: 1,
+                backgroundColor: '#23242A',
+                borderRadius: 8,
+                padding: 12,
+                color: '#fff',
+                marginRight: 8
+              }}
+            />
+            <TouchableOpacity
+              onPress={handleSearch}
+              style={{
+                backgroundColor: '#FFD700',
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+              }}
+            >
+              <Text style={{ color: '#181A20', fontWeight: '600' }}>Søk</Text>
+            </TouchableOpacity>
+          </View>
+
+          {searchResults.length > 0 ? (
+            <FlatList
+              data={searchResults}
+              renderItem={renderFriendOfFriend}
+              keyExtractor={(item) => item.id}
+              scrollEnabled={false}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            searchTerm.length > 0 && (
+              <Text style={{ color: '#B0B0B0', marginTop: 10 }}>
+                Ingen brukere funnet.
+              </Text>
+            )
+          )}
+        </View>
+
 
         {/* Friends of friends section */}
         <View style={globalStyles.section}>
