@@ -305,7 +305,7 @@ const SettingsScreen = () => {
                   onPress={handleSave}
                   disabled={isLoading}
                 >
-                  <Text style={globalStyles.saveButtonText}>
+                  <Text style={globalStyles.saveButtonTextAlt}>
                     {isLoading ? 'Lagrer...' : 'Lagre'}
                   </Text>
                 </TouchableOpacity>
