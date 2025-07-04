@@ -39,6 +39,14 @@ interface Bet {
   isFinished?: boolean;
 }
 
+interface MemberDrinkStats {
+  userId: string;
+  username: string;
+  wins: number;
+  drinksToConsume: { [key in DrinkType]?: { [key in MeasureType]?: number } };
+  drinksToDistribute: { [key in DrinkType]?: { [key in MeasureType]?: number } };
+}
+
 const GroupScreen = () => {
   const params = useLocalSearchParams();
   const router = useRouter();
@@ -51,11 +59,11 @@ const GroupScreen = () => {
   const [deleting, setDeleting] = useState(false);
   const [betModalVisible, setBetModalVisible] = useState(false);
   const [betTitle, setBetTitle] = useState('');
-  const [betOptions, setBetOptions] = useState([{ name: '', odds: '' }]);
+  const [betOptions, setBetOptions] = useState<{ name: string; odds: string }[]>([{ name: '', odds: '' }]);
   const [betSaving, setBetSaving] = useState(false);
-  const [betts, setBetts] = useState<Bet[]>([]);
+  const [bets, setBets] = useState<Bet[]>([]);
   const [placeBetModalVisible, setPlaceBetModalVisible] = useState(false);
-  const [selectedBetOption, setSelectedBetOption] = useState<{ bet: Bet, option: BettingOption } | null>(null);
+  const [selectedBetOption, setSelectedBetOption] = useState<{ bet: Bet; option: BettingOption } | null>(null);
   const [selectedDrinkType, setSelectedDrinkType] = useState<DrinkType>('øl');
   const [selectedMeasureType, setSelectedMeasureType] = useState<MeasureType>('slurker');
   const [betAmount, setBetAmount] = useState('1');
@@ -65,8 +73,9 @@ const GroupScreen = () => {
   const [editBetModalVisible, setEditBetModalVisible] = useState(false);
   const [editBetIdx, setEditBetIdx] = useState<number | null>(null);
   const [editBetTitle, setEditBetTitle] = useState('');
-  const [editBetOptions, setEditBetOptions] = useState<{ name: string, odds: string }[]>([]);
+  const [editBetOptions, setEditBetOptions] = useState<{ name: string; odds: string }[]>([]);
   const [editBetSaving, setEditBetSaving] = useState(false);
+  const [leaderboardModalVisible, setLeaderboardModalVisible] = useState(false);
 
   const currentGroup = selectedGroup ? { ...selectedGroup, name: groupName } : { id: 'default', name: 'Gruppenavn', memberCount: 0, image: ImageMissing };
 
@@ -87,6 +96,7 @@ const GroupScreen = () => {
         memberCount: docSnap.data().members.length,
         image: ImageMissing,
         createdBy: docSnap.data().createdBy,
+        members: docSnap.data().members,
       }));
       setGroups(groupList);
       let groupFromParams = null;
@@ -114,7 +124,9 @@ const GroupScreen = () => {
       }
     };
     fetchGroups();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [user, params.selectedGroup]);
 
   useEffect(() => {
@@ -165,23 +177,25 @@ const GroupScreen = () => {
 
   useEffect(() => {
     if (!selectedGroup) {
-      setBetts([]);
+      setBets([]);
       return;
     }
     let isMounted = true;
-    const fetchBetts = async () => {
+    const fetchBets = async () => {
       const firestore = getFirestore();
       const groupRef = doc(firestore, 'groups', selectedGroup.id);
       const groupSnap = await getDoc(groupRef);
       if (!isMounted) return;
-      if (groupSnap.exists() && groupSnap.data().betts) {
-        setBetts(groupSnap.data().betts);
+      if (groupSnap.exists() && groupSnap.data().bets) {
+        setBets(groupSnap.data().bets);
       } else {
-        setBetts([]);
+        setBets([]);
       }
     };
-    fetchBetts();
-    return () => { isMounted = false; };
+    fetchBets();
+    return () => {
+      isMounted = false;
+    };
   }, [selectedGroup]);
 
   const openBetModal = () => {
@@ -195,7 +209,7 @@ const GroupScreen = () => {
   };
 
   const updateBetOption = (idx: number, field: 'name' | 'odds', value: string) => {
-    setBetOptions(prev => prev.map((opt, i) => i === idx ? { ...opt, [field]: value } : opt));
+    setBetOptions(prev => prev.map((opt, i) => (i === idx ? { ...opt, [field]: value } : opt)));
   };
 
   const handleSaveBet = async () => {
@@ -213,21 +227,25 @@ const GroupScreen = () => {
       const firestore = getFirestore();
       const groupRef = doc(firestore, 'groups', selectedGroup.id);
       const groupSnap = await getDoc(groupRef);
-      let groupBetts: Bet[] = [];
-      if (groupSnap.exists() && groupSnap.data().betts) {
-        groupBetts = groupSnap.data().betts;
+      let groupBets: Bet[] = [];
+      if (groupSnap.exists() && groupSnap.data().bets) {
+        groupBets = groupSnap.data().bets;
       }
       const newBet: Bet = {
         id: Date.now().toString(),
         title: betTitle,
-        options: betOptions.map((opt, idx) => ({ id: `${Date.now()}_${idx}`, name: opt.name, odds: parseFloat(opt.odds) })),
+        options: betOptions.map((opt, idx) => ({
+          id: `${Date.now()}_${idx}`,
+          name: opt.name,
+          odds: parseFloat(opt.odds),
+        })),
         wagers: [],
       };
-      await updateDoc(groupRef, { betts: [...groupBetts, newBet] });
-      setBetts(prev => [...prev, newBet]);
+      await updateDoc(groupRef, { bets: [...groupBets, newBet] });
+      setBets(prev => [...prev, newBet]);
       setBetModalVisible(false);
     } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke lagre bett');
+      Alert.alert('Feil', 'Kunne ikke lagre bet');
     } finally {
       setBetSaving(false);
     }
@@ -257,12 +275,12 @@ const GroupScreen = () => {
       const groupSnap = await getDoc(groupRef);
 
       if (groupSnap.exists()) {
-        const groupBetts: Bet[] = groupSnap.data().betts || [];
-        const betIndex = groupBetts.findIndex(b => b.id === selectedBetOption.bet.id);
+        const groupBets: Bet[] = groupSnap.data().bets || [];
+        const betIndex = groupBets.findIndex(b => b.id === selectedBetOption.bet.id);
 
         if (betIndex !== -1) {
-          const updatedBetts = [...groupBetts];
-          const wagers = updatedBetts[betIndex].wagers || [];
+          const updatedBets = [...groupBets];
+          const wagers = updatedBets[betIndex].wagers || [];
 
           const existingWagerIndex = wagers.findIndex(w => w.userId === user.id);
 
@@ -282,9 +300,9 @@ const GroupScreen = () => {
             wagers.push(newWager);
           }
 
-          updatedBetts[betIndex].wagers = wagers;
-          await updateDoc(groupRef, { betts: updatedBetts });
-          setBetts(updatedBetts);
+          updatedBets[betIndex].wagers = wagers;
+          await updateDoc(groupRef, { bets: updatedBets });
+          setBets(updatedBets);
           setPlaceBetModalVisible(false);
           Alert.alert('Suksess', 'Bet plassert!');
         }
@@ -307,7 +325,7 @@ const GroupScreen = () => {
     return option ? option.name : 'Ukjent alternativ';
   };
 
-  const renderBettingOption = ({ item: option, bet }: { item: BettingOption, bet: Bet }) => {
+  const renderBettingOption = ({ item: option, bet }: { item: BettingOption; bet: Bet }) => {
     const userWager = getUserWagerForBet(bet);
     const isUserChoice = userWager?.optionId === option.id;
     const isCorrect = bet.correctOptionId === option.id;
@@ -364,7 +382,7 @@ const GroupScreen = () => {
     setEditBetIdx(idx);
     setEditBetTitle(bet.title);
     setEditBetOptions(bet.options.map((opt: BettingOption) => ({ name: opt.name, odds: opt.odds.toString() })));
-    
+
     if (bet.correctOptionId || bet.isFinished) {
       setSelectCorrectBetIdx(idx);
       setSelectCorrectModalVisible(true);
@@ -396,31 +414,31 @@ const GroupScreen = () => {
       const groupSnap = await getDoc(groupRef);
 
       if (groupSnap.exists()) {
-        const groupBetts = groupSnap.data().betts || [];
-        const newBetts = [...groupBetts];
+        const groupBets = groupSnap.data().bets || [];
+        const newBets = [...groupBets];
 
         if (optionId === null) {
-          delete newBetts[selectCorrectBetIdx].correctOptionId;
-          newBetts[selectCorrectBetIdx].isFinished = false;
+          delete newBets[selectCorrectBetIdx].correctOptionId;
+          newBets[selectCorrectBetIdx].isFinished = false;
         } else {
-          newBetts[selectCorrectBetIdx].correctOptionId = optionId;
-          newBetts[selectCorrectBetIdx].isFinished = true;
+          newBets[selectCorrectBetIdx].correctOptionId = optionId;
+          newBets[selectCorrectBetIdx].isFinished = true;
         }
 
-        await updateDoc(groupRef, { betts: newBetts });
-        setBetts(newBetts);
+        await updateDoc(groupRef, { bets: newBets });
+        setBets(newBets);
         setSelectCorrectModalVisible(false);
 
         Alert.alert('Suksess', optionId ? 'Riktig alternativ er markert!' : 'Bettet er aktivt igjen!');
       }
     } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke oppdatere bett');
+      Alert.alert('Feil', 'Kunne ikke oppdatere bet');
       console.error('Select correct option error:', error);
     }
   };
 
   const updateEditBetOption = (idx: number, field: 'name' | 'odds', value: string) => {
-    setEditBetOptions(prev => prev.map((opt, i) => i === idx ? { ...opt, [field]: value } : opt));
+    setEditBetOptions(prev => prev.map((opt, i) => (i === idx ? { ...opt, [field]: value } : opt)));
   };
 
   const addEditBetOption = () => {
@@ -442,19 +460,23 @@ const GroupScreen = () => {
       const firestore = getFirestore();
       const groupRef = doc(firestore, 'groups', selectedGroup.id);
       const groupSnap = await getDoc(groupRef);
-      let groupBetts: Bet[] = [];
-      if (groupSnap.exists() && groupSnap.data().betts) {
-        groupBetts = groupSnap.data().betts;
+      let groupBets: Bet[] = [];
+      if (groupSnap.exists() && groupSnap.data().bets) {
+        groupBets = groupSnap.data().bets;
       }
       const updatedBet = {
-        ...groupBetts[editBetIdx],
+        ...groupBets[editBetIdx],
         title: editBetTitle,
-        options: editBetOptions.map((opt, idx) => ({ id: `${groupBetts[editBetIdx].id}_${idx}`, name: opt.name, odds: parseFloat(opt.odds) })),
+        options: editBetOptions.map((opt, idx) => ({
+          id: `${groupBets[editBetIdx].id}_${idx}`,
+          name: opt.name,
+          odds: parseFloat(opt.odds),
+        })),
       };
-      const newBetts = [...groupBetts];
-      newBetts[editBetIdx] = updatedBet;
-      await updateDoc(groupRef, { betts: newBetts });
-      setBetts(newBetts);
+      const newBets = [...groupBets];
+      newBets[editBetIdx] = updatedBet;
+      await updateDoc(groupRef, { bets: newBets });
+      setBets(newBets);
       setEditBetModalVisible(false);
     } catch (error) {
       Alert.alert('Feil', 'Kunne ikke lagre endringer');
@@ -480,16 +502,16 @@ const GroupScreen = () => {
               const firestore = getFirestore();
               const groupRef = doc(firestore, 'groups', selectedGroup.id);
               const groupSnap = await getDoc(groupRef);
-              let groupBetts: Bet[] = [];
-              if (groupSnap.exists() && groupSnap.data().betts) {
-                groupBetts = groupSnap.data().betts;
+              let groupBets: Bet[] = [];
+              if (groupSnap.exists() && groupSnap.data().bets) {
+                groupBets = groupSnap.data().bets;
               }
-              const newBetts = groupBetts.filter((_: any, idx: number) => idx !== editBetIdx);
-              await updateDoc(groupRef, { betts: newBetts });
-              setBetts(newBetts);
+              const newBets = groupBets.filter((_, idx: number) => idx !== editBetIdx);
+              await updateDoc(groupRef, { bets: newBets });
+              setBets(newBets);
               setEditBetModalVisible(false);
             } catch (error) {
-              Alert.alert('Feil', 'Kunne ikke slette bett');
+              Alert.alert('Feil', 'Kunne ikke slette bet');
             } finally {
               setEditBetSaving(false);
             }
@@ -506,7 +528,7 @@ const GroupScreen = () => {
       return;
     }
     setSaving(true);
- try {
+    try {
       const firestore = getFirestore();
       await updateDoc(doc(firestore, 'groups', selectedGroup.id), { name: groupName });
       setEditingName(false);
@@ -518,7 +540,99 @@ const GroupScreen = () => {
     }
   };
 
-  const renderBet = ({ item, index }: { item: Bet, index: number }) => {
+  const getLeaderboardData = (): MemberDrinkStats[] => {
+    if (!selectedGroup || !selectedGroup.members) return [];
+
+    const finishedBets = bets.filter(bet => bet.isFinished && bet.correctOptionId);
+    const memberStats: { [userId: string]: MemberDrinkStats } = {};
+
+    selectedGroup.members.forEach((userId: string) => {
+      memberStats[userId] = {
+        userId,
+        username: '',
+        wins: 0,
+        drinksToConsume: {},
+        drinksToDistribute: {},
+      };
+    });
+
+    finishedBets.forEach(bet => {
+      const wagers = bet.wagers || [];
+      const totalWagers = wagers.length;
+      const winners = wagers.filter(wager => wager.optionId === bet.correctOptionId);
+      const losers = wagers.filter(wager => wager.optionId !== bet.correctOptionId);
+
+      wagers.forEach(wager => {
+        const stats = memberStats[wager.userId];
+        if (!stats) return;
+
+        stats.username = wager.username;
+        const drinkType = wager.drinkType;
+        const measureType = wager.measureType;
+        const amount = wager.amount;
+
+        if (!stats.drinksToConsume[drinkType]) {
+          stats.drinksToConsume[drinkType] = {};
+        }
+        if (!stats.drinksToDistribute[drinkType]) {
+          stats.drinksToDistribute[drinkType] = {};
+        }
+        if (!stats.drinksToConsume[drinkType][measureType]) {
+          stats.drinksToConsume[drinkType][measureType] = 0;
+        }
+        if (!stats.drinksToDistribute[drinkType][measureType]) {
+          stats.drinksToDistribute[drinkType][measureType] = 0;
+        }
+
+        if (wager.optionId === bet.correctOptionId) {
+          stats.wins += 1;
+          if (losers.length > 0) {
+            const distributeAmount = amount * losers.length;
+            stats.drinksToDistribute[drinkType][measureType]! += distributeAmount;
+            console.log(`User ${wager.username} won, distributing ${distributeAmount} ${measureType} of ${drinkType} to ${losers.length} losers`);
+          } else {
+            console.log(`User ${wager.username} won, but no losers to distribute to`);
+          }
+        } else {
+          stats.drinksToConsume[drinkType][measureType]! += amount;
+          console.log(`User ${wager.username} lost, consuming ${amount} ${measureType} of ${drinkType}`);
+        }
+      });
+    });
+
+    const result = Object.values(memberStats).sort((a, b) => b.wins - a.wins);
+    return result;
+  };
+
+  const formatDrinks = (drinks: { [key in DrinkType]?: { [key in MeasureType]?: number } }): string => {
+    const drinkStrings: string[] = [];
+    drinkTypes.forEach(drinkType => {
+      measureTypes.forEach(measureType => {
+        const amount = drinks[drinkType]?.[measureType] || 0;
+        if (amount > 0) {
+          drinkStrings.push(`${amount} ${measureType} ${drinkType}`);
+        }
+      });
+    });
+    const result = drinkStrings.length > 0 ? drinkStrings.join(', ') : 'Ingen';
+    return result;
+  };
+
+  const renderLeaderboardItem = ({ item }: { item: MemberDrinkStats }) => {
+    return (
+      <View style={groupStyles.betContainer}>
+        <View style={globalStyles.listItemRow}>
+          <Text style={[groupStyles.wagerUser, { fontWeight: 'bold' }]}>{item.username} ({item.wins} vinner)</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[groupStyles.wagerDetails, { color: theme.colors.danger }]}>Drikke selv: {formatDrinks(item.drinksToConsume)}</Text>
+            <Text style={[groupStyles.wagerDetails, { color: theme.colors.success, fontWeight: 'bold' }]}>Dele ut: {formatDrinks(item.drinksToDistribute)}</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderBet = ({ item, index }: { item: Bet; index: number }) => {
     const userWager = getUserWagerForBet(item);
 
     return (
@@ -562,7 +676,7 @@ const GroupScreen = () => {
           <FlatList
             data={item.options}
             renderItem={({ item: option }) => renderBettingOption({ item: option, bet: item })}
-            keyExtractor={(option) => option.id}
+            keyExtractor={option => option.id}
             horizontal={false}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={globalStyles.listContainer}
@@ -627,7 +741,7 @@ const GroupScreen = () => {
                 <View style={globalStyles.rowSpread}>
                   <Text style={groupStyles.groupHeaderName}>{currentGroup.name}</Text>
                   {selectedGroup && (
-                    <>
+                    <View style={{ flexDirection: 'row' }}>
                       <TouchableOpacity onPress={() => setEditingName(true)} style={{ marginLeft: theme.spacing.sm }}>
                         <Image source={PencilIcon} style={globalStyles.pencilIcon} />
                       </TouchableOpacity>
@@ -640,7 +754,7 @@ const GroupScreen = () => {
                           <Image source={DeleteIcon} style={globalStyles.deleteIcon} />
                         </TouchableOpacity>
                       )}
-                    </>
+                    </View>
                   )}
                 </View>
               )}
@@ -648,7 +762,7 @@ const GroupScreen = () => {
             </View>
           </View>
         </View>
-        
+
         <View style={groupStyles.createBetSection}>
           <TouchableOpacity
             style={globalStyles.outlineButtonGold}
@@ -662,12 +776,18 @@ const GroupScreen = () => {
           >
             <Text style={globalStyles.outlineButtonGoldText}>Opprett nytt bet</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={globalStyles.outlineButtonGold}
+            onPress={() => setLeaderboardModalVisible(true)}
+          >
+            <Text style={globalStyles.outlineButtonGoldText}>Vis ledertavle</Text>
+          </TouchableOpacity>
         </View>
 
         <FlatList
-          data={betts}
+          data={bets}
           renderItem={renderBet}
-          keyExtractor={(item) => item.id}
+          keyExtractor={item => item.id}
           scrollEnabled={false}
           contentContainerStyle={{ paddingBottom: theme.spacing.xl }}
         />
@@ -744,12 +864,12 @@ const GroupScreen = () => {
           <View style={globalStyles.modalContent}>
             <Text style={globalStyles.modalTitle}>Plasser bet</Text>
             {selectedBetOption && (
-              <>
+              <View>
                 <Text style={globalStyles.modalText}>Bet: {selectedBetOption.bet.title}</Text>
                 <Text style={globalStyles.modalOptionText}>
                   Alternativ: {selectedBetOption.option.name} (odds: {selectedBetOption.option.odds})
                 </Text>
-              </>
+              </View>
             )}
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Type drikke</Text>
@@ -901,14 +1021,14 @@ const GroupScreen = () => {
         <View style={globalStyles.modalContainer}>
           <View style={globalStyles.modalContent}>
             <Text style={globalStyles.modalTitle}>
-              {selectCorrectBetIdx !== null && betts[selectCorrectBetIdx]?.isFinished
+              {selectCorrectBetIdx !== null && bets[selectCorrectBetIdx]?.isFinished
                 ? 'Administrer ferdig bet'
                 : 'Velg riktig alternativ'}
             </Text>
             {selectCorrectBetIdx !== null && (
-              <>
-                <Text style={globalStyles.modalText}>{betts[selectCorrectBetIdx]?.title}</Text>
-                {betts[selectCorrectBetIdx]?.isFinished && (
+              <View>
+                <Text style={globalStyles.modalText}>{bets[selectCorrectBetIdx]?.title}</Text>
+                {bets[selectCorrectBetIdx]?.isFinished && (
                   <TouchableOpacity
                     style={[globalStyles.selectionButton, { marginBottom: theme.spacing.md, backgroundColor: theme.colors.danger }]}
                     onPress={() => handleSelectCorrectOption(null)}
@@ -919,33 +1039,60 @@ const GroupScreen = () => {
                   </TouchableOpacity>
                 )}
                 <Text style={[globalStyles.modalLabel, { marginBottom: theme.spacing.sm }]}>
-                  {betts[selectCorrectBetIdx]?.isFinished ? 'Eller velg nytt riktig alternativ:' : 'Velg riktig alternativ:'}
+                  {bets[selectCorrectBetIdx]?.isFinished ? 'Eller velg nytt riktig alternativ:' : 'Velg riktig alternativ:'}
                 </Text>
-                {betts[selectCorrectBetIdx]?.options.map((option) => (
+                {bets[selectCorrectBetIdx]?.options.map((option) => (
                   <TouchableOpacity
                     key={option.id}
                     style={[
                       globalStyles.selectionButton,
                       { marginBottom: theme.spacing.sm },
-                      betts[selectCorrectBetIdx]?.correctOptionId === option.id && globalStyles.selectionButtonSelected,
+                      bets[selectCorrectBetIdx]?.correctOptionId === option.id && globalStyles.selectionButtonSelected,
                     ]}
                     onPress={() => handleSelectCorrectOption(option.id)}
                   >
                     <Text
                       style={[
                         globalStyles.selectionButtonText,
-                        betts[selectCorrectBetIdx]?.correctOptionId === option.id && globalStyles.selectionButtonTextSelected,
+                        bets[selectCorrectBetIdx]?.correctOptionId === option.id && globalStyles.selectionButtonTextSelected,
                       ]}
                     >
                       {option.name} (odds: {option.odds})
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </>
+              </View>
             )}
             <View style={globalStyles.editButtonsContainer}>
               <TouchableOpacity onPress={() => setSelectCorrectModalVisible(false)}>
                 <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={leaderboardModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setLeaderboardModalVisible(false)}
+      >
+        <View style={globalStyles.modalContainer}>
+          <View style={globalStyles.modalContent}>
+            <Text style={globalStyles.modalTitle}>Ledertavle - Ferdige bets</Text>
+            <FlatList
+              data={getLeaderboardData()}
+              renderItem={renderLeaderboardItem}
+              keyExtractor={item => item.userId}
+              ListEmptyComponent={
+                <Text style={globalStyles.emptyStateText}>Ingen ferdige bets ennå</Text>
+              }
+              contentContainerStyle={globalStyles.listContainer}
+            />
+            <View style={globalStyles.editButtonsContainer}>
+              <TouchableOpacity onPress={() => setLeaderboardModalVisible(false)}>
+                <Text style={globalStyles.cancelButtonText}>Lukk</Text>
               </TouchableOpacity>
             </View>
           </View>
