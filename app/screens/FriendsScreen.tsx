@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
+import { Alert, FlatList, Image, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, TextInput } from 'react-native';
+import { collection, query, where, getDocs, orderBy, getFirestore } from 'firebase/firestore';
 import { globalStyles } from '../styles/globalStyles';
 import { friendsStyles } from '../styles/components/friendsStyles';
-import { Alert, FlatList, Image, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, TextInput } from 'react-native';
-import { collection, query, where, getDocs, orderBy, doc } from 'firebase/firestore';
-import { firestore } from '../services/firebase/FirebaseConfig';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
@@ -15,6 +14,7 @@ type Friend = { id: string; name: string; username: string; profilePicture: any 
 const FriendsScreen = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<Friend[]>([]);
+
   // Dummy data - will be replaced with database data later
   const [friends] = useState<Friend[]>([
     {
@@ -78,6 +78,7 @@ const FriendsScreen = () => {
   const friendSearch = async (searchTerm: string) => {
     if (!searchTerm) return [];
 
+    const firestore = getFirestore();
     const usersRef = collection(firestore, "users");
 
     const q = query(
@@ -104,7 +105,6 @@ const FriendsScreen = () => {
     const results = await friendSearch(searchTerm);
     setSearchResults(results as Friend[]);
   };
-
 
   // Dummy invite link - will be replaced with actual link generation later
   const inviteLink = 'https://app.example.com/invite/abc123xyz';
@@ -155,7 +155,7 @@ const FriendsScreen = () => {
         <Text style={globalStyles.secondaryText}>@{item.username}</Text>
       </View>
       <TouchableOpacity
-        style={styles.removeFriendButton}
+        style={friendsStyles.button}
         onPress={() => handleRemoveFriend(item)}
       >
         <Image source={RemoveFriendIcon} style={globalStyles.deleteIcon} />
@@ -171,7 +171,7 @@ const FriendsScreen = () => {
         <Text style={globalStyles.secondaryText}>@{item.username}</Text>
       </View>
       <TouchableOpacity
-        style={styles.addFriendButton}
+        style={friendsStyles.button}
         onPress={() => handleAddFriend(item)}
       >
         <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
@@ -195,28 +195,6 @@ const FriendsScreen = () => {
           <Text style={globalStyles.sectionDescription}>
             Del lenken med venner for å invitere dem til appen
           </Text>
-        </View>
-
-        {/* Friends section */}
-        <View style={globalStyles.section}>
-          <Text style={globalStyles.sectionTitle}>Mine venner ({friends.length})</Text>
-          {friends.length > 0 ? (
-            <FlatList
-              data={friends}
-              renderItem={renderFriend}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
-            />
-          ) : (
-            <View style={globalStyles.emptyState}>
-              <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
-              <Text style={globalStyles.emptyStateText}>Du har ingen venner ennå</Text>
-              <Text style={globalStyles.secondaryText}>
-                Inviter venner for å komme i gang!
-              </Text>
-            </View>
-          )}
         </View>
 
         {/* Search Section */}
@@ -268,6 +246,27 @@ const FriendsScreen = () => {
           )}
         </View>
 
+        {/* Friends section */}
+        <View style={globalStyles.section}>
+          <Text style={globalStyles.sectionTitle}>Mine venner ({friends.length})</Text>
+          {friends.length > 0 ? (
+            <FlatList
+              data={friends}
+              renderItem={renderFriend}
+              keyExtractor={(item) => item.id}
+              scrollEnabled={false}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <View style={globalStyles.emptyState}>
+              <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
+              <Text style={globalStyles.emptyStateText}>Du har ingen venner ennå</Text>
+              <Text style={globalStyles.secondaryText}>
+                Inviter venner for å komme i gang!
+              </Text>
+            </View>
+          )}
+        </View>
 
         {/* Friends of friends section */}
         <View style={globalStyles.section}>
@@ -294,14 +293,5 @@ const FriendsScreen = () => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  addFriendButton: {
-    padding: 8,
-  },
-  removeFriendButton: {
-    padding: 8,
-  },
-});
 
 export default FriendsScreen;
