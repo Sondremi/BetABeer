@@ -11,8 +11,8 @@ const ImageMissing = require('../../assets/images/image_missing.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 const DeleteIcon = require('../../assets/icons/noun-delete-7938028.png');
 
-type DrinkType = 'øl' | 'cider' | 'hard_selzer' | 'vin' | 'sprit';
-type MeasureType = 'slurker' | 'shot' | 'chug';
+type DrinkType = 'Øl' | 'Cider' | 'Hard selzer' | 'Vin' | 'Sprit';
+type MeasureType = 'Slurker' | 'Shot' | 'Chug';
 
 interface BetWager {
   userId: string;
@@ -64,8 +64,8 @@ const GroupScreen = () => {
   const [bets, setBets] = useState<Bet[]>([]);
   const [placeBetModalVisible, setPlaceBetModalVisible] = useState(false);
   const [selectedBetOption, setSelectedBetOption] = useState<{ bet: Bet; option: BettingOption } | null>(null);
-  const [selectedDrinkType, setSelectedDrinkType] = useState<DrinkType>('øl');
-  const [selectedMeasureType, setSelectedMeasureType] = useState<MeasureType>('slurker');
+  const [selectedDrinkType, setSelectedDrinkType] = useState<DrinkType>('Øl');
+  const [selectedMeasureType, setSelectedMeasureType] = useState<MeasureType>('Slurker');
   const [betAmount, setBetAmount] = useState('1');
   const [placingBet, setPlacingBet] = useState(false);
   const [selectCorrectModalVisible, setSelectCorrectModalVisible] = useState(false);
@@ -79,8 +79,8 @@ const GroupScreen = () => {
 
   const currentGroup = selectedGroup ? { ...selectedGroup, name: groupName } : { id: 'default', name: 'Gruppenavn', memberCount: 0, image: ImageMissing };
 
-  const drinkTypes: DrinkType[] = ['øl', 'cider', 'hard_selzer', 'vin', 'sprit'];
-  const measureTypes: MeasureType[] = ['slurker', 'shot', 'chug'];
+  const drinkTypes: DrinkType[] = ['Øl', 'Cider', 'Hard selzer', 'Vin', 'Sprit'];
+  const measureTypes: MeasureType[] = ['Slurker', 'Shot', 'Chug'];
 
   useEffect(() => {
     if (!user) return;
@@ -254,8 +254,8 @@ const GroupScreen = () => {
   const openPlaceBetModal = (bet: Bet, option: BettingOption) => {
     setSelectedBetOption({ bet, option });
     setBetAmount('1');
-    setSelectedDrinkType('øl');
-    setSelectedMeasureType('slurker');
+    setSelectedDrinkType('Øl');
+    setSelectedMeasureType('Slurker');
     setPlaceBetModalVisible(true);
   };
 
