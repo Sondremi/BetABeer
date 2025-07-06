@@ -8,6 +8,9 @@ export const friendsStyles = StyleSheet.create({
     color: theme.colors.text,
     marginBottom: theme.spacing.xs,
   },
+  button: {
+    padding: 8,
+  },
   inviteSection: {
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.lg,
