@@ -1,0 +1,6 @@
+[build]
+command = "expo export --platform web"
+publish = "dist"
+
+[context.production.environment]
+EXPO_PUBLIC_FIREBASE_API_KEY = "DUMMY"
