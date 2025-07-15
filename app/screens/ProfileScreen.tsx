@@ -4,6 +4,7 @@ import { FlatList, Image, ScrollView, Text, TouchableOpacity, View } from 'react
 import { useAuth } from '../context/AuthContext';
 import { globalStyles } from '../styles/globalStyles';
 import { profileStyles } from '../styles/components/profileStyles';
+import { showAlert } from '../utils/platformAlert';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const ImageMissing = require('../../assets/images/image_missing.png');
@@ -102,7 +103,7 @@ const ProfileScreen = () => {
     } catch (error) {
       let msg = 'Kunne ikke opprette gruppe';
       if (error instanceof Error) msg += ': ' + error.message;
-      alert(msg);
+      showAlert('Feil', msg);
     } finally {
       setCreatingGroup(false);
     }
