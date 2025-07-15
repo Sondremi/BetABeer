@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { theme } from '../styles/theme';
 import { globalStyles } from '../styles/globalStyles';
 import { groupStyles } from '../styles/components/groupStyles';
+import { showAlert } from '../utils/platformAlert';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
@@ -139,7 +140,7 @@ const GroupScreen = () => {
     const groupToDelete = currentGroup;
     if (!groupToDelete || groupToDelete.id === 'default') return;
 
-    Alert.alert(
+    showAlert(
       'Bekreft sletting',
       `Er du sikker på at du vil slette gruppen "${groupToDelete.name}"? Dette kan ikke angres.`,
       [
@@ -162,10 +163,9 @@ const GroupScreen = () => {
                   await updateUserDoc(userRef, { groups: updatedGroups });
                 }
               }
-              Alert.alert('Slettet', 'Gruppen er slettet.');
               router.replace('/profile');
             } catch (error) {
-              Alert.alert('Feil', 'Kunne ikke slette gruppe.');
+              showAlert('Feil', 'Kunne ikke slette gruppe.');
             } finally {
               setDeleting(false);
             }
@@ -215,11 +215,11 @@ const GroupScreen = () => {
   const handleSaveBet = async () => {
     if (!selectedGroup) return;
     if (!betTitle.trim()) {
-      Alert.alert('Feil', 'Bet-tittel kan ikke være tom');
+      showAlert('Feil', 'Bet-tittel kan ikke være tom');
       return;
     }
     if (betOptions.some(opt => !opt.name.trim() || !opt.odds.trim())) {
-      Alert.alert('Feil', 'Alle alternativer må ha navn og odds');
+      showAlert('Feil', 'Alle alternativer må ha navn og odds');
       return;
     }
     setBetSaving(true);
@@ -245,7 +245,7 @@ const GroupScreen = () => {
       setBets(prev => [...prev, newBet]);
       setBetModalVisible(false);
     } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke lagre bet');
+      showAlert('Feil', 'Kunne ikke lagre bet');
     } finally {
       setBetSaving(false);
     }
@@ -264,7 +264,7 @@ const GroupScreen = () => {
 
     const amount = parseInt(betAmount);
     if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Feil', 'Ugyldig antall');
+      showAlert('Feil', 'Ugyldig antall');
       return;
     }
 
@@ -304,11 +304,10 @@ const GroupScreen = () => {
           await updateDoc(groupRef, { bets: updatedBets });
           setBets(updatedBets);
           setPlaceBetModalVisible(false);
-          Alert.alert('Suksess', 'Bet plassert!');
         }
       }
     } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke plassere bet');
+      showAlert('Feil', 'Kunne ikke plassere bet');
       console.error('Place bet error:', error);
     } finally {
       setPlacingBet(false);
@@ -387,7 +386,7 @@ const GroupScreen = () => {
       setSelectCorrectBetIdx(idx);
       setSelectCorrectModalVisible(true);
     } else {
-      Alert.alert(
+      showAlert(
         'Administrer bet',
         'Hva vil du gjøre med dette bettet?',
         [
@@ -429,10 +428,10 @@ const GroupScreen = () => {
         setBets(newBets);
         setSelectCorrectModalVisible(false);
 
-        Alert.alert('Suksess', optionId ? 'Riktig alternativ er markert!' : 'Bettet er aktivt igjen!');
+        showAlert('Suksess', optionId ? 'Riktig alternativ er markert!' : 'Bettet er aktivt igjen!');
       }
     } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke oppdatere bet');
+      showAlert('Feil', 'Kunne ikke oppdatere bet');
       console.error('Select correct option error:', error);
     }
   };
@@ -448,11 +447,11 @@ const GroupScreen = () => {
   const handleSaveEditBet = async () => {
     if (editBetIdx === null || !selectedGroup) return;
     if (!editBetTitle.trim()) {
-      Alert.alert('Feil', 'Bet-tittel kan ikke være tom');
+      showAlert('Feil', 'Bet-tittel kan ikke være tom');
       return;
     }
     if (editBetOptions.some(opt => !opt.name.trim() || !opt.odds.trim())) {
-      Alert.alert('Feil', 'Alle alternativer må ha navn og odds');
+      showAlert('Feil', 'Alle alternativer må ha navn og odds');
       return;
     }
     setEditBetSaving(true);
@@ -479,7 +478,7 @@ const GroupScreen = () => {
       setBets(newBets);
       setEditBetModalVisible(false);
     } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke lagre endringer');
+      showAlert('Feil', 'Kunne ikke lagre endringer');
     } finally {
       setEditBetSaving(false);
     }
@@ -488,7 +487,7 @@ const GroupScreen = () => {
   const handleDeleteBet = async () => {
     if (editBetIdx === null || !selectedGroup) return;
 
-    Alert.alert(
+    showAlert(
       'Bekreft sletting',
       'Er du sikker på at du vil slette dette bettet? Dette kan ikke angres.',
       [
@@ -511,7 +510,7 @@ const GroupScreen = () => {
               setBets(newBets);
               setEditBetModalVisible(false);
             } catch (error) {
-              Alert.alert('Feil', 'Kunne ikke slette bet');
+              showAlert('Feil', 'Kunne ikke slette bet');
             } finally {
               setEditBetSaving(false);
             }
@@ -524,7 +523,7 @@ const GroupScreen = () => {
   const handleSaveGroupName = async () => {
     if (!selectedGroup) return;
     if (!groupName.trim()) {
-      Alert.alert('Feil', 'Gruppenavn kan ikke være tomt');
+      showAlert('Feil', 'Gruppenavn kan ikke være tomt');
       return;
     }
     setSaving(true);
@@ -532,9 +531,8 @@ const GroupScreen = () => {
       const firestore = getFirestore();
       await updateDoc(doc(firestore, 'groups', selectedGroup.id), { name: groupName });
       setEditingName(false);
-      Alert.alert('Gruppenavn oppdatert!');
     } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke oppdatere gruppenavn');
+      showAlert('Feil', 'Kunne ikke oppdatere gruppenavn');
     } finally {
       setSaving(false);
     }
@@ -766,7 +764,7 @@ const GroupScreen = () => {
         <View style={groupStyles.createBetSection}>
           <TouchableOpacity
             style={globalStyles.outlineButtonGold}
-            onPress={() => Alert.alert('Inviter venner', 'Her kan du invitere venner til gruppen (backend TODO)')}
+            onPress={() => showAlert('Inviter venner', 'Her kan du invitere venner til gruppen (backend TODO)')}
           >
             <Text style={globalStyles.outlineButtonGoldText}>Inviter venner</Text>
           </TouchableOpacity>
@@ -866,7 +864,7 @@ const GroupScreen = () => {
             {selectedBetOption && (
               <View>
                 <Text style={globalStyles.modalText}>Bet: {selectedBetOption.bet.title}</Text>
-                <Text style={globalStyles.modalOptionText}>
+                <Text style={globalStyles.secondaryText}>
                   Alternativ: {selectedBetOption.option.name} (odds: {selectedBetOption.option.odds})
                 </Text>
               </View>
@@ -993,7 +991,7 @@ const GroupScreen = () => {
             <TouchableOpacity onPress={addEditBetOption} style={{ marginBottom: theme.spacing.md, alignSelf: 'flex-start' }}>
               <Text style={globalStyles.addOptionText}>+ Legg til alternativ</Text>
             </TouchableOpacity>
-            <View style={globalStyles.modalButtonContainer}>
+            <View style={globalStyles.modalButtonsContainer}>
               <TouchableOpacity onPress={handleDeleteBet} disabled={editBetSaving}>
                 <Text style={globalStyles.deleteButtonText}>Slett bet</Text>
               </TouchableOpacity>
@@ -1038,7 +1036,7 @@ const GroupScreen = () => {
                     </Text>
                   </TouchableOpacity>
                 )}
-                <Text style={[globalStyles.modalLabel, { marginBottom: theme.spacing.sm }]}>
+                <Text style={[globalStyles.label, { marginBottom: theme.spacing.sm }]}>
                   {bets[selectCorrectBetIdx]?.isFinished ? 'Eller velg nytt riktig alternativ:' : 'Velg riktig alternativ:'}
                 </Text>
                 {bets[selectCorrectBetIdx]?.options.map((option) => (

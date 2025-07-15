@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { authService } from '../services/firebase/authService';
 import { globalStyles } from '../styles/globalStyles';
 import { loginStyles } from '../styles/components/loginStyles';
+import { showAlert } from '../utils/platformAlert';
 
 const LoginScreen: React.FC = () => {
   const router = useRouter();
@@ -21,65 +22,65 @@ const LoginScreen: React.FC = () => {
   const validateForm = async () => {
     if (isLoginMode) {
       if (!formData.email.trim()) {
-        Alert.alert('Feil', 'E-postadresse er påkrevd');
+        showAlert('Feil', 'E-postadresse er påkrevd');
         return false;
       }
       if (!formData.password.trim()) {
-        Alert.alert('Feil', 'Passord er påkrevd');
+        showAlert('Feil', 'Passord er påkrevd');
         return false;
       }
       return true;
     }
 
     if (!formData.username.trim()) {
-      Alert.alert('Feil', 'Brukernavn er påkrevd');
+      showAlert('Feil', 'Brukernavn er påkrevd');
       return false;
     }
 
     if (!formData.password.trim()) {
-      Alert.alert('Feil', 'Passord er påkrevd');
+      showAlert('Feil', 'Passord er påkrevd');
       return false;
     }
 
     if (!formData.name.trim()) {
-      Alert.alert('Feil', 'Navn er påkrevd');
+      showAlert('Feil', 'Navn er påkrevd');
       return false;
     }
 
     if (!formData.email.trim()) {
-      Alert.alert('Feil', 'E-postadresse er påkrevd');
+      showAlert('Feil', 'E-postadresse er påkrevd');
       return false;
     }
 
     if (!formData.phone.trim()) {
-      Alert.alert('Feil', 'Telefonnummer er påkrevd');
+      showAlert('Feil', 'Telefonnummer er påkrevd');
       return false;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      Alert.alert('Feil', 'Passordene stemmer ikke overens');
+      showAlert('Feil', 'Passordene stemmer ikke overens');
       return false;
     }
 
     if (formData.password.length < 6) {
-      Alert.alert('Feil', 'Passordet må være minst 6 tegn');
+      showAlert('Feil', 'Passordet må være minst 6 tegn');
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-      Alert.alert('Feil', 'Ugyldig e-postadresse');
+      showAlert('Feil', 'Ugyldig e-postadresse');
       return false;
     }
 
     try {
       const usernameExists = await authService.checkUsernameExists(formData.username);
       if (usernameExists) {
-        Alert.alert('Feil', 'Brukernavnet er allerede tatt');
+        showAlert('Feil', 'Brukernavnet er allerede tatt');
         return false;
       }
     } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke opprette bruker. Prøv igjen senere.');
+      showAlert('Feil', 'Kunne ikke opprette bruker. Prøv igjen senere.');
       return false;
     }
 
@@ -88,12 +89,12 @@ const LoginScreen: React.FC = () => {
 
   const handleLogin = async () => {
     if (!formData.email.trim()) {
-      Alert.alert('Feil', 'E-postadresse er påkrevd');
+      showAlert('Feil', 'E-postadresse er påkrevd');
       return;
     }
 
     if (!formData.password.trim()) {
-      Alert.alert('Feil', 'Passord er påkrevd');
+      showAlert('Feil', 'Passord er påkrevd');
       return;
     }
 
@@ -106,7 +107,7 @@ const LoginScreen: React.FC = () => {
     } catch (error) {
       setIsLoading(false);
       const errorMessage = error instanceof Error ? error.message : 'Noe gikk galt under innlogging.';
-      Alert.alert('Innlogging feilet', errorMessage);
+      showAlert('Innlogging feilet', errorMessage);
     }
   };
 
@@ -133,7 +134,7 @@ const LoginScreen: React.FC = () => {
           errorMessage = error.message;
         }
       }
-      Alert.alert('Registrering feilet', errorMessage);
+      showAlert('Registrering feilet', errorMessage);
     }
   };
 

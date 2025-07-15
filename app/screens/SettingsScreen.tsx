@@ -1,11 +1,12 @@
 import { useRouter } from 'expo-router';
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { authService } from '../services/firebase/authService';
 import { theme } from '../styles/theme';
 import { globalStyles } from '../styles/globalStyles';
 import { settingsStyles } from '../styles/components/settingsStyles';
+import { showAlert } from '../utils/platformAlert';
 
 const DeleteIcon = require('../../assets/icons/noun-delete-7938028.png');
 const LogoutIcon = require('../../assets/icons/noun-login-7932862.png');
@@ -51,7 +52,7 @@ const SettingsScreen = () => {
         }
       }
     } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke laste brukerdata');
+      showAlert('Feil', 'Kunne ikke laste brukerdata');
     } finally {
       setIsLoading(false);
     }
@@ -59,23 +60,23 @@ const SettingsScreen = () => {
 
   const validateEditedData = () => {
     if (!editedInfo.name.trim()) {
-      Alert.alert('Feil', 'Navn er påkrevd');
+      showAlert('Feil', 'Navn er påkrevd');
       return false;
     }
 
     if (!editedInfo.email.trim()) {
-      Alert.alert('Feil', 'E-postadresse er påkrevd');
+      showAlert('Feil', 'E-postadresse er påkrevd');
       return false;
     }
 
     if (!editedInfo.phone.trim()) {
-      Alert.alert('Feil', 'Telefonnummer er påkrevd');
+      showAlert('Feil', 'Telefonnummer er påkrevd');
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(editedInfo.email)) {
-      Alert.alert('Feil', 'Ugyldig e-postadresse');
+      showAlert('Feil', 'Ugyldig e-postadresse');
       return false;
     }
 
@@ -96,10 +97,9 @@ const SettingsScreen = () => {
       
       setUserInfo(editedInfo);
       setIsEditing(false);
-      Alert.alert('Lagret', 'Brukerinformasjon er oppdatert');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Kunne ikke lagre endringene';
-      Alert.alert('Feil', errorMessage);
+      showAlert('Feil', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -115,7 +115,7 @@ const SettingsScreen = () => {
   };
 
   const handleLogout = () => {
-    Alert.alert(
+    showAlert(
       'Logg ut',
       'Er du sikker på at du vil logge ut?',
       [
@@ -131,7 +131,7 @@ const SettingsScreen = () => {
               await authService.logoutUser();
               router.replace('/login');
             } catch (error) {
-              Alert.alert('Feil', 'Kunne ikke logge ut');
+              showAlert('Feil', 'Kunne ikke logge ut');
             }
           },
         },
@@ -140,7 +140,7 @@ const SettingsScreen = () => {
   };
 
   const handleDeleteUser = () => {
-    Alert.alert(
+    showAlert(
       'Slett bruker',
       'Er du sikker på at du vil slette brukeren din? Dette kan ikke angres og vil slette all data knyttet til brukeren.',
       [
@@ -152,7 +152,7 @@ const SettingsScreen = () => {
           text: 'Slett',
           style: 'destructive',
           onPress: () => {
-            Alert.alert(
+            showAlert(
               'Bekreft sletting',
               'Dette vil permanent slette brukeren din. Er du helt sikker?',
               [
@@ -167,7 +167,7 @@ const SettingsScreen = () => {
                     try {
                       setIsLoading(true);
                       await authService.deleteUser(userInfo.id);
-                      Alert.alert(
+                      showAlert(
                         'Bruker slettet', 
                         'Brukeren din er permanent slettet',
                         [
@@ -191,7 +191,7 @@ const SettingsScreen = () => {
                         }
                       }
                       
-                      Alert.alert('Feil', errorMessage);
+                      showAlert('Feil', errorMessage);
                     }
                   },
                 },
