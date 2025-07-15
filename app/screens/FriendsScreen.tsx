@@ -75,6 +75,20 @@ const FriendsScreen = () => {
     },
   ]);
 
+  const inviteLink = 'https://bet-a-beer.netlify.app/';
+
+  const handleInviteFriends = async () => {
+    try {
+      const result = await Share.share({
+        message: `Bli med meg på BetABeer! Bruk denne linken: ${inviteLink}`,
+        url: inviteLink,
+        title: 'Inviter venner til BetABeer',
+      });
+    } catch (error) {
+      Alert.alert('Feil', 'Kunne ikke dele invitasjonslenken');
+    }
+  };
+
   const friendSearch = async (searchTerm: string) => {
     if (!searchTerm) return [];
 
@@ -104,21 +118,6 @@ const FriendsScreen = () => {
   const handleSearch = async () => {
     const results = await friendSearch(searchTerm);
     setSearchResults(results as Friend[]);
-  };
-
-  // Dummy invite link - will be replaced with actual link generation later
-  const inviteLink = 'https://app.example.com/invite/abc123xyz';
-
-  const handleInviteFriends = async () => {
-    try {
-      const result = await Share.share({
-        message: `Bli med meg på BetABeer! Bruk denne linken: ${inviteLink}`,
-        url: inviteLink,
-        title: 'Inv Magen til BetABeer',
-      });
-    } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke dele invitasjonslenken');
-    }
   };
 
   const handleAddFriend = (friend: Friend) => {
