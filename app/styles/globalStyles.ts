@@ -449,40 +449,65 @@ export const globalStyles = StyleSheet.create({
   // Modal styles
   modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalContent: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.background,
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.xl,
     width: '90%',
+    maxWidth: 400,
   },
   modalTitle: {
-    color: theme.colors.primary,
+    color: theme.colors.text,
     fontSize: theme.fonts.lg,
     fontWeight: 'bold',
     marginBottom: theme.spacing.md,
+    textAlign: 'center',
   },
   modalText: {
-    color: theme.colors.text,
-    fontSize: theme.fonts.md,
-    marginBottom: theme.spacing.sm,
-  },
-  modalOptionText: {
-    color: theme.colors.primary,
+    color: theme.colors.textSecondary,
     fontSize: theme.fonts.md,
     marginBottom: theme.spacing.md,
+    textAlign: 'center',
   },
-  modalLabel: {
-    color: theme.colors.text,
-    fontSize: theme.fonts.sm,
-    marginBottom: theme.spacing.sm,
-  },
-  modalButtonContainer: {
+  modalButtonsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginTop: theme.spacing.lg,
+  },
+  modalButton: {
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xl,
+    borderRadius: theme.borderRadius.sm,
+    minWidth: 100,
     alignItems: 'center',
+  },
+  modalButtonText: {
+    fontSize: theme.fonts.md,
+    fontWeight: '600',
+  },
+  defaultButton: {
+    backgroundColor: theme.colors.primary,
+  },
+  cancelButtonModal: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: theme.colors.textSecondary,
+  },
+  destructiveButtonModal: {
+    backgroundColor: theme.colors.danger,
+  },
+  defaultButtonText: {
+    color: theme.colors.background,
+  },
+  cancelButtonTextModal: {
+    color: theme.colors.textSecondary,
+  },
+  destructiveButtonTextModal: {
+    color: theme.colors.background,
   },
 });
