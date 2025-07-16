@@ -510,4 +510,23 @@ export const globalStyles = StyleSheet.create({
   destructiveButtonTextModal: {
     color: theme.colors.background,
   },
+
+  // Bottom bar styles
+  tabBar: {
+    flexDirection: 'row',
+    height: 70,
+    backgroundColor: theme.colors.background,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.surface,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabIcon: {
+    width: 30,
+    height: 30,
+    tintColor: theme.colors.primary,
+  },
 });
