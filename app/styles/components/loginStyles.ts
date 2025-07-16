@@ -22,7 +22,7 @@ export const loginStyles = StyleSheet.create({
   },
   toggleLink: {
     fontSize: theme.fonts.sm,
-    color: theme.colors.primaryAlt,
+    color: theme.colors.primary,
     fontWeight: '700',
   },
 });
