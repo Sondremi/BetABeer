@@ -7,10 +7,6 @@ export const globalStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  containerAlt: {
-    flex: 1,
-    backgroundColor: theme.colors.backgroundAlt,
-  },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -142,20 +138,13 @@ export const globalStyles = StyleSheet.create({
   dangerSectionTitle: {
     fontSize: theme.fonts.lg,
     fontWeight: 'bold',
-    color: theme.colors.danger,
+    color: theme.colors.error,
     marginBottom: theme.spacing.lg,
   },
 
   // Form elements
   formContainer: {
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.xxl,
-    marginBottom: theme.spacing.xl,
-    ...theme.shadows.small,
-  },
-  formContainerAlt: {
-    backgroundColor: theme.colors.surfaceAlt,
     borderRadius: theme.borderRadius.xl,
     padding: theme.spacing.xxl,
     marginHorizontal: theme.spacing.md,
@@ -179,15 +168,6 @@ export const globalStyles = StyleSheet.create({
     fontSize: theme.fonts.md,
     backgroundColor: theme.colors.surface,
     color: theme.colors.text,
-  },
-  inputAlt: {
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
-    borderRadius: theme.spacing.md,
-    padding: theme.spacing.lg,
-    fontSize: theme.fonts.md,
-    backgroundColor: theme.colors.backgroundAlt,
-    color: theme.colors.textAlt,
   },
   readOnlyInput: {
     borderWidth: 1,
@@ -302,17 +282,17 @@ export const globalStyles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: theme.spacing.sm,
     borderWidth: 1,
-    borderColor: theme.colors.danger,
+    borderColor: theme.colors.error,
   },
   dangerButtonText: {
     fontSize: theme.fonts.md,
-    color: theme.colors.danger,
+    color: theme.colors.error,
     fontWeight: '600',
     marginLeft: theme.spacing.sm,
   },
   deleteButtonText: {
     fontSize: theme.fonts.md,
-    color: theme.colors.danger,
+    color: theme.colors.error,
     fontWeight: '600',
   },
   selectionButton: {
@@ -396,7 +376,7 @@ export const globalStyles = StyleSheet.create({
   titleText: {
     fontSize: theme.fonts.title,
     fontWeight: 'bold',
-    color: theme.colors.primaryAlt,
+    color: theme.colors.primary,
     marginBottom: theme.spacing.sm,
     letterSpacing: 1,
   },
@@ -443,7 +423,7 @@ export const globalStyles = StyleSheet.create({
   deleteIcon: {
     width: 20,
     height: 20,
-    tintColor: theme.colors.dangerLight,
+    tintColor: theme.colors.errorLight,
   },
 
   // Modal styles
@@ -499,7 +479,7 @@ export const globalStyles = StyleSheet.create({
     borderColor: theme.colors.textSecondary,
   },
   destructiveButtonModal: {
-    backgroundColor: theme.colors.danger,
+    backgroundColor: theme.colors.error,
   },
   defaultButtonText: {
     color: theme.colors.background,

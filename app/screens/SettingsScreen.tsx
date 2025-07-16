@@ -3,9 +3,9 @@ import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { authService } from '../services/firebase/authService';
-import { theme } from '../styles/theme';
-import { globalStyles } from '../styles/globalStyles';
 import { settingsStyles } from '../styles/components/settingsStyles';
+import { globalStyles } from '../styles/globalStyles';
+import { theme } from '../styles/theme';
 import { showAlert } from '../utils/platformAlert';
 
 const DeleteIcon = require('../../assets/icons/noun-delete-7938028.png');
@@ -330,7 +330,7 @@ const SettingsScreen = () => {
         {/* Danger Zone */}
         <View style={globalStyles.dangerSection}>
           <Text style={globalStyles.dangerSectionTitle}>Farlig sone</Text>
-          <Text style={[globalStyles.mutedText, { color: theme.colors.dangerLight, lineHeight: 20 }]}>
+          <Text style={[globalStyles.mutedText, { color: theme.colors.errorLight, lineHeight: 20 }]}>
             Sletting av bruker vil permanent fjerne all data knyttet til brukeren din. Dette kan ikke angres.
           </Text>
           <TouchableOpacity 
