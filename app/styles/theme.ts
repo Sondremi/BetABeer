@@ -1,19 +1,15 @@
 export const theme = {
   colors: {
     primary: '#FFD700',
-    primaryAlt: '#FFC857', // For LoginScreen
     background: '#181A20',
-    backgroundAlt: '#181818', // For LoginScreen
     surface: '#23242A',
-    surfaceAlt: '#232323', // For LoginScreen
     text: '#fff',
-    textAlt: '#F3F3F3', // For LoginScreen
+    textAlt: '#F3F3F3',
     textSecondary: '#B0B0B0',
     textMuted: '#888',
     success: '#4CAF50',
-    error: '#F44336',
-    danger: '#FF2222',
-    dangerLight: '#FF6B6B',
+    error: '#FF2222',
+    errorLight: '#FF6B6B',
     disabled: '#555',
     shadow: '#000',
     border: '#333',

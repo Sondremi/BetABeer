@@ -175,12 +175,12 @@ const LoginScreen: React.FC = () => {
         </View>
 
         {/* Login Form */}
-        <View style={globalStyles.formContainerAlt}>
+        <View style={globalStyles.formContainer}>
           {isLoginMode ? (
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>E-postadresse</Text>
               <TextInput
-                style={globalStyles.inputAlt}
+                style={globalStyles.input}
                 value={formData.email}
                 onChangeText={(text) => setFormData({ ...formData, email: text })}
                 placeholder="Skriv inn e-postadresse"
@@ -195,7 +195,7 @@ const LoginScreen: React.FC = () => {
               <View style={globalStyles.inputGroup}>
                 <Text style={globalStyles.label}>Brukernavn</Text>
                 <TextInput
-                  style={globalStyles.inputAlt}
+                  style={globalStyles.input}
                   value={formData.username}
                   onChangeText={(text) => setFormData({ ...formData, username: text })}
                   placeholder="Skriv inn brukernavn"
@@ -207,7 +207,7 @@ const LoginScreen: React.FC = () => {
               <View style={globalStyles.inputGroup}>
                 <Text style={globalStyles.label}>Navn</Text>
                 <TextInput
-                  style={globalStyles.inputAlt}
+                  style={globalStyles.input}
                   value={formData.name}
                   onChangeText={(text) => setFormData({ ...formData, name: text })}
                   placeholder="Skriv inn fullt navn"
@@ -217,7 +217,7 @@ const LoginScreen: React.FC = () => {
               <View style={globalStyles.inputGroup}>
                 <Text style={globalStyles.label}>E-postadresse</Text>
                 <TextInput
-                  style={globalStyles.inputAlt}
+                  style={globalStyles.input}
                   value={formData.email}
                   onChangeText={(text) => setFormData({ ...formData, email: text })}
                   placeholder="Skriv inn e-postadresse"
@@ -230,7 +230,7 @@ const LoginScreen: React.FC = () => {
               <View style={globalStyles.inputGroup}>
                 <Text style={globalStyles.label}>Telefonnummer</Text>
                 <TextInput
-                  style={globalStyles.inputAlt}
+                  style={globalStyles.input}
                   value={formData.phone}
                   onChangeText={(text) => setFormData({ ...formData, phone: text })}
                   placeholder="Skriv inn telefonnummer"
@@ -244,7 +244,7 @@ const LoginScreen: React.FC = () => {
           <View style={globalStyles.inputGroup}>
             <Text style={globalStyles.label}>Passord</Text>
             <TextInput
-              style={globalStyles.inputAlt}
+              style={globalStyles.input}
               value={formData.password}
               onChangeText={(text) => setFormData({ ...formData, password: text })}
               placeholder="Skriv inn passord"
@@ -260,7 +260,7 @@ const LoginScreen: React.FC = () => {
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Bekreft passord</Text>
               <TextInput
-                style={globalStyles.inputAlt}
+                style={globalStyles.input}
                 value={formData.confirmPassword}
                 onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
                 placeholder="Bekreft passord"

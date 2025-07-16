@@ -1,11 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, updateDoc, updateDoc as updateUserDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { theme } from '../styles/theme';
-import { globalStyles } from '../styles/globalStyles';
 import { groupStyles } from '../styles/components/groupStyles';
+import { globalStyles } from '../styles/globalStyles';
+import { theme } from '../styles/theme';
 import { showAlert } from '../utils/platformAlert';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
@@ -600,7 +600,7 @@ const GroupScreen = () => {
         <View style={globalStyles.listItemRow}>
           <Text style={[groupStyles.wagerUser, { fontWeight: 'bold' }]}>{item.username} ({item.wins} vinner)</Text>
           <View style={{ flex: 1 }}>
-            <Text style={[groupStyles.wagerDetails, { color: theme.colors.danger }]}>Drikke selv: {formatDrinks(item.drinksToConsume)}</Text>
+            <Text style={[groupStyles.wagerDetails, { color: theme.colors.error }]}>Drikke selv: {formatDrinks(item.drinksToConsume)}</Text>
             <Text style={[groupStyles.wagerDetails, { color: theme.colors.success, fontWeight: 'bold' }]}>Dele ut: {formatDrinks(item.drinksToDistribute)}</Text>
           </View>
         </View>
@@ -1003,7 +1003,7 @@ const GroupScreen = () => {
                 <Text style={globalStyles.modalText}>{bets[selectCorrectBetIdx]?.title}</Text>
                 {bets[selectCorrectBetIdx]?.isFinished && (
                   <TouchableOpacity
-                    style={[globalStyles.selectionButton, { marginBottom: theme.spacing.md, backgroundColor: theme.colors.danger }]}
+                    style={[globalStyles.selectionButton, { marginBottom: theme.spacing.md, backgroundColor: theme.colors.error }]}
                     onPress={() => handleSelectCorrectOption(null)}
                   >
                     <Text style={[globalStyles.selectionButtonText, { color: theme.colors.background }]}>
@@ -1118,7 +1118,7 @@ const GroupScreen = () => {
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[globalStyles.selectionButton, { marginBottom: theme.spacing.sm, backgroundColor: theme.colors.danger }]}
+              style={[globalStyles.selectionButton, { marginBottom: theme.spacing.sm, backgroundColor: theme.colors.error }]}
               onPress={() => {
                 if (selectedEditBet) {
                   setEditBetIdx(selectedEditBet.index);
