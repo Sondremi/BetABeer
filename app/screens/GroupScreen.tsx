@@ -77,6 +77,8 @@ const GroupScreen = () => {
   const [editBetOptions, setEditBetOptions] = useState<{ name: string; odds: string }[]>([]);
   const [editBetSaving, setEditBetSaving] = useState(false);
   const [leaderboardModalVisible, setLeaderboardModalVisible] = useState(false);
+  const [editMenuModalVisible, setEditMenuModalVisible] = useState(false);
+  const [selectedEditBet, setSelectedEditBet] = useState<{ bet: Bet; index: number } | null>(null);
 
   const currentGroup = selectedGroup ? { ...selectedGroup, name: groupName } : { id: 'default', name: 'Gruppenavn', memberCount: 0, image: ImageMissing };
 
@@ -378,30 +380,8 @@ const GroupScreen = () => {
   };
 
   const openEditBetModal = (bet: Bet, idx: number) => {
-    setEditBetIdx(idx);
-    setEditBetTitle(bet.title);
-    setEditBetOptions(bet.options.map((opt: BettingOption) => ({ name: opt.name, odds: opt.odds.toString() })));
-
-    if (bet.correctOptionId || bet.isFinished) {
-      setSelectCorrectBetIdx(idx);
-      setSelectCorrectModalVisible(true);
-    } else {
-      showAlert(
-        'Administrer bet',
-        'Hva vil du gjøre med dette bettet?',
-        [
-          { text: 'Rediger bet', onPress: () => setEditBetModalVisible(true) },
-          {
-            text: 'Marker som ferdig',
-            onPress: () => {
-              setSelectCorrectBetIdx(idx);
-              setSelectCorrectModalVisible(true);
-            },
-          },
-          { text: 'Avbryt', style: 'cancel' },
-        ]
-      );
-    }
+    setSelectedEditBet({ bet, index: idx });
+    setEditMenuModalVisible(true);
   };
 
   const handleSelectCorrectOption = async (optionId: string | null) => {
@@ -427,8 +407,6 @@ const GroupScreen = () => {
         await updateDoc(groupRef, { bets: newBets });
         setBets(newBets);
         setSelectCorrectModalVisible(false);
-
-        showAlert('Suksess', optionId ? 'Riktig alternativ er markert!' : 'Bettet er aktivt igjen!');
       }
     } catch (error) {
       showAlert('Feil', 'Kunne ikke oppdatere bet');
@@ -992,9 +970,6 @@ const GroupScreen = () => {
               <Text style={globalStyles.addOptionText}>+ Legg til alternativ</Text>
             </TouchableOpacity>
             <View style={globalStyles.modalButtonsContainer}>
-              <TouchableOpacity onPress={handleDeleteBet} disabled={editBetSaving}>
-                <Text style={globalStyles.deleteButtonText}>Slett bet</Text>
-              </TouchableOpacity>
               <View style={globalStyles.editButtonsContainer}>
                 <TouchableOpacity onPress={() => setEditBetModalVisible(false)} disabled={editBetSaving}>
                   <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
@@ -1091,6 +1066,101 @@ const GroupScreen = () => {
             <View style={globalStyles.editButtonsContainer}>
               <TouchableOpacity onPress={() => setLeaderboardModalVisible(false)}>
                 <Text style={globalStyles.cancelButtonText}>Lukk</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={editMenuModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEditMenuModalVisible(false)}
+      >
+        <View style={globalStyles.modalContainer}>
+          <View style={globalStyles.modalContent}>
+            <Text style={globalStyles.modalTitle}>Administrer bet</Text>
+            <Text style={globalStyles.modalText}>
+              {selectedEditBet?.bet.title || 'Velg en handling for bettet'}
+            </Text>
+            <TouchableOpacity
+              style={[globalStyles.selectionButton, { marginBottom: theme.spacing.sm }]}
+              onPress={() => {
+                if (selectedEditBet) {
+                  setEditBetIdx(selectedEditBet.index);
+                  setEditBetTitle(selectedEditBet.bet.title);
+                  setEditBetOptions(
+                    selectedEditBet.bet.options.map((opt: BettingOption) => ({
+                      name: opt.name,
+                      odds: opt.odds.toString(),
+                    }))
+                  );
+                  setEditBetModalVisible(true);
+                  setEditMenuModalVisible(false);
+                }
+              }}
+            >
+              <Text style={globalStyles.selectionButtonText}>Rediger bet</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[globalStyles.selectionButton, { marginBottom: theme.spacing.sm }]}
+              onPress={() => {
+                if (selectedEditBet) {
+                  setSelectCorrectBetIdx(selectedEditBet.index);
+                  setSelectCorrectModalVisible(true);
+                  setEditMenuModalVisible(false);
+                }
+              }}
+            >
+              <Text style={globalStyles.selectionButtonText}>
+                {selectedEditBet?.bet.isFinished ? 'Gjør aktivt igjen' : 'Marker som ferdig'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[globalStyles.selectionButton, { marginBottom: theme.spacing.sm, backgroundColor: theme.colors.danger }]}
+              onPress={() => {
+                if (selectedEditBet) {
+                  setEditBetIdx(selectedEditBet.index);
+                  setEditMenuModalVisible(false);
+                  showAlert(
+                    'Bekreft sletting',
+                    'Er du sikker på at du vil slette dette bettet? Dette kan ikke angres.',
+                    [
+                      { text: 'Avbryt', style: 'cancel' },
+                      {
+                        text: 'Slett',
+                        style: 'destructive',
+                        onPress: async () => {
+                          setEditBetSaving(true);
+                          try {
+                            const firestore = getFirestore();
+                            const groupRef = doc(firestore, 'groups', selectedGroup!.id);
+                            const groupSnap = await getDoc(groupRef);
+                            let groupBets: Bet[] = [];
+                            if (groupSnap.exists() && groupSnap.data().bets) {
+                              groupBets = groupSnap.data().bets;
+                            }
+                            const newBets = groupBets.filter((_, betIdx: number) => betIdx !== editBetIdx);
+                            await updateDoc(groupRef, { bets: newBets });
+                            setBets(newBets);
+                          } catch (error) {
+                            showAlert('Feil', 'Kunne ikke slette bet');
+                          } finally {
+                            setEditBetSaving(false);
+                          }
+                        },
+                      },
+                    ]
+                  );
+                }
+              }}
+            >
+              <Text style={[globalStyles.selectionButtonText, { color: theme.colors.background }]}>Slett bet</Text>
+            </TouchableOpacity>
+            <View style={globalStyles.editButtonsContainer}>
+              <TouchableOpacity onPress={() => setEditMenuModalVisible(false)}>
+                <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
               </TouchableOpacity>
             </View>
           </View>
