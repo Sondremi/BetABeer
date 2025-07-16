@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Alert, FlatList, Image, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, TextInput } from 'react-native';
+import { FlatList, Image, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, TextInput } from 'react-native';
 import { collection, query, where, getDocs, orderBy, getFirestore } from 'firebase/firestore';
 import { globalStyles } from '../styles/globalStyles';
 import { friendsStyles } from '../styles/components/friendsStyles';
+import { showAlert } from '../utils/platformAlert';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
@@ -75,6 +76,18 @@ const FriendsScreen = () => {
     },
   ]);
 
+  const inviteLink = 'https://bet-a-beer.netlify.app/';
+
+  const handleInviteFriends = async () => {
+    try {
+      const result = await Share.share({
+        message: `Bli med meg på BetABeer! Bruk denne linken: ${inviteLink}`,
+        url: inviteLink,
+        title: 'Inviter venner til BetABeer',
+      });
+    } catch (error) {}
+  };
+
   const friendSearch = async (searchTerm: string) => {
     if (!searchTerm) return [];
 
@@ -106,28 +119,13 @@ const FriendsScreen = () => {
     setSearchResults(results as Friend[]);
   };
 
-  // Dummy invite link - will be replaced with actual link generation later
-  const inviteLink = 'https://app.example.com/invite/abc123xyz';
-
-  const handleInviteFriends = async () => {
-    try {
-      const result = await Share.share({
-        message: `Bli med meg på BetABeer! Bruk denne linken: ${inviteLink}`,
-        url: inviteLink,
-        title: 'Inv Magen til BetABeer',
-      });
-    } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke dele invitasjonslenken');
-    }
-  };
-
   const handleAddFriend = (friend: Friend) => {
     // Here you would add friend to database
-    Alert.alert('Venneforespørsel sendt', `Venneforespørsel sendt til ${friend.name}`);
+    showAlert('Venneforespørsel sendt', `Venneforespørsel sendt til ${friend.name}`);
   };
 
   const handleRemoveFriend = (friend: Friend) => {
-    Alert.alert(
+    showAlert(
       'Fjern venn',
       `Er du sikker på at du vil fjerne ${friend.name} som venn?`,
       [
@@ -140,7 +138,7 @@ const FriendsScreen = () => {
           style: 'destructive',
           onPress: () => {
             // Here you would remove friend from database
-            Alert.alert('Venn fjernet', `${friend.name} er fjernet fra vennelisten din`);
+            showAlert('Venn fjernet', `${friend.name} er fjernet fra vennelisten din`);
           },
         }
       ]        
