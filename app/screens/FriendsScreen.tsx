@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FlatList, Image, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, TextInput } from 'react-native';
+import { KeyboardAvoidingView, FlatList, Image, Platform, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, TextInput } from 'react-native';
 import { collection, query, where, getDocs, orderBy, getFirestore } from 'firebase/firestore';
 import { globalStyles } from '../styles/globalStyles';
 import { friendsStyles } from '../styles/components/friendsStyles';
@@ -178,8 +178,17 @@ const FriendsScreen = () => {
   );
 
   return (
-    <SafeAreaView style={[globalStyles.container, { padding: 0 }]}>
-      <ScrollView contentContainerStyle={friendsStyles.fullWidthScrollContent}>
+    <KeyboardAvoidingView
+      style={[
+        Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container,
+        { padding: 0 }
+      ]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={globalStyles.fullWidthScrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Header */}
         <View style={globalStyles.header}>
           <Text style={globalStyles.headerTitle}>Venner</Text>
@@ -288,7 +297,7 @@ const FriendsScreen = () => {
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 

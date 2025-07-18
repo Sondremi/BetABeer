@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { authService } from '../services/firebase/authService';
 import { settingsStyles } from '../styles/components/settingsStyles';
 import { globalStyles } from '../styles/globalStyles';
@@ -212,138 +212,150 @@ const SettingsScreen = () => {
   }
 
   return (
-    <ScrollView style={globalStyles.container}>
-      {/* Header */}
-      <View style={[globalStyles.header, globalStyles.rowSpread]}>
-        <TouchableOpacity style={settingsStyles.backButton} onPress={handleBack}>
-          <Text style={settingsStyles.backButtonText}>←</Text>
-        </TouchableOpacity>
-        <Text style={globalStyles.headerTitleMedium}>Innstillinger</Text>
-        <View style={settingsStyles.headerPlaceholder} />
-      </View>
+    <KeyboardAvoidingView
+      style={[
+        Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container,
+        { padding: 0 }
+      ]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={globalStyles.fullWidthScrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Header */}
+        {<View style={[globalStyles.header, globalStyles.rowSpread]}>
+          <TouchableOpacity style={settingsStyles.backButton} onPress={handleBack}>
+            <Text style={settingsStyles.backButtonText}>←</Text>
+          </TouchableOpacity>
+          <Text style={globalStyles.headerTitleMedium}>Innstillinger</Text>
+          <View style={settingsStyles.headerPlaceholder} />
+        </View>}
 
-      <View style={globalStyles.section}>
-        {/* User Information Section */}
-        <View style={globalStyles.inputGroup}>
-          <Text style={globalStyles.sectionTitle}>Brukerinformasjon</Text>
-          
-          {/* Username - not editable */}
+        <View style={globalStyles.section}>
+          {/* User Information Section */}
           <View style={globalStyles.inputGroup}>
-            <Text style={globalStyles.label}>Brukernavn</Text>
-            <View style={globalStyles.readOnlyInput}>
-              <Text style={settingsStyles.readOnlyText}>{userInfo.username}</Text>
+            <Text style={globalStyles.sectionTitle}>Brukerinformasjon</Text>
+            
+            {/* Username - not editable */}
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Brukernavn</Text>
+              <View style={globalStyles.readOnlyInput}>
+                <Text style={settingsStyles.readOnlyText}>{userInfo.username}</Text>
+              </View>
+              <Text style={globalStyles.mutedText}>Brukernavn kan ikke endres</Text>
             </View>
-            <Text style={globalStyles.mutedText}>Brukernavn kan ikke endres</Text>
-          </View>
 
-          {/* Name */}
-          <View style={globalStyles.inputGroup}>
-            <Text style={globalStyles.label}>Navn</Text>
-            {isEditing ? (
-              <TextInput
-                style={globalStyles.input}
-                value={editedInfo.name}
-                onChangeText={(text) => setEditedInfo({ ...editedInfo, name: text })}
-                placeholder="Skriv inn navn"
-                placeholderTextColor="#888"
-              />
-            ) : (
-              <View style={globalStyles.readOnlyInput}>
-                <Text style={settingsStyles.readOnlyText}>{userInfo.name}</Text>
-              </View>
-            )}
-          </View>
+            {/* Name */}
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Navn</Text>
+              {isEditing ? (
+                <TextInput
+                  style={globalStyles.input}
+                  value={editedInfo.name}
+                  onChangeText={(text) => setEditedInfo({ ...editedInfo, name: text })}
+                  placeholder="Skriv inn navn"
+                  placeholderTextColor="#888"
+                />
+              ) : (
+                <View style={globalStyles.readOnlyInput}>
+                  <Text style={settingsStyles.readOnlyText}>{userInfo.name}</Text>
+                </View>
+              )}
+            </View>
 
-          {/* Phone */}
-          <View style={globalStyles.inputGroup}>
-            <Text style={globalStyles.label}>Telefonnummer</Text>
-            {isEditing ? (
-              <TextInput
-                style={globalStyles.input}
-                value={editedInfo.phone}
-                onChangeText={(text) => setEditedInfo({ ...editedInfo, phone: text })}
-                placeholder="Skriv inn telefonnummer"
-                placeholderTextColor="#888"
-                keyboardType="phone-pad"
-              />
-            ) : (
-              <View style={globalStyles.readOnlyInput}>
-                <Text style={settingsStyles.readOnlyText}>{userInfo.phone}</Text>
-              </View>
-            )}
-          </View>
+            {/* Phone */}
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Telefonnummer</Text>
+              {isEditing ? (
+                <TextInput
+                  style={globalStyles.input}
+                  value={editedInfo.phone}
+                  onChangeText={(text) => setEditedInfo({ ...editedInfo, phone: text })}
+                  placeholder="Skriv inn telefonnummer"
+                  placeholderTextColor="#888"
+                  keyboardType="phone-pad"
+                />
+              ) : (
+                <View style={globalStyles.readOnlyInput}>
+                  <Text style={settingsStyles.readOnlyText}>{userInfo.phone}</Text>
+                </View>
+              )}
+            </View>
 
-          {/* Email */}
-          <View style={globalStyles.inputGroup}>
-            <Text style={globalStyles.label}>E-postadresse</Text>
-            {isEditing ? (
-              <TextInput
-                style={globalStyles.input}
-                value={editedInfo.email}
-                onChangeText={(text) => setEditedInfo({ ...editedInfo, email: text })}
-                placeholder="Skriv inn e-postadresse"
-                placeholderTextColor="#888"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            ) : (
-              <View style={globalStyles.readOnlyInput}>
-                <Text style={settingsStyles.readOnlyText}>{userInfo.email}</Text>
-              </View>
-            )}
-          </View>
+            {/* Email */}
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>E-postadresse</Text>
+              {isEditing ? (
+                <TextInput
+                  style={globalStyles.input}
+                  value={editedInfo.email}
+                  onChangeText={(text) => setEditedInfo({ ...editedInfo, email: text })}
+                  placeholder="Skriv inn e-postadresse"
+                  placeholderTextColor="#888"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              ) : (
+                <View style={globalStyles.readOnlyInput}>
+                  <Text style={settingsStyles.readOnlyText}>{userInfo.email}</Text>
+                </View>
+              )}
+            </View>
 
-          {/* Edit/Save/Cancel buttons */}
-          <View style={settingsStyles.buttonRowNoGap}>
-            {isEditing ? (
-              <>
-                <TouchableOpacity style={[settingsStyles.halfWidthCancelButton, isLoading && globalStyles.disabledButton]} onPress={handleCancel} disabled={isLoading}>
-                  <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
+            {/* Edit/Save/Cancel buttons */}
+            <View style={settingsStyles.buttonRowNoGap}>
+              {isEditing ? (
+                <>
+                  <TouchableOpacity style={[settingsStyles.halfWidthCancelButton, isLoading && globalStyles.disabledButton]} onPress={handleCancel} disabled={isLoading}>
+                    <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[settingsStyles.halfWidthSaveButton, isLoading && globalStyles.disabledButton]} 
+                    onPress={handleSave}
+                    disabled={isLoading}
+                  >
+                    <Text style={globalStyles.saveButtonTextAlt}>
+                      {isLoading ? 'Lagrer...' : 'Lagre'}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity style={settingsStyles.fullWidthButton} onPress={() => setIsEditing(true)}>
+                  <Text style={globalStyles.outlineButtonText}>Rediger informasjon</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[settingsStyles.halfWidthSaveButton, isLoading && globalStyles.disabledButton]} 
-                  onPress={handleSave}
-                  disabled={isLoading}
-                >
-                  <Text style={globalStyles.saveButtonTextAlt}>
-                    {isLoading ? 'Lagrer...' : 'Lagre'}
-                  </Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <TouchableOpacity style={settingsStyles.fullWidthButton} onPress={() => setIsEditing(true)}>
-                <Text style={globalStyles.outlineButtonText}>Rediger informasjon</Text>
-              </TouchableOpacity>
-            )}
+              )}
+            </View>
+          </View>
+
+          {/* Log out Section */}
+          <View style={globalStyles.inputGroup}>
+            <Text style={globalStyles.sectionTitle}>Logg ut</Text>
+            <TouchableOpacity style={globalStyles.outlineButton} onPress={handleLogout}>
+              <Image source={LogoutIcon} style={{ width: 20, height: 20, tintColor: '#FFD700' }} />
+              <Text style={globalStyles.outlineButtonText}>Logg ut</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Delete Account Section */}
+          <View style={globalStyles.dangerSection}>
+            <Text style={globalStyles.dangerSectionTitle}>Slett bruker</Text>
+            <Text style={[globalStyles.mutedText, { color: theme.colors.errorLight, lineHeight: 20 }]}>
+              Sletting av bruker vil permanent fjerne all data knyttet til brukeren din. {"\n"}
+              Dette kan ikke angres.
+            </Text>
+            <TouchableOpacity 
+              style={[globalStyles.dangerButton, isLoading && globalStyles.disabledButton]} 
+              onPress={handleDeleteUser}
+              disabled={isLoading}
+            >
+              <Image source={DeleteIcon} style={globalStyles.deleteIcon} />
+              <Text style={globalStyles.dangerButtonText}>Slett bruker permanent</Text>
+            </TouchableOpacity>
           </View>
         </View>
-
-        {/* Account Actions Section */}
-        <View style={globalStyles.inputGroup}>
-          <Text style={globalStyles.sectionTitle}>Konto</Text>
-          <TouchableOpacity style={globalStyles.outlineButton} onPress={handleLogout}>
-            <Image source={LogoutIcon} style={{ width: 20, height: 20, tintColor: '#FFD700' }} />
-            <Text style={globalStyles.outlineButtonText}>Logg ut</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Danger Zone */}
-        <View style={globalStyles.dangerSection}>
-          <Text style={globalStyles.dangerSectionTitle}>Farlig sone</Text>
-          <Text style={[globalStyles.mutedText, { color: theme.colors.errorLight, lineHeight: 20 }]}>
-            Sletting av bruker vil permanent fjerne all data knyttet til brukeren din. Dette kan ikke angres.
-          </Text>
-          <TouchableOpacity 
-            style={[globalStyles.dangerButton, isLoading && globalStyles.disabledButton]} 
-            onPress={handleDeleteUser}
-            disabled={isLoading}
-          >
-            <Image source={DeleteIcon} style={globalStyles.deleteIcon} />
-            <Text style={globalStyles.dangerButtonText}>Slett bruker permanent</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 

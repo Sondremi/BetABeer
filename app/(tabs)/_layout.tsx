@@ -1,5 +1,5 @@
 import { Tabs, useRouter, usePathname } from 'expo-router';
-import { Image, View, TouchableOpacity } from 'react-native';
+import { Platform, Image, View, TouchableOpacity } from 'react-native';
 import { globalStyles } from '../styles/globalStyles';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
@@ -21,7 +21,7 @@ export default function TabLayout() {
 
   const CustomTabBar = ({ navigation, state }: BottomTabBarProps) => {
     return (
-      <View style={globalStyles.tabBar}>
+      <View style={Platform.OS === 'web' ? globalStyles.tabBarWeb : globalStyles.tabBar}>
         {routes.map((route, index) => {
           const isFocused = state.index === index;
           const iconSize = isFocused ? 36 : 30;

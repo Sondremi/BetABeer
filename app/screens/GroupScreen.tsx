@@ -679,11 +679,14 @@ const GroupScreen = () => {
 
   return (
     <KeyboardAvoidingView
-      style={[globalStyles.container, { padding: 0 }]}
+      style={[
+        Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container,
+        { padding: 0 }
+      ]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
-        contentContainerStyle={groupStyles.fullWidthScrollContent}
+        contentContainerStyle={globalStyles.fullWidthScrollContent}
         keyboardShouldPersistTaps="handled"
       >
         <View style={[globalStyles.headerContainer, { height: 220 }]}>

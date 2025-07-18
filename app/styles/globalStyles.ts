@@ -6,17 +6,34 @@ export const globalStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+    maxWidth: 500,
+    display: 'flex',
+  },
+  containerWeb: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    minWidth: 500,
+    display: 'flex',
+    alignSelf: 'center',
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
     padding: 0,
   },
+  fullWidthScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+  },
   section: {
+    width: '100%',
     paddingHorizontal: theme.spacing.xl,
     paddingBottom: theme.spacing.xxxl,
   },
   centeredSection: {
+    width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.xl,
@@ -32,7 +49,7 @@ export const globalStyles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   dangerSection: {
-    marginTop: theme.spacing.xxxl,
+    marginTop: theme.spacing.xxl,
     paddingTop: theme.spacing.xl,
     borderTopWidth: 1,
     borderTopColor: theme.colors.surface,
@@ -152,6 +169,7 @@ export const globalStyles = StyleSheet.create({
     ...theme.shadows.small,
   },
   inputGroup: {
+    width: '100%',
     marginBottom: theme.spacing.xl,
   },
   label: {
@@ -498,6 +516,15 @@ export const globalStyles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     borderTopWidth: 1,
     borderTopColor: theme.colors.surface,
+  },
+  tabBarWeb: {
+    flexDirection: 'row',
+    height: 70,
+    backgroundColor: theme.colors.background,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.surface,
+    alignSelf: 'center',
+    minWidth: 500,
   },
   tabItem: {
     flex: 1,
