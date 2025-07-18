@@ -144,11 +144,5 @@ export const groupStyles = StyleSheet.create({
     fontSize: theme.fonts.xs,
     fontStyle: 'italic',
     marginTop: theme.spacing.xs,
-  },
-  fullWidthScrollContent: {
-    flexGrow: 1,
-    justifyContent: 'flex-start',
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-  },
+  }
 });
