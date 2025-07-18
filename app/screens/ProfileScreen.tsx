@@ -1,6 +1,6 @@
 import { addDoc, collection, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import React, { useState } from 'react';
-import { FlatList, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, FlatList, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { globalStyles } from '../styles/globalStyles';
 import { profileStyles } from '../styles/components/profileStyles';
@@ -118,62 +118,73 @@ const ProfileScreen = () => {
   }
 
   return (
-    <ScrollView style={globalStyles.container}>
-      {/* Header with navigation buttons */}
-      <View style={globalStyles.header}>
-        <View style={profileStyles.headerButtons}>
-          <TouchableOpacity style={profileStyles.headerButton} onPress={navigateToSettings}>
-            <Image 
-              source={SettingsIcon} 
-              style={globalStyles.settingsIcon}
+    <KeyboardAvoidingView
+      style={[
+        Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container,
+        { padding: 0 }
+      ]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={globalStyles.fullWidthScrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Header with navigation buttons */}
+        <View style={globalStyles.header}>
+          <View style={profileStyles.headerButtons}>
+            <TouchableOpacity style={profileStyles.headerButton} onPress={navigateToSettings}>
+              <Image 
+                source={SettingsIcon} 
+                style={globalStyles.settingsIcon}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Profile content */}
+        <View style={globalStyles.centeredSection}>
+          {/* Profile picture */}
+          <View style={profileStyles.profileImageContainer}>
+            <Image
+              source={DefaultProfilePicture}
+              style={[globalStyles.circularImage, { width: 120, height: 120 }]}
             />
-          </TouchableOpacity>
-        </View>
-      </View>
+            <TouchableOpacity style={profileStyles.editProfileImageButton} onPress={() => {/* TODO: implement backend for editing profile picture */}}>
+              <Image source={PencilIcon} style={globalStyles.pencilIcon} />
+            </TouchableOpacity>
+          </View>
 
-      {/* Profile content */}
-      <View style={globalStyles.centeredSection}>
-        {/* Profile picture */}
-        <View style={profileStyles.profileImageContainer}>
-          <Image
-            source={DefaultProfilePicture}
-            style={[globalStyles.circularImage, { width: 120, height: 120 }]}
+          {/* Name and username */}
+          <Text style={globalStyles.largeBoldText}>{user?.name || 'Navn'}</Text>
+          <Text style={globalStyles.secondaryText}>{user?.username || 'Brukernavn'}</Text>
+        </View>
+
+        {/* Groups section */}
+        <View style={profileStyles.groupsSection}>
+          <View style={profileStyles.groupsHeader}>
+            <Text style={globalStyles.sectionTitleLeft}>Mine grupper</Text>
+            <TouchableOpacity 
+              style={globalStyles.outlineButton} 
+              onPress={handleCreateGroup} 
+              disabled={creatingGroup}
+            >
+              <Text style={globalStyles.outlineButtonText}>
+                {creatingGroup ? 'Oppretter...' : 'Opprett ny gruppe'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={groups}
+            renderItem={renderGroupItem}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            columnWrapperStyle={profileStyles.groupRow}
+            scrollEnabled={false}
+            showsVerticalScrollIndicator={false}
           />
-          <TouchableOpacity style={profileStyles.editProfileImageButton} onPress={() => {/* TODO: implement backend for editing profile picture */}}>
-            <Image source={PencilIcon} style={globalStyles.pencilIcon} />
-          </TouchableOpacity>
         </View>
-
-        {/* Name and username */}
-        <Text style={globalStyles.largeBoldText}>{user?.name || 'Navn'}</Text>
-        <Text style={globalStyles.secondaryText}>{user?.username || 'Brukernavn'}</Text>
-      </View>
-
-      {/* Groups section */}
-      <View style={profileStyles.groupsSection}>
-        <View style={profileStyles.groupsHeader}>
-          <Text style={globalStyles.sectionTitleLeft}>Mine grupper</Text>
-          <TouchableOpacity 
-            style={globalStyles.outlineButton} 
-            onPress={handleCreateGroup} 
-            disabled={creatingGroup}
-          >
-            <Text style={globalStyles.outlineButtonText}>
-              {creatingGroup ? 'Oppretter...' : 'Opprett ny gruppe'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-        <FlatList
-          data={groups}
-          renderItem={renderGroupItem}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={profileStyles.groupRow}
-          scrollEnabled={false}
-          showsVerticalScrollIndicator={false}
-        />
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 

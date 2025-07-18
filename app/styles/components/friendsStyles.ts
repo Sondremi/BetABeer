@@ -17,11 +17,5 @@ export const friendsStyles = StyleSheet.create({
   },
   friendSpacing: {
     marginBottom: theme.spacing.lg,
-  },
-  fullWidthScrollContent: {
-    flexGrow: 1,
-    justifyContent: 'flex-start',
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-  },
+  }
 });
