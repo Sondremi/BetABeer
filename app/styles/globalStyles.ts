@@ -6,15 +6,15 @@ export const globalStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-    maxWidth: 500,
     display: 'flex',
   },
   containerWeb: {
     flex: 1,
     backgroundColor: theme.colors.background,
-    minWidth: 500,
     display: 'flex',
     alignSelf: 'center',
+    width: '100%',
+    maxWidth: 500,
   },
   scrollContent: {
     flexGrow: 1,
@@ -524,7 +524,8 @@ export const globalStyles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.colors.surface,
     alignSelf: 'center',
-    minWidth: 500,
+    width: '100%',
+    maxWidth: 500,
   },
   tabItem: {
     flex: 1,
