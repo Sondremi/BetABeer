@@ -191,6 +191,24 @@ const GroupScreen = () => {
     }
   };
 
+  const handleRemoveFriendFromGroup = async (friend: Friend) => {
+    if (!selectedGroup) return;
+    try {
+      const firestore = getFirestore();
+      const groupRef = doc(firestore, 'groups', selectedGroup.id);
+      const groupSnap = await getDoc(groupRef);
+      if (groupSnap.exists()) {
+        const groupData = groupSnap.data();
+        const updatedMembers = (groupData.members || []).filter((id: string) => id !== friend.id);
+        await updateDoc(groupRef, { members: updatedMembers });
+        setSelectedGroup((prev: any) => prev ? { ...prev, members: updatedMembers } : prev);
+        showAlert('Fjernet', `${friend.name} er fjernet fra gruppen`);
+      }
+    } catch (error) {
+      showAlert('Feil', 'Kunne ikke fjerne medlem fra gruppe');
+    }
+  };
+
   const handleDeleteGroup = async () => {
     const groupToDelete = currentGroup;
     if (!groupToDelete || groupToDelete.id === 'default') return;
@@ -585,6 +603,7 @@ const GroupScreen = () => {
       };
     });
 
+
     finishedBets.forEach(bet => {
       const wagers = bet.wagers || [];
       const winners = wagers.filter(wager => wager.optionId === bet.correctOptionId);
@@ -598,6 +617,13 @@ const GroupScreen = () => {
         const drinkType = wager.drinkType;
         const measureType = wager.measureType;
         const amount = wager.amount;
+        // Finn odds for valgt alternativ
+        let odds = 1;
+        if (bet.options && wager.optionId) {
+          const opt = bet.options.find(o => o.id === wager.optionId);
+          if (opt) odds = opt.odds;
+        }
+        const calculatedAmount = Math.round(amount * odds);
 
         if (!stats.drinksToConsume[drinkType]) {
           stats.drinksToConsume[drinkType] = {};
@@ -614,13 +640,9 @@ const GroupScreen = () => {
 
         if (wager.optionId === bet.correctOptionId) {
           stats.wins += 1;
-          if (losers.length > 0) {
-            const distributeAmount = amount * losers.length;
-            stats.drinksToDistribute[drinkType][measureType]! += distributeAmount;
-          } else {
-          }
+          stats.drinksToDistribute[drinkType][measureType]! += calculatedAmount;
         } else {
-          stats.drinksToConsume[drinkType][measureType]! += amount;
+          stats.drinksToConsume[drinkType][measureType]! += calculatedAmount;
         }
       });
     });
@@ -666,13 +688,23 @@ const GroupScreen = () => {
           <Text style={[groupStyles.wagerUser, { marginBottom: 0, textAlign: 'left', lineHeight: 20 }]}>{item.name}</Text>
           <Text style={[globalStyles.secondaryText, { marginTop: 0, textAlign: 'left', lineHeight: 18 }]}>@{item.username}</Text>
         </View>
-        <TouchableOpacity
-          style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center' }]}
-          onPress={() => handleInviteFriend(item)}
-          disabled={inviting || isMember}
-        >
-          <Text style={globalStyles.outlineButtonGoldText}>{isMember ? 'Medlem' : 'Inviter'}</Text>
-        </TouchableOpacity>
+        {isMember ? (
+          <TouchableOpacity
+            style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center', borderColor: 'red' }]}
+            onPress={() => handleRemoveFriendFromGroup(item)}
+            disabled={inviting}
+          >
+            <Text style={[globalStyles.outlineButtonGoldText, { color: 'red' }]}>Fjern</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center' }]}
+            onPress={() => handleInviteFriend(item)}
+            disabled={inviting}
+          >
+            <Text style={globalStyles.outlineButtonGoldText}>Inviter</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -833,13 +865,10 @@ const GroupScreen = () => {
           </TouchableOpacity>
         </View>
 
-        <FlatList
-          data={bets}
-          renderItem={renderBet}
-          keyExtractor={item => item.id}
-          scrollEnabled={false}
-          contentContainerStyle={{ paddingBottom: theme.spacing.xl }}
-        />
+        {/* Bytt ut FlatList med vanlig map for å unngå scroll-lås på web-mobil */}
+        <View style={{ paddingBottom: theme.spacing.xl }}>
+          {bets.map((item, idx) => renderBet({ item, index: idx }))}
+        </View>
       </ScrollView>
 
       <Modal

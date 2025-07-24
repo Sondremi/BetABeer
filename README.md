@@ -1,8 +1,8 @@
 # 🍻 BetABeer
 
-**BetABeer** er en sosial drikkelek-app der du og vennene dine kan lage og delta i morsomme bets – og betale med slurker eller shots. Perfekt for vors, fest og en kveld på byen.
+**BetABeer** er en sosial drikkelek-app der du og vennene dine kan lage og delta i morsomme bets – og betale med slurker eller shots. Perfekt for vors, fest eller en kveld på byen.
 
----
+[🌐 Prøv appen her!](https://bet-a-beer.netlify.app)
 
 ## ✨ Hvordan fungerer det?
 
@@ -14,17 +14,9 @@
 - Statistikk over hvem som vinner mest – eller drikker mest
 - Innebygd promillekalkulator basert på høyde, vekt og kjønn
 
----
+## 👨‍💻 Vil du bidra eller teste appen selv?
 
-## 🧱 Teknologi
-
-| Lag      | Teknologi                  |
-| -------- | -------------------------- |
-| Frontend | React Native + Expo (TS)   |
-| Backend  | Node.js                    |
-| Database | Firebase                   |
-
----
+Følg stegene under for å sette opp prosjektet lokalt og bidra til videreutvikling.
 
 ## 🚀 Kom i gang
 

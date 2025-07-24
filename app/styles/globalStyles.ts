@@ -264,7 +264,7 @@ export const globalStyles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     padding: theme.spacing.lg,
-    backgroundColor: '#2D2D2D',
+    backgroundColor: theme.colors.surface,
     borderRadius: theme.spacing.sm,
     borderWidth: 1,
     borderColor: theme.colors.primary,
