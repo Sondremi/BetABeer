@@ -2,14 +2,22 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users collection
+    // Alle kan lese brukere, men kun eier kan skrive
     match /users/{userId} {
-      allow read, write: if request.auth != null;
+      allow read: if true;
+      // Eier kan skrive alt til sitt eget dokument
+      allow write: if request.auth != null && request.auth.uid == userId;
+      // Andre innloggede brukere kan skrive til friendRequests, groupInvitations og groups
+      allow update: if request.auth != null && request.auth.uid != userId &&
+        (request.resource.data.diff(resource.data).changedKeys().hasOnly(['friendRequests', 'groupInvitations', 'groups']));
     }
-
-    // Groups collection
+    // Alle innloggede brukere kan opprette, slette og skrive til grupper de er medlem av
     match /groups/{groupId} {
-      allow read, write: if request.auth != null;
+      allow read: if true;
+      allow write: if request.auth != null && (
+        (request.resource == null && resource.data.members.hasAny([request.auth.uid])) || // Sletting
+        (request.resource.data.members.hasAny([request.auth.uid])) // Opprett/oppdater
+      );
     }
   }
 }
