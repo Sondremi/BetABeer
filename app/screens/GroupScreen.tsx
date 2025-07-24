@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, updateDoc, updateDoc as updateUserDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,7 @@ import { showAlert } from '../utils/platformAlert';
 const ImageMissing = require('../../assets/images/image_missing.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 const DeleteIcon = require('../../assets/icons/noun-delete-7938028.png');
+const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
 
 type DrinkType = 'Øl' | 'Cider' | 'Hard selzer' | 'Vin' | 'Sprit';
 type MeasureType = 'Slurker' | 'Shot' | 'Chug';
@@ -48,10 +49,17 @@ interface MemberDrinkStats {
   drinksToDistribute: { [key in DrinkType]?: { [key in MeasureType]?: number } };
 }
 
+interface Friend {
+  id: string;
+  name: string;
+  username: string;
+  profilePicture: any;
+}
+
 const GroupScreen = () => {
   const params = useLocalSearchParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, sendGroupInvitation } = useAuth();
   const [groups, setGroups] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
   const [editingName, setEditingName] = useState(false);
@@ -79,6 +87,9 @@ const GroupScreen = () => {
   const [leaderboardModalVisible, setLeaderboardModalVisible] = useState(false);
   const [editMenuModalVisible, setEditMenuModalVisible] = useState(false);
   const [selectedEditBet, setSelectedEditBet] = useState<{ bet: Bet; index: number } | null>(null);
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [inviting, setInviting] = useState(false);
 
   const currentGroup = selectedGroup ? { ...selectedGroup, name: groupName } : { id: 'default', name: 'Gruppenavn', memberCount: 0, image: ImageMissing };
 
@@ -138,6 +149,48 @@ const GroupScreen = () => {
     }
   }, [selectedGroup]);
 
+  useEffect(() => {
+    if (!user || !selectedGroup) return;
+    let isMounted = true;
+    const fetchFriends = async () => {
+      const friendData = await Promise.all(
+        user.friends.map(async (friendId: string) => {
+          const userDoc = await getDoc(doc(getFirestore(), 'users', friendId));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            return {
+              id: userDoc.id,
+              name: data.name || 'Ukjent navn',
+              username: data.username || 'ukjent',
+              profilePicture: ImageMissing,
+            };
+          }
+          return null;
+        })
+      );
+      if (isMounted) {
+        setFriends(friendData.filter((friend): friend is Friend => friend !== null));
+      }
+    };
+    fetchFriends();
+    return () => {
+      isMounted = false;
+    };
+  }, [user, selectedGroup]);
+
+  const handleInviteFriend = async (friend: Friend) => {
+    if (!user || !selectedGroup) return;
+    setInviting(true);
+    try {
+      await sendGroupInvitation(user.id, friend.id, selectedGroup.id, selectedGroup.name);
+      showAlert('Invitasjon sendt', `Invitasjon sendt til ${friend.name}`);
+    } catch (error) {
+      showAlert('Feil', 'Kunne ikke sende gruppeinvitasjon');
+    } finally {
+      setInviting(false);
+    }
+  };
+
   const handleDeleteGroup = async () => {
     const groupToDelete = currentGroup;
     if (!groupToDelete || groupToDelete.id === 'default') return;
@@ -162,12 +215,12 @@ const GroupScreen = () => {
                 if (userSnap.exists()) {
                   const userGroups: string[] = userSnap.data().groups || [];
                   const updatedGroups = userGroups.filter((gid: string) => gid !== groupToDelete.id);
-                  await updateUserDoc(userRef, { groups: updatedGroups });
+                  await updateDoc(userRef, { groups: updatedGroups });
                 }
               }
               router.replace('/profile');
             } catch (error) {
-              showAlert('Feil', 'Kunne ikke slette gruppe.');
+              showAlert('Feil', 'Kunne ikke slette gruppe');
             } finally {
               setDeleting(false);
             }
@@ -534,7 +587,6 @@ const GroupScreen = () => {
 
     finishedBets.forEach(bet => {
       const wagers = bet.wagers || [];
-      const totalWagers = wagers.length;
       const winners = wagers.filter(wager => wager.optionId === bet.correctOptionId);
       const losers = wagers.filter(wager => wager.optionId !== bet.correctOptionId);
 
@@ -604,6 +656,26 @@ const GroupScreen = () => {
             <Text style={[groupStyles.wagerDetails, { color: theme.colors.success, fontWeight: 'bold' }]}>Dele ut: {formatDrinks(item.drinksToDistribute)}</Text>
           </View>
         </View>
+      </View>
+    );
+  };
+
+  const renderFriendItem = ({ item }: { item: Friend }) => {
+    const isMember = selectedGroup?.members.includes(item.id);
+    return (
+      <View style={[globalStyles.listItemRow, { paddingVertical: 10 }]}>
+        <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 50, height: 50, marginRight: 10 }]} />
+        <View style={{ flex: 1 }}>
+          <Text style={groupStyles.wagerUser}>{item.name}</Text>
+          <Text style={globalStyles.secondaryText}>@{item.username}</Text>
+        </View>
+        <TouchableOpacity
+          style={[globalStyles.outlineButtonGold, { paddingVertical: 8, paddingHorizontal: 12 }]}
+          onPress={() => handleInviteFriend(item)}
+          disabled={inviting || isMember}
+        >
+          <Text style={globalStyles.outlineButtonGoldText}>{isMember ? 'Medlem' : 'Inviter'}</Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -745,9 +817,10 @@ const GroupScreen = () => {
         <View style={groupStyles.createBetSection}>
           <TouchableOpacity
             style={globalStyles.outlineButtonGold}
-            onPress={() => showAlert('Inviter venner', 'Her kan du invitere venner til gruppen (backend TODO)')}
+            onPress={() => setInviteModalVisible(true)}
+            disabled={inviting}
           >
-            <Text style={globalStyles.outlineButtonGoldText}>Inviter venner</Text>
+            <Text style={globalStyles.outlineButtonGoldText}>{inviting ? 'Inviterer...' : 'Inviter venner'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={globalStyles.outlineButtonGold}
@@ -771,6 +844,36 @@ const GroupScreen = () => {
           contentContainerStyle={{ paddingBottom: theme.spacing.xl }}
         />
       </ScrollView>
+
+      <Modal
+        visible={inviteModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setInviteModalVisible(false)}
+      >
+        <View style={globalStyles.modalContainer}>
+          <View style={globalStyles.modalContent}>
+            <Text style={globalStyles.modalTitle}>Inviter venner til {currentGroup.name}</Text>
+            {friends.length > 0 ? (
+              <FlatList
+                data={friends}
+                renderItem={renderFriendItem}
+                keyExtractor={item => item.id}
+                contentContainerStyle={globalStyles.listContainer}
+                scrollEnabled
+                showsVerticalScrollIndicator={false}
+              />
+            ) : (
+              <Text style={globalStyles.emptyStateText}>Ingen venner å invitere</Text>
+            )}
+            <View style={globalStyles.editButtonsContainer}>
+              <TouchableOpacity onPress={() => setInviteModalVisible(false)} disabled={inviting}>
+                <Text style={globalStyles.cancelButtonText}>Lukk</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={betModalVisible}
