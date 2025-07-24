@@ -1,4 +1,3 @@
-// utils/platformAlert.ts
 import { Alert, Platform } from 'react-native';
 
 interface AlertButton {
@@ -13,9 +12,7 @@ export const showAlert = (
   buttons?: AlertButton[]
 ) => {
   if (Platform.OS === 'web') {
-    // For web, bruk window.alert eller window.confirm
     if (buttons && buttons.length > 1) {
-      // Hvis det er flere knapper, bruk confirm
       const confirmText = buttons.find(b => b.style !== 'cancel')?.text || 'OK';
       const cancelText = buttons.find(b => b.style === 'cancel')?.text || 'Avbryt';
       
@@ -33,14 +30,12 @@ export const showAlert = (
         }
       }
     } else {
-      // Enkel alert
       window.alert(`${title}\n\n${message || ''}`);
       if (buttons && buttons[0]?.onPress) {
         buttons[0].onPress();
       }
     }
   } else {
-    // For mobile, bruk vanlig Alert
     Alert.alert(title, message, buttons);
   }
 };
