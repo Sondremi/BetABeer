@@ -617,13 +617,10 @@ const GroupScreen = () => {
           if (losers.length > 0) {
             const distributeAmount = amount * losers.length;
             stats.drinksToDistribute[drinkType][measureType]! += distributeAmount;
-            console.log(`User ${wager.username} won, distributing ${distributeAmount} ${measureType} of ${drinkType} to ${losers.length} losers`);
           } else {
-            console.log(`User ${wager.username} won, but no losers to distribute to`);
           }
         } else {
           stats.drinksToConsume[drinkType][measureType]! += amount;
-          console.log(`User ${wager.username} lost, consuming ${amount} ${measureType} of ${drinkType}`);
         }
       });
     });
@@ -650,7 +647,7 @@ const GroupScreen = () => {
     return (
       <View style={groupStyles.betContainer}>
         <View style={globalStyles.listItemRow}>
-          <Text style={[groupStyles.wagerUser, { fontWeight: 'bold' }]}>{item.username} ({item.wins} vinner)</Text>
+          <Text style={[groupStyles.wagerUser, { fontWeight: 'bold' }]}>{item.username} ({item.wins} vunnet)</Text>
           <View style={{ flex: 1 }}>
             <Text style={[groupStyles.wagerDetails, { color: theme.colors.error }]}>Drikke selv: {formatDrinks(item.drinksToConsume)}</Text>
             <Text style={[groupStyles.wagerDetails, { color: theme.colors.success, fontWeight: 'bold' }]}>Dele ut: {formatDrinks(item.drinksToDistribute)}</Text>
@@ -663,14 +660,14 @@ const GroupScreen = () => {
   const renderFriendItem = ({ item }: { item: Friend }) => {
     const isMember = selectedGroup?.members.includes(item.id);
     return (
-      <View style={[globalStyles.listItemRow, { paddingVertical: 10 }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
         <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 50, height: 50, marginRight: 10 }]} />
-        <View style={{ flex: 1 }}>
-          <Text style={groupStyles.wagerUser}>{item.name}</Text>
-          <Text style={globalStyles.secondaryText}>@{item.username}</Text>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <Text style={[groupStyles.wagerUser, { marginBottom: 0, textAlign: 'left', lineHeight: 20 }]}>{item.name}</Text>
+          <Text style={[globalStyles.secondaryText, { marginTop: 0, textAlign: 'left', lineHeight: 18 }]}>@{item.username}</Text>
         </View>
         <TouchableOpacity
-          style={[globalStyles.outlineButtonGold, { paddingVertical: 8, paddingHorizontal: 12 }]}
+          style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center' }]}
           onPress={() => handleInviteFriend(item)}
           disabled={inviting || isMember}
         >
@@ -1160,6 +1157,30 @@ const GroupScreen = () => {
         <View style={globalStyles.modalContainer}>
           <View style={globalStyles.modalContent}>
             <Text style={globalStyles.modalTitle}>Ledertavle - Ferdige bets</Text>
+            {/* Vis alle medlemmer øverst */}
+            {selectedGroup && selectedGroup.members && (
+              <View style={{ marginBottom: 12 }}>
+                <Text style={[globalStyles.label, { marginBottom: 4 }]}>Medlemmer:</Text>
+                <FlatList
+                  data={selectedGroup.members}
+                  keyExtractor={id => id}
+                  horizontal
+                  renderItem={({ item: memberId }) => {
+                    const friend = friends.find(f => f.id === memberId);
+                    return (
+                      <View key={memberId} style={{ alignItems: 'center', marginRight: 14 }}>
+                        <Image source={friend?.profilePicture || ImageMissing} style={[globalStyles.circularImage, { width: 36, height: 36, marginBottom: 2 }]} />
+                        <Text style={{ fontSize: 12, color: theme.colors.text, maxWidth: 60, textAlign: 'center' }} numberOfLines={1}>
+                          {friend?.name || 'Ukjent'}
+                        </Text>
+                      </View>
+                    );
+                  }}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingBottom: 4 }}
+                />
+              </View>
+            )}
             <FlatList
               data={getLeaderboardData()}
               renderItem={renderLeaderboardItem}

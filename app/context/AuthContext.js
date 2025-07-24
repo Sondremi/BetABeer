@@ -89,6 +89,9 @@ export const AuthProvider = ({ children }) => {
     sendFriendRequest: authService.sendFriendRequest,
     acceptFriendRequest: authService.acceptFriendRequest,
     rejectFriendRequest: authService.rejectFriendRequest,
+    sendGroupInvitation: authService.sendGroupInvitation,
+    acceptGroupInvitation: authService.acceptGroupInvitation,
+    rejectGroupInvitation: authService.rejectGroupInvitation,
   };
 
   return (
