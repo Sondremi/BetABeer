@@ -1,4 +1,3 @@
-
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { authService } from '../services/firebase/authService';
@@ -31,6 +30,8 @@ export const AuthProvider = ({ children }) => {
               name: userData.name,
               email: userData.email,
               phone: userData.phone,
+              friends: userData.friends || [],
+              friendRequests: userData.friendRequests || [],
             });
           }
         } catch (error) {
@@ -64,6 +65,8 @@ export const AuthProvider = ({ children }) => {
               name: userData.name,
               email: userData.email,
               phone: userData.phone,
+              friends: userData.friends || [],
+              friendRequests: userData.friendRequests || [],
             } : null);
           }
         });
@@ -83,6 +86,9 @@ export const AuthProvider = ({ children }) => {
     logout: authService.logoutUser,
     register: authService.createUser,
     updateUser: authService.updateUser,
+    sendFriendRequest: authService.sendFriendRequest,
+    acceptFriendRequest: authService.acceptFriendRequest,
+    rejectFriendRequest: authService.rejectFriendRequest,
   };
 
   return (

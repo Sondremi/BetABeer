@@ -1,5 +1,5 @@
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged as firebaseOnAuthStateChanged } from 'firebase/auth';
-import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, setDoc, updateDoc, where, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { auth } from './FirebaseConfig';
 
 const firestore = getFirestore();
@@ -19,6 +19,7 @@ export const authService = {
         email: userData.email,
         phone: userData.phone,
         friends: [],
+        friendRequests: [],
         createdAt: serverTimestamp(),
       });
       return {
@@ -29,8 +30,7 @@ export const authService = {
         phone: userData.phone,
       };
     } catch (error) {
-      console.error('Create user error:', error);
-      throw new Error(error.message);
+      throw new Error('Kunne ikke opprette bruker');
     }
   },
 
@@ -47,12 +47,13 @@ export const authService = {
           name: userData.name,
           email: userData.email,
           phone: userData.phone,
+          friends: userData.friends || [],
+          friendRequests: userData.friendRequests || [],
         };
       }
       throw new Error('Brukerdata ikke funnet');
     } catch (error) {
-      console.error('Login error:', error);
-      throw new Error(error.message);
+      throw new Error('Kunne ikke logge inn');
     }
   },
 
@@ -60,8 +61,7 @@ export const authService = {
     try {
       await signOut(auth);
     } catch (error) {
-      console.error('Logout error:', error);
-      throw new Error(error.message);
+      throw new Error('Kunne ikke logge ut');
     }
   },
 
@@ -77,8 +77,7 @@ export const authService = {
       });
       return updateData;
     } catch (error) {
-      console.error('Update user error:', error);
-      throw new Error(error.message);
+      throw new Error('Kunne ikke oppdatere bruker');
     }
   },
 
@@ -90,8 +89,7 @@ export const authService = {
         await currentUser.delete();
       }
     } catch (error) {
-      console.error('Delete user error:', error);
-      throw new Error(error.message);
+      throw new Error('Kunne ikke slette bruker');
     }
   },
 
@@ -102,8 +100,110 @@ export const authService = {
       const querySnapshot = await getDocs(q);
       return !querySnapshot.empty;
     } catch (error) {
-      console.error('Check username error:', error);
       throw new Error('Kunne ikke sjekke brukernavn');
+    }
+  },
+
+  sendFriendRequest: async (fromUserId, toUserId) => {
+    try {
+      if (fromUserId === toUserId) {
+        throw new Error('Kan ikke sende venneforespørsel til deg selv');
+      }
+
+      const toUserDocRef = doc(firestore, 'users', toUserId);
+      const toUserDoc = await getDoc(toUserDocRef);
+      if (!toUserDoc.exists()) {
+        throw new Error('Mottaker finnes ikke');
+      }
+
+      const toUserData = toUserDoc.data();
+      if (toUserData.friends?.includes(fromUserId)) {
+        throw new Error('Dere er allerede venner');
+      }
+      if (toUserData.friendRequests?.some(req => req.from === fromUserId && req.status === 'pending')) {
+        throw new Error('Venneforespørsel allerede sendt');
+      }
+
+      await updateDoc(toUserDocRef, {
+        friendRequests: arrayUnion({
+          from: fromUserId,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        }),
+      });
+    } catch (error) {
+      throw new Error(error.message || 'Kunne ikke sende venneforespørsel');
+    }
+  },
+
+  acceptFriendRequest: async (userId, fromUserId) => {
+    try {
+      const userDocRef = doc(firestore, 'users', userId);
+      const fromUserDocRef = doc(firestore, 'users', fromUserId);
+      const userDoc = await getDoc(userDocRef);
+      if (!userDoc.exists()) {
+        throw new Error('Bruker finnes ikke');
+      }
+      if (!userDoc.data().friendRequests?.some(req => req.from === fromUserId && req.status === 'pending')) {
+        throw new Error('Ingen ventende venneforespørsel funnet');
+      }
+      await updateDoc(userDocRef, {
+        friends: arrayUnion(fromUserId),
+        friendRequests: arrayRemove({
+          from: fromUserId,
+          status: 'pending',
+        }),
+      });
+      await updateDoc(fromUserDocRef, {
+        friends: arrayUnion(userId),
+      });
+    } catch (error) {
+      throw new Error('Kunne ikke godta venneforespørsel');
+    }
+  },
+
+  rejectFriendRequest: async (userId, fromUserId) => {
+    try {
+      const userDocRef = doc(firestore, 'users', userId);
+      const userDoc = await getDoc(userDocRef);
+      if (!userDoc.exists()) {
+        throw new Error('Bruker finnes ikke');
+      }
+      if (!userDoc.data().friendRequests?.some(req => req.from === fromUserId && req.status === 'pending')) {
+        throw new Error('Ingen ventende venneforespørsel funnet');
+      }
+      await updateDoc(userDocRef, {
+        friendRequests: arrayRemove({
+          from: fromUserId,
+          status: 'pending',
+        }),
+      });
+    } catch (error) {
+      throw new Error('Kunne ikke avslå venneforespørsel');
+    }
+  },
+
+  withdrawFriendRequest: async (fromUserId, toUserId) => {
+    try {
+      const toUserDocRef = doc(firestore, 'users', toUserId);
+      const toUserDoc = await getDoc(toUserDocRef);
+      if (!toUserDoc.exists()) {
+        throw new Error('Mottaker finnes ikke');
+      }
+      const toUserData = toUserDoc.data();
+      const matchingRequest = toUserData.friendRequests?.find(req => req.from === fromUserId && req.status === 'pending');
+      if (!matchingRequest) {
+        throw new Error('Ingen ventende venneforespørsel funnet');
+      }
+      await updateDoc(toUserDocRef, {
+        friendRequests: arrayRemove({
+          from: fromUserId,
+          status: 'pending',
+          createdAt: matchingRequest.createdAt,
+        }),
+      });
+    } catch (error) {
+      throw new Error('Kunne ikke trekke tilbake venneforespørsel');
     }
   },
 
