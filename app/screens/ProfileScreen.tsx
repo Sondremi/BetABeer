@@ -1,9 +1,9 @@
 import { addDoc, collection, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
-import React, { useState, useEffect } from 'react';
-import { KeyboardAvoidingView, Platform, FlatList, Image, ScrollView, Text, TouchableOpacity, View, Modal } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { globalStyles } from '../styles/globalStyles';
 import { profileStyles } from '../styles/components/profileStyles';
+import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import { showAlert } from '../utils/platformAlert';
 
@@ -170,11 +170,32 @@ const ProfileScreen = () => {
     </TouchableOpacity>
   );
 
+  const [userNames, setUserNames] = useState<{ [id: string]: string }>({});
+
+  useEffect(() => {
+    const fetchNames = async () => {
+      if (!groupInvitations.length) return;
+      const firestore = getFirestore();
+      const idsToFetch = groupInvitations.map(inv => inv.from).filter(id => !(id in userNames));
+      const newNames: { [id: string]: string } = {};
+      await Promise.all(idsToFetch.map(async (id) => {
+        const userDoc = await getDoc(doc(firestore, 'users', id));
+        if (userDoc.exists()) {
+          newNames[id] = userDoc.data().name || id;
+        } else {
+          newNames[id] = id;
+        }
+      }));
+      if (Object.keys(newNames).length > 0) setUserNames(prev => ({ ...prev, ...newNames }));
+    };
+    fetchNames();
+  }, [groupInvitations]);
+
   const renderInvitationItem = ({ item }: { item: GroupInvitation }) => (
-    <View style={[globalStyles.listItemRow, { paddingVertical: 10 }]}>
+    <View style={[globalStyles.listItemRow, { paddingVertical: 10 }]}> 
       <View style={{ flex: 1 }}>
         <Text style={globalStyles.modalText}>{item.groupName}</Text>
-        <Text style={globalStyles.secondaryText}>Fra: {item.from}</Text>
+        <Text style={globalStyles.secondaryText}>Fra: {userNames[item.from] || item.from}</Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <TouchableOpacity
