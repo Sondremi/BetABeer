@@ -47,11 +47,22 @@ npm install
 
 ### 🔐 3. Setup Firebase
 
-```bash
-firebase login
+Opprett prosjekt i Firebase, opprett `.env`-fil og legg inn prosjektinformasjonen slik:
+
+```env
+EXPO_PUBLIC_FIREBASE_API_KEY=
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+EXPO_PUBLIC_FIREBASE_APP_ID=
+EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=
 ```
 
+Logg inn og deploy regler:
+
 ```bash
+firebase login
 firebase deploy --only firestore:rules
 ```
 
@@ -64,7 +75,7 @@ npx expo start
 ```
 
 - Skann QR-koden med **Expo Go**
-- Eller trykk `i` for iOS-simulator, `a` for Android
+- Eller trykk `i` for iOS-simulator, `a` for Android, `w` for web
 
 ---
 
