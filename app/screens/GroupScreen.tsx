@@ -1,15 +1,20 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, updateDoc, updateDoc as updateUserDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { groupStyles } from '../styles/components/groupStyles';
+import { globalStyles } from '../styles/globalStyles';
+import { theme } from '../styles/theme';
+import { showAlert } from '../utils/platformAlert';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 const DeleteIcon = require('../../assets/icons/noun-delete-7938028.png');
+const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
 
-type DrinkType = 'øl' | 'cider' | 'hard_selzer' | 'vin' | 'sprit';
-type MeasureType = 'slurker' | 'shot' | 'chug';
+type DrinkType = 'Øl' | 'Cider' | 'Hard selzer' | 'Vin' | 'Sprit';
+type MeasureType = 'Slurker' | 'Shot' | 'Chug';
 
 interface BetWager {
   userId: string;
@@ -36,37 +41,60 @@ interface Bet {
   isFinished?: boolean;
 }
 
+interface MemberDrinkStats {
+  userId: string;
+  username: string;
+  wins: number;
+  drinksToConsume: { [key in DrinkType]?: { [key in MeasureType]?: number } };
+  drinksToDistribute: { [key in DrinkType]?: { [key in MeasureType]?: number } };
+}
+
+interface Friend {
+  id: string;
+  name: string;
+  username: string;
+  profilePicture: any;
+}
+
 const GroupScreen = () => {
   const params = useLocalSearchParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, sendGroupInvitation } = useAuth();
   const [groups, setGroups] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
-
   const [editingName, setEditingName] = useState(false);
   const [groupName, setGroupName] = useState(selectedGroup ? selectedGroup.name : '');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [betModalVisible, setBetModalVisible] = useState(false);
   const [betTitle, setBetTitle] = useState('');
-  const [betOptions, setBetOptions] = useState([{ name: '', odds: '' }]);
+  const [betOptions, setBetOptions] = useState<{ name: string; odds: string }[]>([{ name: '', odds: '' }]);
   const [betSaving, setBetSaving] = useState(false);
-  const [betts, setBetts] = useState<Bet[]>([]);
-  
-  // New betting states
+  const [bets, setBets] = useState<Bet[]>([]);
   const [placeBetModalVisible, setPlaceBetModalVisible] = useState(false);
-  const [selectedBetOption, setSelectedBetOption] = useState<{bet: Bet, option: BettingOption} | null>(null);
-  const [selectedDrinkType, setSelectedDrinkType] = useState<DrinkType>('øl');
-  const [selectedMeasureType, setSelectedMeasureType] = useState<MeasureType>('slurker');
+  const [selectedBetOption, setSelectedBetOption] = useState<{ bet: Bet; option: BettingOption } | null>(null);
+  const [selectedDrinkType, setSelectedDrinkType] = useState<DrinkType>('Øl');
+  const [selectedMeasureType, setSelectedMeasureType] = useState<MeasureType>('Slurker');
   const [betAmount, setBetAmount] = useState('1');
   const [placingBet, setPlacingBet] = useState(false);
   const [selectCorrectModalVisible, setSelectCorrectModalVisible] = useState(false);
   const [selectCorrectBetIdx, setSelectCorrectBetIdx] = useState<number | null>(null);
+  const [editBetModalVisible, setEditBetModalVisible] = useState(false);
+  const [editBetIdx, setEditBetIdx] = useState<number | null>(null);
+  const [editBetTitle, setEditBetTitle] = useState('');
+  const [editBetOptions, setEditBetOptions] = useState<{ name: string; odds: string }[]>([]);
+  const [editBetSaving, setEditBetSaving] = useState(false);
+  const [leaderboardModalVisible, setLeaderboardModalVisible] = useState(false);
+  const [editMenuModalVisible, setEditMenuModalVisible] = useState(false);
+  const [selectedEditBet, setSelectedEditBet] = useState<{ bet: Bet; index: number } | null>(null);
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [inviting, setInviting] = useState(false);
 
   const currentGroup = selectedGroup ? { ...selectedGroup, name: groupName } : { id: 'default', name: 'Gruppenavn', memberCount: 0, image: ImageMissing };
 
-  const drinkTypes: DrinkType[] = ['øl', 'cider', 'hard_selzer', 'vin', 'sprit'];
-  const measureTypes: MeasureType[] = ['slurker', 'shot', 'chug'];
+  const drinkTypes: DrinkType[] = ['Øl', 'Cider', 'Hard selzer', 'Vin', 'Sprit'];
+  const measureTypes: MeasureType[] = ['Slurker', 'Shot', 'Chug'];
 
   useEffect(() => {
     if (!user) return;
@@ -82,6 +110,7 @@ const GroupScreen = () => {
         memberCount: docSnap.data().members.length,
         image: ImageMissing,
         createdBy: docSnap.data().createdBy,
+        members: docSnap.data().members,
       }));
       setGroups(groupList);
       let groupFromParams = null;
@@ -109,27 +138,86 @@ const GroupScreen = () => {
       }
     };
     fetchGroups();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [user, params.selectedGroup]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (selectedGroup && selectedGroup.name !== groupName) {
       setGroupName(selectedGroup.name);
     }
   }, [selectedGroup]);
 
+  useEffect(() => {
+    if (!user || !selectedGroup) return;
+    let isMounted = true;
+    const fetchFriends = async () => {
+      const friendData = await Promise.all(
+        user.friends.map(async (friendId: string) => {
+          const userDoc = await getDoc(doc(getFirestore(), 'users', friendId));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            return {
+              id: userDoc.id,
+              name: data.name || 'Ukjent navn',
+              username: data.username || 'ukjent',
+              profilePicture: ImageMissing,
+            };
+          }
+          return null;
+        })
+      );
+      if (isMounted) {
+        setFriends(friendData.filter((friend): friend is Friend => friend !== null));
+      }
+    };
+    fetchFriends();
+    return () => {
+      isMounted = false;
+    };
+  }, [user, selectedGroup]);
+
+  const handleInviteFriend = async (friend: Friend) => {
+    if (!user || !selectedGroup) return;
+    setInviting(true);
+    try {
+      await sendGroupInvitation(user.id, friend.id, selectedGroup.id, selectedGroup.name);
+      showAlert('Invitasjon sendt', `Invitasjon sendt til ${friend.name}`);
+    } catch (error) {
+      showAlert('Feil', 'Kunne ikke sende gruppeinvitasjon');
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleRemoveFriendFromGroup = async (friend: Friend) => {
+    if (!selectedGroup) return;
+    try {
+      const firestore = getFirestore();
+      const groupRef = doc(firestore, 'groups', selectedGroup.id);
+      const groupSnap = await getDoc(groupRef);
+      if (groupSnap.exists()) {
+        const groupData = groupSnap.data();
+        const updatedMembers = (groupData.members || []).filter((id: string) => id !== friend.id);
+        await updateDoc(groupRef, { members: updatedMembers });
+        setSelectedGroup((prev: any) => prev ? { ...prev, members: updatedMembers } : prev);
+        showAlert('Fjernet', `${friend.name} er fjernet fra gruppen`);
+      }
+    } catch (error) {
+      showAlert('Feil', 'Kunne ikke fjerne medlem fra gruppe');
+    }
+  };
+
   const handleDeleteGroup = async () => {
     const groupToDelete = currentGroup;
     if (!groupToDelete || groupToDelete.id === 'default') return;
-    
-    Alert.alert(
+
+    showAlert(
       'Bekreft sletting',
       `Er du sikker på at du vil slette gruppen "${groupToDelete.name}"? Dette kan ikke angres.`,
       [
-        {
-          text: 'Avbryt',
-          style: 'cancel',
-        },
+        { text: 'Avbryt', style: 'cancel' },
         {
           text: 'Slett',
           style: 'destructive',
@@ -145,42 +233,42 @@ const GroupScreen = () => {
                 if (userSnap.exists()) {
                   const userGroups: string[] = userSnap.data().groups || [];
                   const updatedGroups = userGroups.filter((gid: string) => gid !== groupToDelete.id);
-                  await updateUserDoc(userRef, { groups: updatedGroups });
+                  await updateDoc(userRef, { groups: updatedGroups });
                 }
               }
-              Alert.alert('Slettet', 'Gruppen er slettet.');
               router.replace('/profile');
             } catch (error) {
-              Alert.alert('Feil', 'Kunne ikke slette gruppe.');
+              showAlert('Feil', 'Kunne ikke slette gruppe');
             } finally {
               setDeleting(false);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
-  // Get betts for selected group
   useEffect(() => {
     if (!selectedGroup) {
-      setBetts([]);
+      setBets([]);
       return;
     }
     let isMounted = true;
-    const fetchBetts = async () => {
+    const fetchBets = async () => {
       const firestore = getFirestore();
       const groupRef = doc(firestore, 'groups', selectedGroup.id);
       const groupSnap = await getDoc(groupRef);
       if (!isMounted) return;
-      if (groupSnap.exists() && groupSnap.data().betts) {
-        setBetts(groupSnap.data().betts);
+      if (groupSnap.exists() && groupSnap.data().bets) {
+        setBets(groupSnap.data().bets);
       } else {
-        setBetts([]);
+        setBets([]);
       }
     };
-    fetchBetts();
-    return () => { isMounted = false; };
+    fetchBets();
+    return () => {
+      isMounted = false;
+    };
   }, [selectedGroup]);
 
   const openBetModal = () => {
@@ -194,17 +282,17 @@ const GroupScreen = () => {
   };
 
   const updateBetOption = (idx: number, field: 'name' | 'odds', value: string) => {
-    setBetOptions(prev => prev.map((opt, i) => i === idx ? { ...opt, [field]: value } : opt));
+    setBetOptions(prev => prev.map((opt, i) => (i === idx ? { ...opt, [field]: value } : opt)));
   };
 
   const handleSaveBet = async () => {
     if (!selectedGroup) return;
     if (!betTitle.trim()) {
-      Alert.alert('Feil', 'Bet-tittel kan ikke være tom');
+      showAlert('Feil', 'Bet-tittel kan ikke være tom');
       return;
     }
     if (betOptions.some(opt => !opt.name.trim() || !opt.odds.trim())) {
-      Alert.alert('Feil', 'Alle alternativer må ha navn og odds');
+      showAlert('Feil', 'Alle alternativer må ha navn og odds');
       return;
     }
     setBetSaving(true);
@@ -212,42 +300,44 @@ const GroupScreen = () => {
       const firestore = getFirestore();
       const groupRef = doc(firestore, 'groups', selectedGroup.id);
       const groupSnap = await getDoc(groupRef);
-      let groupBetts = [];
-      if (groupSnap.exists() && groupSnap.data().betts) {
-        groupBetts = groupSnap.data().betts;
+      let groupBets: Bet[] = [];
+      if (groupSnap.exists() && groupSnap.data().bets) {
+        groupBets = groupSnap.data().bets;
       }
       const newBet: Bet = {
         id: Date.now().toString(),
         title: betTitle,
-        options: betOptions.map((opt, idx) => ({ id: `${Date.now()}_${idx}`, name: opt.name, odds: parseFloat(opt.odds) })),
+        options: betOptions.map((opt, idx) => ({
+          id: `${Date.now()}_${idx}`,
+          name: opt.name,
+          odds: parseFloat(opt.odds),
+        })),
         wagers: [],
       };
-      await updateDoc(groupRef, { betts: [...groupBetts, newBet] });
-      setBetts(prev => [...prev, newBet]);
+      await updateDoc(groupRef, { bets: [...groupBets, newBet] });
+      setBets(prev => [...prev, newBet]);
       setBetModalVisible(false);
     } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke lagre bett');
+      showAlert('Feil', 'Kunne ikke lagre bet');
     } finally {
       setBetSaving(false);
     }
   };
 
-  // New function to open place bet modal
   const openPlaceBetModal = (bet: Bet, option: BettingOption) => {
     setSelectedBetOption({ bet, option });
     setBetAmount('1');
-    setSelectedDrinkType('øl');
-    setSelectedMeasureType('slurker');
+    setSelectedDrinkType('Øl');
+    setSelectedMeasureType('Slurker');
     setPlaceBetModalVisible(true);
   };
 
-  // New function to place a bet
   const handlePlaceBet = async () => {
     if (!selectedBetOption || !user || !selectedGroup) return;
-    
+
     const amount = parseInt(betAmount);
     if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Feil', 'Ugyldig antall');
+      showAlert('Feil', 'Ugyldig antall');
       return;
     }
 
@@ -256,18 +346,17 @@ const GroupScreen = () => {
       const firestore = getFirestore();
       const groupRef = doc(firestore, 'groups', selectedGroup.id);
       const groupSnap = await getDoc(groupRef);
-      
+
       if (groupSnap.exists()) {
-        const groupBetts: Bet[] = groupSnap.data().betts || [];
-        const betIndex = groupBetts.findIndex(b => b.id === selectedBetOption.bet.id);
-        
+        const groupBets: Bet[] = groupSnap.data().bets || [];
+        const betIndex = groupBets.findIndex(b => b.id === selectedBetOption.bet.id);
+
         if (betIndex !== -1) {
-          const updatedBetts = [...groupBetts];
-          const wagers = updatedBetts[betIndex].wagers || [];
-          
-          // Check if user already has a wager on this bet
+          const updatedBets = [...groupBets];
+          const wagers = updatedBets[betIndex].wagers || [];
+
           const existingWagerIndex = wagers.findIndex(w => w.userId === user.id);
-          
+
           const newWager: BetWager = {
             userId: user.id,
             username: user.username,
@@ -279,165 +368,125 @@ const GroupScreen = () => {
           };
 
           if (existingWagerIndex !== -1) {
-            // Update existing wager
             wagers[existingWagerIndex] = newWager;
           } else {
-            // Add new wager
             wagers.push(newWager);
           }
 
-          updatedBetts[betIndex].wagers = wagers;
-          await updateDoc(groupRef, { betts: updatedBetts });
-          setBetts(updatedBetts);
+          updatedBets[betIndex].wagers = wagers;
+          await updateDoc(groupRef, { bets: updatedBets });
+          setBets(updatedBets);
           setPlaceBetModalVisible(false);
-          Alert.alert('Suksess', 'Bet plassert!');
         }
       }
     } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke plassere bet');
+      showAlert('Feil', 'Kunne ikke plassere bet');
       console.error('Place bet error:', error);
     } finally {
       setPlacingBet(false);
     }
   };
 
-  // Get user's current wager for a bet
   const getUserWagerForBet = (bet: Bet): BetWager | null => {
     if (!bet.wagers || !user) return null;
     return bet.wagers.find(w => w.userId === user.id) || null;
   };
 
-  // Get option name by id
   const getOptionName = (bet: Bet, optionId: string): string => {
     const option = bet.options.find(o => o.id === optionId);
     return option ? option.name : 'Ukjent alternativ';
   };
 
-  const renderBettingOption = ({ item: option, bet }: { item: BettingOption, bet: Bet }) => {
+  const renderBettingOption = ({ item: option, bet }: { item: BettingOption; bet: Bet }) => {
     const userWager = getUserWagerForBet(bet);
     const isUserChoice = userWager?.optionId === option.id;
     const isCorrect = bet.correctOptionId === option.id;
     const isBetFinished = bet.isFinished;
-    
+
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[
-          styles.bettingOption, 
-          isUserChoice && styles.bettingOptionSelected,
-          isCorrect && styles.bettingOptionCorrect,
-          isBetFinished && !isCorrect && styles.bettingOptionIncorrect
-        ]} 
+          groupStyles.bettingOption,
+          isUserChoice && groupStyles.bettingOptionSelected,
+          isCorrect && groupStyles.bettingOptionCorrect,
+          isBetFinished && !isCorrect && groupStyles.bettingOptionIncorrect,
+        ]}
         onPress={() => !isBetFinished && openPlaceBetModal(bet, option)}
         disabled={isBetFinished}
       >
         <View style={{ flex: 1 }}>
-          <Text style={[
-            styles.optionName, 
-            isUserChoice && styles.optionNameSelected,
-            isCorrect && styles.optionNameCorrect,
-            isBetFinished && !isCorrect && styles.optionNameIncorrect
-          ]}>
+          <Text
+            style={[
+              groupStyles.optionName,
+              isUserChoice && groupStyles.optionNameSelected,
+              isCorrect && groupStyles.optionNameCorrect,
+              isBetFinished && !isCorrect && groupStyles.optionNameIncorrect,
+            ]}
+          >
             {option.name} {isCorrect && '✓'}
           </Text>
           {isUserChoice && userWager && (
-            <Text style={[
-              styles.userWagerText,
-              isCorrect && styles.userWagerTextCorrect
-            ]}>
+            <Text
+              style={[
+                groupStyles.userWagerText,
+                isCorrect && groupStyles.userWagerTextCorrect,
+              ]}
+            >
               Ditt bet: {userWager.amount} {userWager.measureType} {userWager.drinkType}
             </Text>
           )}
         </View>
-        <Text style={[
-          styles.optionOdds, 
-          isUserChoice && styles.optionOddsSelected,
-          isCorrect && styles.optionOddsCorrect,
-          isBetFinished && !isCorrect && styles.optionOddsIncorrect
-        ]}>
+        <Text
+          style={[
+            groupStyles.optionOdds,
+            isUserChoice && groupStyles.optionOddsSelected,
+            isCorrect && groupStyles.optionOddsCorrect,
+            isBetFinished && !isCorrect && groupStyles.optionOddsIncorrect,
+          ]}
+        >
           {option.odds.toFixed(1)}
         </Text>
       </TouchableOpacity>
     );
   };
 
-  // Edit bett
-  const [editBetModalVisible, setEditBetModalVisible] = useState(false);
-  const [editBetIdx, setEditBetIdx] = useState<number | null>(null);
-  const [editBetTitle, setEditBetTitle] = useState('');
-  const [editBetOptions, setEditBetOptions] = useState([{ name: '', odds: '' }]);
-  const [editBetSaving, setEditBetSaving] = useState(false);
-
-  const openEditBetModal = (bet: any, idx: number) => {
-    setEditBetIdx(idx);
-    setEditBetTitle(bet.title);
-    setEditBetOptions(bet.options.map((opt: any) => ({ name: opt.name, odds: opt.odds.toString() })));
-    
-    // Hvis bettet allerede er ferdig/har korrekt svar, åpne modal for å administrere det
-    if (bet.correctOptionId || bet.isFinished) {
-      setSelectCorrectBetIdx(idx);
-      setSelectCorrectModalVisible(true);
-    } else {
-      // Hvis bettet ikke er ferdig, gi brukeren valg mellom å redigere eller ferdigstille
-      Alert.alert(
-        'Administrer bet',
-        'Hva vil du gjøre med dette bettet?',
-        [
-          {
-            text: 'Rediger bet',
-            onPress: () => setEditBetModalVisible(true)
-          },
-          {
-            text: 'Marker som ferdig',
-            onPress: () => {
-              setSelectCorrectBetIdx(idx);
-              setSelectCorrectModalVisible(true);
-            }
-          },
-          {
-            text: 'Avbryt',
-            style: 'cancel'
-          }
-        ]
-      );
-    }
+  const openEditBetModal = (bet: Bet, idx: number) => {
+    setSelectedEditBet({ bet, index: idx });
+    setEditMenuModalVisible(true);
   };
 
   const handleSelectCorrectOption = async (optionId: string | null) => {
     if (selectCorrectBetIdx === null || !selectedGroup) return;
-    
+
     try {
       const firestore = getFirestore();
       const groupRef = doc(firestore, 'groups', selectedGroup.id);
       const groupSnap = await getDoc(groupRef);
-      
+
       if (groupSnap.exists()) {
-        const groupBetts = groupSnap.data().betts || [];
-        const newBetts = [...groupBetts];
-        
+        const groupBets = groupSnap.data().bets || [];
+        const newBets = [...groupBets];
+
         if (optionId === null) {
-          // Fjern korrekt svar og gjør bettet aktivt igjen
-          delete newBetts[selectCorrectBetIdx].correctOptionId;
-          newBetts[selectCorrectBetIdx].isFinished = false;
+          delete newBets[selectCorrectBetIdx].correctOptionId;
+          newBets[selectCorrectBetIdx].isFinished = false;
         } else {
-          // Sett korrekt svar og ferdigstill bettet
-          newBetts[selectCorrectBetIdx].correctOptionId = optionId;
-          newBetts[selectCorrectBetIdx].isFinished = true;
+          newBets[selectCorrectBetIdx].correctOptionId = optionId;
+          newBets[selectCorrectBetIdx].isFinished = true;
         }
-        
-        await updateDoc(groupRef, { betts: newBetts });
-        setBetts(newBetts);
+
+        await updateDoc(groupRef, { bets: newBets });
+        setBets(newBets);
         setSelectCorrectModalVisible(false);
-        
-        Alert.alert('Suksess', optionId ? 'Riktig alternativ er markert!' : 'Bettet er aktivt igjen!');
       }
     } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke oppdatere bett');
+      showAlert('Feil', 'Kunne ikke oppdatere bet');
       console.error('Select correct option error:', error);
     }
   };
 
   const updateEditBetOption = (idx: number, field: 'name' | 'odds', value: string) => {
-    setEditBetOptions(prev => prev.map((opt, i) => i === idx ? { ...opt, [field]: value } : opt));
+    setEditBetOptions(prev => prev.map((opt, i) => (i === idx ? { ...opt, [field]: value } : opt)));
   };
 
   const addEditBetOption = () => {
@@ -447,11 +496,11 @@ const GroupScreen = () => {
   const handleSaveEditBet = async () => {
     if (editBetIdx === null || !selectedGroup) return;
     if (!editBetTitle.trim()) {
-      Alert.alert('Feil', 'Bet-tittel kan ikke være tom');
+      showAlert('Feil', 'Bet-tittel kan ikke være tom');
       return;
     }
     if (editBetOptions.some(opt => !opt.name.trim() || !opt.odds.trim())) {
-      Alert.alert('Feil', 'Alle alternativer må ha navn og odds');
+      showAlert('Feil', 'Alle alternativer må ha navn og odds');
       return;
     }
     setEditBetSaving(true);
@@ -459,22 +508,26 @@ const GroupScreen = () => {
       const firestore = getFirestore();
       const groupRef = doc(firestore, 'groups', selectedGroup.id);
       const groupSnap = await getDoc(groupRef);
-      let groupBetts = [];
-      if (groupSnap.exists() && groupSnap.data().betts) {
-        groupBetts = groupSnap.data().betts;
+      let groupBets: Bet[] = [];
+      if (groupSnap.exists() && groupSnap.data().bets) {
+        groupBets = groupSnap.data().bets;
       }
       const updatedBet = {
-        ...groupBetts[editBetIdx],
+        ...groupBets[editBetIdx],
         title: editBetTitle,
-        options: editBetOptions.map((opt, idx) => ({ id: `${groupBetts[editBetIdx].id}_${idx}`, name: opt.name, odds: parseFloat(opt.odds) })),
+        options: editBetOptions.map((opt, idx) => ({
+          id: `${groupBets[editBetIdx].id}_${idx}`,
+          name: opt.name,
+          odds: parseFloat(opt.odds),
+        })),
       };
-      const newBetts = [...groupBetts];
-      newBetts[editBetIdx] = updatedBet;
-      await updateDoc(groupRef, { betts: newBetts });
-      setBetts(newBetts);
+      const newBets = [...groupBets];
+      newBets[editBetIdx] = updatedBet;
+      await updateDoc(groupRef, { bets: newBets });
+      setBets(newBets);
       setEditBetModalVisible(false);
     } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke lagre endringer');
+      showAlert('Feil', 'Kunne ikke lagre endringer');
     } finally {
       setEditBetSaving(false);
     }
@@ -482,15 +535,12 @@ const GroupScreen = () => {
 
   const handleDeleteBet = async () => {
     if (editBetIdx === null || !selectedGroup) return;
-    
-    Alert.alert(
+
+    showAlert(
       'Bekreft sletting',
       'Er du sikker på at du vil slette dette bettet? Dette kan ikke angres.',
       [
-        {
-          text: 'Avbryt',
-          style: 'cancel',
-        },
+        { text: 'Avbryt', style: 'cancel' },
         {
           text: 'Slett',
           style: 'destructive',
@@ -500,93 +550,29 @@ const GroupScreen = () => {
               const firestore = getFirestore();
               const groupRef = doc(firestore, 'groups', selectedGroup.id);
               const groupSnap = await getDoc(groupRef);
-              let groupBetts = [];
-              if (groupSnap.exists() && groupSnap.data().betts) {
-                groupBetts = groupSnap.data().betts;
+              let groupBets: Bet[] = [];
+              if (groupSnap.exists() && groupSnap.data().bets) {
+                groupBets = groupSnap.data().bets;
               }
-              const newBetts = groupBetts.filter((_: any, idx: number) => idx !== editBetIdx);
-              await updateDoc(groupRef, { betts: newBetts });
-              setBetts(newBetts);
+              const newBets = groupBets.filter((_, idx: number) => idx !== editBetIdx);
+              await updateDoc(groupRef, { bets: newBets });
+              setBets(newBets);
               setEditBetModalVisible(false);
             } catch (error) {
-              Alert.alert('Feil', 'Kunne ikke slette bett');
+              showAlert('Feil', 'Kunne ikke slette bet');
             } finally {
               setEditBetSaving(false);
             }
-          }
-        }
+          },
+        },
       ]
-    );
-  };
-
-  const renderBet = ({ item, index }: { item: Bet, index: number }) => {
-    const userWager = getUserWagerForBet(item);
-    
-    return (
-      <View style={styles.betContainer}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.betTitle}>{item.title}</Text>
-            {item.isFinished && (
-              <Text style={styles.betStatusText}>
-                Ferdig - Riktig svar: {getOptionName(item, item.correctOptionId || '')}
-              </Text>
-            )}
-          </View>
-          <TouchableOpacity onPress={() => openEditBetModal(item, index)}>
-            <Image source={PencilIcon} style={{ width: 18, height: 18, tintColor: '#FFD700' }} />
-          </TouchableOpacity>
-        </View>
-        
-        {userWager && (
-          <View style={[
-            styles.userBetSummary,
-            item.isFinished && item.correctOptionId === userWager.optionId && styles.userBetSummaryWin,
-            item.isFinished && item.correctOptionId !== userWager.optionId && styles.userBetSummaryLose
-          ]}>
-            <Text style={[
-              styles.userBetSummaryText,
-              item.isFinished && item.correctOptionId === userWager.optionId && styles.userBetSummaryTextWin,
-              item.isFinished && item.correctOptionId !== userWager.optionId && styles.userBetSummaryTextLose
-            ]}>
-              Du har satset: {userWager.amount} {userWager.measureType} {userWager.drinkType} på "{getOptionName(item, userWager.optionId)}"
-              {item.isFinished && (item.correctOptionId === userWager.optionId ? ' - DU VANT! 🎉' : ' - Du tapte 😢')}
-            </Text>
-          </View>
-        )}
-        
-        <FlatList
-          data={item.options}
-          renderItem={({item: option}) => renderBettingOption({item: option, bet: item})}
-          keyExtractor={(option) => option.id}
-          horizontal={false}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.optionsContainer}
-          scrollEnabled={false}
-        />
-        
-        {/* Show wagers summary */}
-        {item.wagers && item.wagers.length > 0 && (
-          <View style={styles.wagersSection}>
-            <Text style={styles.wagersSectionTitle}>Plasserte bets ({item.wagers.length}):</Text>
-            {item.wagers.map((wager, idx) => (
-              <View key={idx} style={styles.wagerItem}>
-                <Text style={styles.wagerUser}>{wager.username}</Text>
-                <Text style={styles.wagerDetails}>
-                  {wager.amount} {wager.measureType} {wager.drinkType} på "{getOptionName(item, wager.optionId)}"
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
     );
   };
 
   const handleSaveGroupName = async () => {
     if (!selectedGroup) return;
     if (!groupName.trim()) {
-      Alert.alert('Feil', 'Gruppenavn kan ikke være tomt');
+      showAlert('Feil', 'Gruppenavn kan ikke være tomt');
       return;
     }
     setSaving(true);
@@ -594,228 +580,470 @@ const GroupScreen = () => {
       const firestore = getFirestore();
       await updateDoc(doc(firestore, 'groups', selectedGroup.id), { name: groupName });
       setEditingName(false);
-      Alert.alert('Gruppenavn oppdatert!');
     } catch (error) {
-      Alert.alert('Feil', 'Kunne ikke oppdatere gruppenavn');
+      showAlert('Feil', 'Kunne ikke oppdatere gruppenavn');
     } finally {
       setSaving(false);
     }
   };
 
-  return (
-    <ScrollView style={styles.container}>
-      {/* Group-header */}
-      <View style={styles.groupHeader}>
-        <Image source={currentGroup.image} style={styles.groupHeaderImage} />
-        <View style={styles.groupHeaderOverlay}>
-          <View style={styles.groupHeaderInfo}>
-            {editingName ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <TextInput
-                  value={groupName}
-                  onChangeText={setGroupName}
-                  style={{
-                    color: '#FFD700',
-                    fontSize: 24,
-                    fontWeight: 'bold',
-                    backgroundColor: '#23242A',
-                    borderRadius: 8,
-                    paddingHorizontal: 10,
-                    marginRight: 8,
-                    minWidth: 120,
-                  }}
-                  editable={!saving}
-                  autoFocus
-                  placeholder="Gruppenavn"
-                  placeholderTextColor="#B0B0B0"
-                  onSubmitEditing={handleSaveGroupName}
-                  returnKeyType="done"
-                />
-                <TouchableOpacity onPress={handleSaveGroupName} disabled={saving} style={{ marginRight: 8 }}>
-                  <Image source={PencilIcon} style={{ width: 20, height: 20, tintColor: '#FFD700' }} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setEditingName(false)} disabled={saving}>
-                  <Text style={{ color: '#FFD700', fontWeight: 'bold', fontSize: 16 }}>Avbryt</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={styles.groupHeaderName}>{currentGroup.name}</Text>
-                {selectedGroup && (
-                  <>
-                    <TouchableOpacity onPress={() => setEditingName(true)} style={{ marginLeft: 8 }}>
-                      <Image source={PencilIcon} style={{ width: 20, height: 20, tintColor: '#FFD700' }} />
-                    </TouchableOpacity>
-                    {selectedGroup.createdBy === user?.id && (
-                      <TouchableOpacity 
-                        onPress={handleDeleteGroup} 
-                        disabled={deleting}
-                        style={{ marginLeft: 8, opacity: deleting ? 0.5 : 1 }}
-                      >
-                        <Image source={DeleteIcon} style={{ width: 20, height: 20, tintColor: '#FF6B6B' }} />
-                      </TouchableOpacity>
-                    )}
-                  </>
-                )}
-              </View>
-            )}
-            <Text style={styles.groupHeaderMembers}>{currentGroup.memberCount} medlemmer</Text>
+  const getLeaderboardData = (): MemberDrinkStats[] => {
+    if (!selectedGroup || !selectedGroup.members) return [];
+
+    const finishedBets = bets.filter(bet => bet.isFinished && bet.correctOptionId);
+    const memberStats: { [userId: string]: MemberDrinkStats } = {};
+
+    selectedGroup.members.forEach((userId: string) => {
+      memberStats[userId] = {
+        userId,
+        username: '',
+        wins: 0,
+        drinksToConsume: {},
+        drinksToDistribute: {},
+      };
+    });
+
+
+    finishedBets.forEach(bet => {
+      const wagers = bet.wagers || [];
+      const winners = wagers.filter(wager => wager.optionId === bet.correctOptionId);
+      const losers = wagers.filter(wager => wager.optionId !== bet.correctOptionId);
+
+      wagers.forEach(wager => {
+        const stats = memberStats[wager.userId];
+        if (!stats) return;
+
+        stats.username = wager.username;
+        const drinkType = wager.drinkType;
+        const measureType = wager.measureType;
+        const amount = wager.amount;
+        // Finn odds for valgt alternativ
+        let odds = 1;
+        if (bet.options && wager.optionId) {
+          const opt = bet.options.find(o => o.id === wager.optionId);
+          if (opt) odds = opt.odds;
+        }
+        const calculatedAmount = Math.round(amount * odds);
+
+        if (!stats.drinksToConsume[drinkType]) {
+          stats.drinksToConsume[drinkType] = {};
+        }
+        if (!stats.drinksToDistribute[drinkType]) {
+          stats.drinksToDistribute[drinkType] = {};
+        }
+        if (!stats.drinksToConsume[drinkType][measureType]) {
+          stats.drinksToConsume[drinkType][measureType] = 0;
+        }
+        if (!stats.drinksToDistribute[drinkType][measureType]) {
+          stats.drinksToDistribute[drinkType][measureType] = 0;
+        }
+
+        if (wager.optionId === bet.correctOptionId) {
+          stats.wins += 1;
+          stats.drinksToDistribute[drinkType][measureType]! += calculatedAmount;
+        } else {
+          stats.drinksToConsume[drinkType][measureType]! += calculatedAmount;
+        }
+      });
+    });
+
+    const result = Object.values(memberStats).sort((a, b) => b.wins - a.wins);
+    return result;
+  };
+
+  const formatDrinks = (drinks: { [key in DrinkType]?: { [key in MeasureType]?: number } }): string => {
+    const drinkStrings: string[] = [];
+    drinkTypes.forEach(drinkType => {
+      measureTypes.forEach(measureType => {
+        const amount = drinks[drinkType]?.[measureType] || 0;
+        if (amount > 0) {
+          drinkStrings.push(`${amount} ${measureType} ${drinkType}`);
+        }
+      });
+    });
+    const result = drinkStrings.length > 0 ? drinkStrings.join(', ') : 'Ingen';
+    return result;
+  };
+
+  const renderLeaderboardItem = ({ item }: { item: MemberDrinkStats }) => {
+    return (
+      <View style={groupStyles.betContainer}>
+        <View style={globalStyles.listItemRow}>
+          <Text style={[groupStyles.wagerUser, { fontWeight: 'bold' }]}>{item.username} ({item.wins} vunnet)</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[groupStyles.wagerDetails, { color: theme.colors.error }]}>Drikke selv: {formatDrinks(item.drinksToConsume)}</Text>
+            <Text style={[groupStyles.wagerDetails, { color: theme.colors.success, fontWeight: 'bold' }]}>Dele ut: {formatDrinks(item.drinksToDistribute)}</Text>
           </View>
         </View>
       </View>
+    );
+  };
 
-      {/* Invite friends and create bet buttons */}
-      <View style={styles.createBetSection}>
-        <TouchableOpacity style={[styles.createBetButton, { marginBottom: 12 }]} onPress={() => Alert.alert('Inviter venner', 'Her kan du invitere venner til gruppen (backend TODO)')}>
-          <Text style={styles.createBetText}>Inviter venner</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.createBetButton} onPress={openBetModal}>
-          <Text style={styles.createBetText}>Opprett nytt bet</Text>
-        </TouchableOpacity>
+  const renderFriendItem = ({ item }: { item: Friend }) => {
+    const isMember = selectedGroup?.members.includes(item.id);
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
+        <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 50, height: 50, marginRight: 10 }]} />
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <Text style={[groupStyles.wagerUser, { marginBottom: 0, textAlign: 'left', lineHeight: 20 }]}>{item.name}</Text>
+          <Text style={[globalStyles.secondaryText, { marginTop: 0, textAlign: 'left', lineHeight: 18 }]}>@{item.username}</Text>
+        </View>
+        {isMember ? (
+          <TouchableOpacity
+            style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center', borderColor: 'red' }]}
+            onPress={() => handleRemoveFriendFromGroup(item)}
+            disabled={inviting}
+          >
+            <Text style={[globalStyles.outlineButtonGoldText, { color: 'red' }]}>Fjern</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center' }]}
+            onPress={() => handleInviteFriend(item)}
+            disabled={inviting}
+          >
+            <Text style={globalStyles.outlineButtonGoldText}>Inviter</Text>
+          </TouchableOpacity>
+        )}
       </View>
+    );
+  };
 
-      {/* Bets List */}
-      <FlatList
-        data={betts}
-        renderItem={renderBet}
-        keyExtractor={(item) => item.id}
-        scrollEnabled={false}
-        contentContainerStyle={{ paddingBottom: 20 }}
-      />
+  const renderBet = ({ item, index }: { item: Bet; index: number }) => {
+    const userWager = getUserWagerForBet(item);
 
-      {/* Modal for creating bet */}
+    return (
+      <View style={groupStyles.betContainer}>
+        <View style={[globalStyles.contentCard, groupStyles.betSpacing]}>
+          <View style={globalStyles.rowSpread}>
+            <View style={{ flex: 1 }}>
+              <Text style={groupStyles.betTitle}>{item.title}</Text>
+              {item.isFinished && (
+                <Text style={groupStyles.betStatusText}>
+                  Ferdig - Riktig svar: {getOptionName(item, item.correctOptionId || '')}
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity onPress={() => openEditBetModal(item, index)}>
+              <Image source={PencilIcon} style={globalStyles.pencilIcon} />
+            </TouchableOpacity>
+          </View>
+
+          {userWager && (
+            <View
+              style={[
+                groupStyles.userBetSummary,
+                item.isFinished && item.correctOptionId === userWager.optionId && groupStyles.userBetSummaryWin,
+                item.isFinished && item.correctOptionId !== userWager.optionId && groupStyles.userBetSummaryLose,
+              ]}
+            >
+              <Text
+                style={[
+                  groupStyles.userBetSummaryText,
+                  item.isFinished && item.correctOptionId === userWager.optionId && groupStyles.userBetSummaryTextWin,
+                  item.isFinished && item.correctOptionId !== userWager.optionId && groupStyles.userBetSummaryTextLose,
+                ]}
+              >
+                Du har satset: {userWager.amount} {userWager.measureType} {userWager.drinkType} på "{getOptionName(item, userWager.optionId)}"
+                {item.isFinished && (item.correctOptionId === userWager.optionId ? ' - DU VANT! 🎉' : ' - Du tapte 😢')}
+              </Text>
+            </View>
+          )}
+
+          <FlatList
+            data={item.options}
+            renderItem={({ item: option }) => renderBettingOption({ item: option, bet: item })}
+            keyExtractor={option => option.id}
+            horizontal={false}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={globalStyles.listContainer}
+            scrollEnabled={false}
+          />
+
+          {item.wagers && item.wagers.length > 0 && (
+            <View style={globalStyles.sectionDivider}>
+              <Text style={groupStyles.wagersSectionTitle}>Plasserte bets ({item.wagers.length}):</Text>
+              {item.wagers.map((wager, idx) => (
+                <View key={idx} style={globalStyles.listItemRow}>
+                  <Text style={groupStyles.wagerUser}>{wager.username}</Text>
+                  <Text style={groupStyles.wagerDetails}>
+                    {wager.amount} {wager.measureType} {wager.drinkType} på "{getOptionName(item, wager.optionId)}"
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <KeyboardAvoidingView
+      style={[
+        Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container,
+        { padding: 0 }
+      ]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={globalStyles.fullWidthScrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={[globalStyles.headerContainer, { height: 220 }]}>
+          <Image source={currentGroup.image} style={globalStyles.groupHeaderImage} />
+          <View style={globalStyles.overlay}>
+            <View style={globalStyles.headerInfo}>
+              {editingName ? (
+                <View style={globalStyles.inputGroup}>
+                  <Text style={globalStyles.label}>Gruppenavn</Text>
+                  <View style={globalStyles.rowSpread}>
+                    <TextInput
+                      value={groupName}
+                      onChangeText={setGroupName}
+                      style={groupStyles.groupNameInput}
+                      editable={!saving}
+                      autoFocus
+                      placeholder="Gruppenavn"
+                      placeholderTextColor={theme.colors.textSecondary}
+                      onSubmitEditing={handleSaveGroupName}
+                      returnKeyType="done"
+                    />
+                    <TouchableOpacity onPress={handleSaveGroupName} disabled={saving}>
+                      <Image source={PencilIcon} style={globalStyles.pencilIcon} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setEditingName(false)} disabled={saving}>
+                      <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View style={globalStyles.rowSpread}>
+                  <Text style={groupStyles.groupHeaderName}>{currentGroup.name}</Text>
+                  {selectedGroup && (
+                    <View style={{ flexDirection: 'row' }}>
+                      <TouchableOpacity onPress={() => setEditingName(true)} style={{ marginLeft: theme.spacing.sm }}>
+                        <Image source={PencilIcon} style={globalStyles.pencilIcon} />
+                      </TouchableOpacity>
+                      {selectedGroup.createdBy === user?.id && (
+                        <TouchableOpacity
+                          onPress={handleDeleteGroup}
+                          disabled={deleting}
+                          style={{ marginLeft: theme.spacing.sm, opacity: deleting ? 0.5 : 1 }}
+                        >
+                          <Image source={DeleteIcon} style={globalStyles.deleteIcon} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                </View>
+              )}
+              <Text style={groupStyles.groupHeaderMembers}>{currentGroup.memberCount} medlemmer</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={groupStyles.createBetSection}>
+          <TouchableOpacity
+            style={globalStyles.outlineButtonGold}
+            onPress={() => setInviteModalVisible(true)}
+            disabled={inviting}
+          >
+            <Text style={globalStyles.outlineButtonGoldText}>{inviting ? 'Inviterer...' : 'Inviter venner'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={globalStyles.outlineButtonGold}
+            onPress={openBetModal}
+          >
+            <Text style={globalStyles.outlineButtonGoldText}>Opprett nytt bet</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={globalStyles.outlineButtonGold}
+            onPress={() => setLeaderboardModalVisible(true)}
+          >
+            <Text style={globalStyles.outlineButtonGoldText}>Vis ledertavle</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Bytt ut FlatList med vanlig map for å unngå scroll-lås på web-mobil */}
+        <View style={{ paddingBottom: theme.spacing.xl }}>
+          {bets.map((item, idx) => renderBet({ item, index: idx }))}
+        </View>
+      </ScrollView>
+
       <Modal
-        visible={betModalVisible}
+        visible={inviteModalVisible}
         animationType="slide"
         transparent
-        onRequestClose={() => setBetModalVisible(false)}
+        onRequestClose={() => setInviteModalVisible(false)}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' }}>
-          <View style={{ backgroundColor: '#23242A', borderRadius: 16, padding: 24, width: '90%' }}>
-            <Text style={{ color: '#FFD700', fontSize: 20, fontWeight: 'bold', marginBottom: 16 }}>Opprett nytt bet</Text>
-            <TextInput
-              placeholder="Tittel på bett"
-              placeholderTextColor="#B0B0B0"
-              value={betTitle}
-              onChangeText={setBetTitle}
-              style={{ backgroundColor: '#181A20', color: '#FFD700', borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 16 }}
-            />
-            {betOptions.map((opt, idx) => (
-              <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                <TextInput
-                  placeholder={`Alternativ ${idx + 1}`}
-                  placeholderTextColor="#B0B0B0"
-                  value={opt.name}
-                  onChangeText={text => updateBetOption(idx, 'name', text)}
-                  style={{ flex: 1, backgroundColor: '#181A20', color: '#FFD700', borderRadius: 8, padding: 10, marginRight: 8, fontSize: 15 }}
-                />
-                <TextInput
-                  placeholder="Odds"
-                  placeholderTextColor="#B0B0B0"
-                  value={opt.odds}
-                  onChangeText={text => updateBetOption(idx, 'odds', text.replace(/[^0-9.,]/g, '').replace(',', '.'))}
-                  keyboardType="decimal-pad"
-                  style={{ width: 70, backgroundColor: '#181A20', color: '#FFD700', borderRadius: 8, padding: 10, fontSize: 15 }}
-                />
-              </View>
-            ))}
-            <TouchableOpacity onPress={addBetOption} style={{ marginBottom: 16, alignSelf: 'flex-start' }}>
-              <Text style={{ color: '#FFD700', fontWeight: 'bold', fontSize: 15 }}>+ Legg til alternativ</Text>
-            </TouchableOpacity>
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
-              <TouchableOpacity onPress={() => setBetModalVisible(false)} disabled={betSaving}>
-                <Text style={{ color: '#B0B0B0', fontSize: 16 }}>Avbryt</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleSaveBet} disabled={betSaving}>
-                <Text style={{ color: '#FFD700', fontWeight: 'bold', fontSize: 16 }}>{betSaving ? 'Lagrer...' : 'Lagre bet'}</Text>
+        <View style={globalStyles.modalContainer}>
+          <View style={globalStyles.modalContent}>
+            <Text style={globalStyles.modalTitle}>Inviter venner til {currentGroup.name}</Text>
+            {friends.length > 0 ? (
+              <FlatList
+                data={friends}
+                renderItem={renderFriendItem}
+                keyExtractor={item => item.id}
+                contentContainerStyle={globalStyles.listContainer}
+                scrollEnabled
+                showsVerticalScrollIndicator={false}
+              />
+            ) : (
+              <Text style={globalStyles.emptyStateText}>Ingen venner å invitere</Text>
+            )}
+            <View style={globalStyles.editButtonsContainer}>
+              <TouchableOpacity onPress={() => setInviteModalVisible(false)} disabled={inviting}>
+                <Text style={globalStyles.cancelButtonText}>Lukk</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Modal for placing bet */}
+      <Modal
+        visible={betModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setBetModalVisible(false)}
+      >
+        <View style={globalStyles.modalContainer}>
+          <View style={globalStyles.modalContent}>
+            <Text style={globalStyles.modalTitle}>Opprett nytt bet</Text>
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Tittel på bet</Text>
+              <TextInput
+                placeholder="Tittel på bett"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={betTitle}
+                onChangeText={setBetTitle}
+                style={globalStyles.input}
+              />
+            </View>
+            {betOptions.map((opt, idx) => (
+              <View key={idx} style={globalStyles.inputGroup}>
+                <View style={globalStyles.rowSpread}>
+                  <View style={{ flex: 1, marginRight: theme.spacing.sm }}>
+                    <Text style={globalStyles.label}>Alternativ {idx + 1}</Text>
+                    <TextInput
+                      placeholder={`Alternativ ${idx + 1}`}
+                      placeholderTextColor={theme.colors.textSecondary}
+                      value={opt.name}
+                      onChangeText={text => updateBetOption(idx, 'name', text)}
+                      style={globalStyles.input}
+                    />
+                  </View>
+                  <View style={{ width: 70 }}>
+                    <Text style={globalStyles.label}>Odds</Text>
+                    <TextInput
+                      placeholder="Odds"
+                      placeholderTextColor={theme.colors.textSecondary}
+                      value={opt.odds}
+                      onChangeText={text => updateBetOption(idx, 'odds', text.replace(/[^0-9.,]/g, '').replace(',', '.'))}
+                      keyboardType="decimal-pad"
+                      style={globalStyles.input}
+                    />
+                  </View>
+                </View>
+              </View>
+            ))}
+            <TouchableOpacity onPress={addBetOption} style={{ marginBottom: theme.spacing.md, alignSelf: 'flex-start' }}>
+              <Text style={globalStyles.addOptionText}>+ Legg til alternativ</Text>
+            </TouchableOpacity>
+            <View style={globalStyles.editButtonsContainer}>
+              <TouchableOpacity onPress={() => setBetModalVisible(false)} disabled={betSaving}>
+                <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleSaveBet} disabled={betSaving}>
+                <Text style={globalStyles.saveButtonText}>{betSaving ? 'Lagrer...' : 'Lagre bet'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal
         visible={placeBetModalVisible}
         animationType="slide"
         transparent
         onRequestClose={() => setPlaceBetModalVisible(false)}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' }}>
-          <View style={{ backgroundColor: '#23242A', borderRadius: 16, padding: 24, width: '90%' }}>
-            <Text style={{ color: '#FFD700', fontSize: 20, fontWeight: 'bold', marginBottom: 16 }}>Plasser bet</Text>
-            
+        <View style={globalStyles.modalContainer}>
+          <View style={globalStyles.modalContent}>
+            <Text style={globalStyles.modalTitle}>Plasser bet</Text>
             {selectedBetOption && (
-              <>
-                <Text style={{ color: '#fff', fontSize: 16, marginBottom: 8 }}>
-                  Bet: {selectedBetOption.bet.title}
-                </Text>
-                <Text style={{ color: '#FFD700', fontSize: 16, marginBottom: 16 }}>
+              <View>
+                <Text style={globalStyles.modalText}>Bet: {selectedBetOption.bet.title}</Text>
+                <Text style={globalStyles.secondaryText}>
                   Alternativ: {selectedBetOption.option.name} (odds: {selectedBetOption.option.odds})
                 </Text>
-              </>
+              </View>
             )}
-
-            {/* Drink Type Selection */}
-            <Text style={{ color: '#fff', fontSize: 14, marginBottom: 8 }}>Type drikke:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-              {drinkTypes.map((drinkType) => (
-                <TouchableOpacity
-                  key={drinkType}
-                  style={[
-                    styles.selectionButton,
-                    selectedDrinkType === drinkType && styles.selectionButtonSelected
-                  ]}
-                  onPress={() => setSelectedDrinkType(drinkType)}
-                >
-                  <Text style={[
-                    styles.selectionButtonText,
-                    selectedDrinkType === drinkType && styles.selectionButtonTextSelected
-                  ]}>
-                    {drinkType}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            {/* Measure Type Selection */}
-            <Text style={{ color: '#fff', fontSize: 14, marginBottom: 8 }}>Måleenhet:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-              {measureTypes.map((measureType) => (
-                <TouchableOpacity
-                  key={measureType}
-                  style={[
-                    styles.selectionButton,
-                    selectedMeasureType === measureType && styles.selectionButtonSelected
-                  ]}
-                  onPress={() => setSelectedMeasureType(measureType)}
-                >
-                  <Text style={[
-                    styles.selectionButtonText,
-                    selectedMeasureType === measureType && styles.selectionButtonTextSelected
-                  ]}>
-                    {measureType}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            {/* Amount Input */}
-            <Text style={{ color: '#fff', fontSize: 14, marginBottom: 8 }}>Antall:</Text>
-            <TextInput
-              placeholder="Antall"
-              placeholderTextColor="#B0B0B0"
-              value={betAmount}
-              onChangeText={setBetAmount}
-              keyboardType="numeric"
-              style={{ backgroundColor: '#181A20', color: '#FFD700', borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 16 }}
-            />
-
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Type drikke</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: theme.spacing.md }}>
+                {drinkTypes.map((drinkType) => (
+                  <TouchableOpacity
+                    key={drinkType}
+                    style={[
+                      globalStyles.selectionButton,
+                      selectedDrinkType === drinkType && globalStyles.selectionButtonSelected,
+                    ]}
+                    onPress={() => setSelectedDrinkType(drinkType)}
+                  >
+                    <Text
+                      style={[
+                        globalStyles.selectionButtonText,
+                        selectedDrinkType === drinkType && globalStyles.selectionButtonTextSelected,
+                      ]}
+                    >
+                      {drinkType}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Måleenhet</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: theme.spacing.md }}>
+                {measureTypes.map((measureType) => (
+                  <TouchableOpacity
+                    key={measureType}
+                    style={[
+                      globalStyles.selectionButton,
+                      selectedMeasureType === measureType && globalStyles.selectionButtonSelected,
+                    ]}
+                    onPress={() => setSelectedMeasureType(measureType)}
+                  >
+                    <Text
+                      style={[
+                        globalStyles.selectionButtonText,
+                        selectedMeasureType === measureType && globalStyles.selectionButtonTextSelected,
+                      ]}
+                    >
+                      {measureType}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Antall</Text>
+              <TextInput
+                placeholder="Antall"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={betAmount}
+                onChangeText={setBetAmount}
+                keyboardType="numeric"
+                style={globalStyles.input}
+              />
+            </View>
+            <View style={globalStyles.editButtonsContainer}>
               <TouchableOpacity onPress={() => setPlaceBetModalVisible(false)} disabled={placingBet}>
-                <Text style={{ color: '#B0B0B0', fontSize: 16 }}>Avbryt</Text>
+                <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handlePlaceBet} disabled={placingBet}>
-                <Text style={{ color: '#FFD700', fontWeight: 'bold', fontSize: 16 }}>
+                <Text style={globalStyles.saveButtonText}>
                   {placingBet ? 'Plasserer...' : 'Plasser bet'}
                 </Text>
               </TouchableOpacity>
@@ -824,55 +1052,62 @@ const GroupScreen = () => {
         </View>
       </Modal>
 
-      {/* Modal for editing bet */}
       <Modal
         visible={editBetModalVisible}
         animationType="slide"
         transparent
         onRequestClose={() => setEditBetModalVisible(false)}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' }}>
-          <View style={{ backgroundColor: '#23242A', borderRadius: 16, padding: 24, width: '90%' }}>
-            <Text style={{ color: '#FFD700', fontSize: 20, fontWeight: 'bold', marginBottom: 16 }}>Rediger bet</Text>
-            <TextInput
-              placeholder="Tittel på bett"
-              placeholderTextColor="#B0B0B0"
-              value={editBetTitle}
-              onChangeText={setEditBetTitle}
-              style={{ backgroundColor: '#181A20', color: '#FFD700', borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 16 }}
-            />
+        <View style={globalStyles.modalContainer}>
+          <View style={globalStyles.modalContent}>
+            <Text style={globalStyles.modalTitle}>Rediger bet</Text>
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Tittel på bet</Text>
+              <TextInput
+                placeholder="Tittel på bett"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={editBetTitle}
+                onChangeText={setEditBetTitle}
+                style={globalStyles.input}
+              />
+            </View>
             {editBetOptions.map((opt, idx) => (
-              <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                <TextInput
-                  placeholder={`Alternativ ${idx + 1}`}
-                  placeholderTextColor="#B0B0B0"
-                  value={opt.name}
-                  onChangeText={text => updateEditBetOption(idx, 'name', text)}
-                  style={{ flex: 1, backgroundColor: '#181A20', color: '#FFD700', borderRadius: 8, padding: 10, marginRight: 8, fontSize: 15 }}
-                />
-                <TextInput
-                  placeholder="Odds"
-                  placeholderTextColor="#B0B0B0"
-                  value={opt.odds}
-                  onChangeText={text => updateEditBetOption(idx, 'odds', text.replace(/[^0-9.,]/g, '').replace(',', '.'))}
-                  keyboardType="decimal-pad"
-                  style={{ width: 70, backgroundColor: '#181A20', color: '#FFD700', borderRadius: 8, padding: 10, fontSize: 15 }}
-                />
+              <View key={idx} style={globalStyles.inputGroup}>
+                <View style={globalStyles.rowSpread}>
+                  <View style={{ flex: 1, marginRight: theme.spacing.sm }}>
+                    <Text style={globalStyles.label}>Alternativ {idx + 1}</Text>
+                    <TextInput
+                      placeholder={`Alternativ ${idx + 1}`}
+                      placeholderTextColor={theme.colors.textSecondary}
+                      value={opt.name}
+                      onChangeText={text => updateEditBetOption(idx, 'name', text)}
+                      style={globalStyles.input}
+                    />
+                  </View>
+                  <View style={{ width: 70 }}>
+                    <Text style={globalStyles.label}>Odds</Text>
+                    <TextInput
+                      placeholder="Odds"
+                      placeholderTextColor={theme.colors.textSecondary}
+                      value={opt.odds}
+                      onChangeText={text => updateEditBetOption(idx, 'odds', text.replace(/[^0-9.,]/g, '').replace(',', '.'))}
+                      keyboardType="decimal-pad"
+                      style={globalStyles.input}
+                    />
+                  </View>
+                </View>
               </View>
             ))}
-            <TouchableOpacity onPress={addEditBetOption} style={{ marginBottom: 16, alignSelf: 'flex-start' }}>
-              <Text style={{ color: '#FFD700', fontWeight: 'bold', fontSize: 15 }}>+ Legg til alternativ</Text>
+            <TouchableOpacity onPress={addEditBetOption} style={{ marginBottom: theme.spacing.md, alignSelf: 'flex-start' }}>
+              <Text style={globalStyles.addOptionText}>+ Legg til alternativ</Text>
             </TouchableOpacity>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <TouchableOpacity onPress={handleDeleteBet} disabled={editBetSaving}>
-                <Text style={{ color: '#FF6B6B', fontWeight: 'bold', fontSize: 16 }}>Slett bet</Text>
-              </TouchableOpacity>
-              <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={globalStyles.modalButtonsContainer}>
+              <View style={globalStyles.editButtonsContainer}>
                 <TouchableOpacity onPress={() => setEditBetModalVisible(false)} disabled={editBetSaving}>
-                  <Text style={{ color: '#B0B0B0', fontSize: 16 }}>Avbryt</Text>
+                  <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSaveEditBet} disabled={editBetSaving}>
-                  <Text style={{ color: '#FFD700', fontWeight: 'bold', fontSize: 16 }}>
+                  <Text style={globalStyles.saveButtonText}>
                     {editBetSaving ? 'Lagrer...' : 'Lagre endringer'}
                   </Text>
                 </TouchableOpacity>
@@ -882,287 +1117,213 @@ const GroupScreen = () => {
         </View>
       </Modal>
 
-      {/* Modal for selecting correct option */}
       <Modal
         visible={selectCorrectModalVisible}
         animationType="slide"
         transparent
         onRequestClose={() => setSelectCorrectModalVisible(false)}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' }}>
-          <View style={{ backgroundColor: '#23242A', borderRadius: 16, padding: 24, width: '90%' }}>
-            <Text style={{ color: '#FFD700', fontSize: 20, fontWeight: 'bold', marginBottom: 16 }}>
-              {selectCorrectBetIdx !== null && betts[selectCorrectBetIdx]?.isFinished 
-                ? 'Administrer ferdig bet' 
+        <View style={globalStyles.modalContainer}>
+          <View style={globalStyles.modalContent}>
+            <Text style={globalStyles.modalTitle}>
+              {selectCorrectBetIdx !== null && bets[selectCorrectBetIdx]?.isFinished
+                ? 'Administrer ferdig bet'
                 : 'Velg riktig alternativ'}
             </Text>
-            
             {selectCorrectBetIdx !== null && (
-              <>
-                <Text style={{ color: '#fff', fontSize: 16, marginBottom: 16 }}>
-                  {betts[selectCorrectBetIdx]?.title}
-                </Text>
-                
-                {betts[selectCorrectBetIdx]?.isFinished && (
+              <View>
+                <Text style={globalStyles.modalText}>{bets[selectCorrectBetIdx]?.title}</Text>
+                {bets[selectCorrectBetIdx]?.isFinished && (
                   <TouchableOpacity
-                    style={[styles.selectionButton, { marginBottom: 16, backgroundColor: '#FF6B6B' }]}
+                    style={[globalStyles.selectionButton, { marginBottom: theme.spacing.md, backgroundColor: theme.colors.error }]}
                     onPress={() => handleSelectCorrectOption(null)}
                   >
-                    <Text style={[styles.selectionButtonText, { color: '#fff' }]}>
+                    <Text style={[globalStyles.selectionButtonText, { color: theme.colors.background }]}>
                       Gjør bettet aktivt igjen
                     </Text>
                   </TouchableOpacity>
                 )}
-                
-                <Text style={{ color: '#fff', fontSize: 14, marginBottom: 12 }}>
-                  {betts[selectCorrectBetIdx]?.isFinished ? 'Eller velg nytt riktig alternativ:' : 'Velg riktig alternativ:'}
+                <Text style={[globalStyles.label, { marginBottom: theme.spacing.sm }]}>
+                  {bets[selectCorrectBetIdx]?.isFinished ? 'Eller velg nytt riktig alternativ:' : 'Velg riktig alternativ:'}
                 </Text>
-                
-                {betts[selectCorrectBetIdx]?.options.map((option) => (
+                {bets[selectCorrectBetIdx]?.options.map((option) => (
                   <TouchableOpacity
                     key={option.id}
                     style={[
-                      styles.selectionButton,
-                      { marginBottom: 8, width: '100%' },
-                      betts[selectCorrectBetIdx]?.correctOptionId === option.id && styles.selectionButtonSelected
+                      globalStyles.selectionButton,
+                      { marginBottom: theme.spacing.sm },
+                      bets[selectCorrectBetIdx]?.correctOptionId === option.id && globalStyles.selectionButtonSelected,
                     ]}
                     onPress={() => handleSelectCorrectOption(option.id)}
                   >
-                    <Text style={[
-                      styles.selectionButtonText,
-                      betts[selectCorrectBetIdx]?.correctOptionId === option.id && styles.selectionButtonTextSelected
-                    ]}>
+                    <Text
+                      style={[
+                        globalStyles.selectionButtonText,
+                        bets[selectCorrectBetIdx]?.correctOptionId === option.id && globalStyles.selectionButtonTextSelected,
+                      ]}
+                    >
                       {option.name} (odds: {option.odds})
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </>
+              </View>
             )}
-
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
+            <View style={globalStyles.editButtonsContainer}>
               <TouchableOpacity onPress={() => setSelectCorrectModalVisible(false)}>
-                <Text style={{ color: '#B0B0B0', fontSize: 16 }}>Avbryt</Text>
+                <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-    </ScrollView>
+
+      <Modal
+        visible={leaderboardModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setLeaderboardModalVisible(false)}
+      >
+        <View style={globalStyles.modalContainer}>
+          <View style={globalStyles.modalContent}>
+            <Text style={globalStyles.modalTitle}>Ledertavle - Ferdige bets</Text>
+            {/* Vis alle medlemmer øverst */}
+            {selectedGroup && selectedGroup.members && (
+              <View style={{ marginBottom: 12 }}>
+                <Text style={[globalStyles.label, { marginBottom: 4 }]}>Medlemmer:</Text>
+                <FlatList
+                  data={selectedGroup.members}
+                  keyExtractor={id => id}
+                  horizontal
+                  renderItem={({ item: memberId }) => {
+                    const friend = friends.find(f => f.id === memberId);
+                    return (
+                      <View key={memberId} style={{ alignItems: 'center', marginRight: 14 }}>
+                        <Image source={friend?.profilePicture || ImageMissing} style={[globalStyles.circularImage, { width: 36, height: 36, marginBottom: 2 }]} />
+                        <Text style={{ fontSize: 12, color: theme.colors.text, maxWidth: 60, textAlign: 'center' }} numberOfLines={1}>
+                          {friend?.name || 'Ukjent'}
+                        </Text>
+                      </View>
+                    );
+                  }}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingBottom: 4 }}
+                />
+              </View>
+            )}
+            <FlatList
+              data={getLeaderboardData()}
+              renderItem={renderLeaderboardItem}
+              keyExtractor={item => item.userId}
+              ListEmptyComponent={
+                <Text style={globalStyles.emptyStateText}>Ingen ferdige bets ennå</Text>
+              }
+              contentContainerStyle={globalStyles.listContainer}
+            />
+            <View style={globalStyles.editButtonsContainer}>
+              <TouchableOpacity onPress={() => setLeaderboardModalVisible(false)}>
+                <Text style={globalStyles.cancelButtonText}>Lukk</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={editMenuModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEditMenuModalVisible(false)}
+      >
+        <View style={globalStyles.modalContainer}>
+          <View style={globalStyles.modalContent}>
+            <Text style={globalStyles.modalTitle}>Administrer bet</Text>
+            <Text style={globalStyles.modalText}>
+              {selectedEditBet?.bet.title || 'Velg en handling for bettet'}
+            </Text>
+            <TouchableOpacity
+              style={[globalStyles.selectionButton, { marginBottom: theme.spacing.sm }]}
+              onPress={() => {
+                if (selectedEditBet) {
+                  setEditBetIdx(selectedEditBet.index);
+                  setEditBetTitle(selectedEditBet.bet.title);
+                  setEditBetOptions(
+                    selectedEditBet.bet.options.map((opt: BettingOption) => ({
+                      name: opt.name,
+                      odds: opt.odds.toString(),
+                    }))
+                  );
+                  setEditBetModalVisible(true);
+                  setEditMenuModalVisible(false);
+                }
+              }}
+            >
+              <Text style={globalStyles.selectionButtonText}>Rediger bet</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[globalStyles.selectionButton, { marginBottom: theme.spacing.sm }]}
+              onPress={() => {
+                if (selectedEditBet) {
+                  setSelectCorrectBetIdx(selectedEditBet.index);
+                  setSelectCorrectModalVisible(true);
+                  setEditMenuModalVisible(false);
+                }
+              }}
+            >
+              <Text style={globalStyles.selectionButtonText}>
+                {selectedEditBet?.bet.isFinished ? 'Gjør aktivt igjen' : 'Marker som ferdig'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[globalStyles.selectionButton, { marginBottom: theme.spacing.sm, backgroundColor: theme.colors.error }]}
+              onPress={() => {
+                if (selectedEditBet) {
+                  setEditBetIdx(selectedEditBet.index);
+                  setEditMenuModalVisible(false);
+                  showAlert(
+                    'Bekreft sletting',
+                    'Er du sikker på at du vil slette dette bettet? Dette kan ikke angres.',
+                    [
+                      { text: 'Avbryt', style: 'cancel' },
+                      {
+                        text: 'Slett',
+                        style: 'destructive',
+                        onPress: async () => {
+                          setEditBetSaving(true);
+                          try {
+                            const firestore = getFirestore();
+                            const groupRef = doc(firestore, 'groups', selectedGroup!.id);
+                            const groupSnap = await getDoc(groupRef);
+                            let groupBets: Bet[] = [];
+                            if (groupSnap.exists() && groupSnap.data().bets) {
+                              groupBets = groupSnap.data().bets;
+                            }
+                            const newBets = groupBets.filter((_, betIdx: number) => betIdx !== editBetIdx);
+                            await updateDoc(groupRef, { bets: newBets });
+                            setBets(newBets);
+                          } catch (error) {
+                            showAlert('Feil', 'Kunne ikke slette bet');
+                          } finally {
+                            setEditBetSaving(false);
+                          }
+                        },
+                      },
+                    ]
+                  );
+                }
+              }}
+            >
+              <Text style={[globalStyles.selectionButtonText, { color: theme.colors.background }]}>Slett bet</Text>
+            </TouchableOpacity>
+            <View style={globalStyles.editButtonsContainer}>
+              <TouchableOpacity onPress={() => setEditMenuModalVisible(false)}>
+                <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </KeyboardAvoidingView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#181A20',
-  },
-  groupHeader: {
-    height: 200,
-    position: 'relative',
-  },
-  groupHeaderImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  groupHeaderOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    padding: 20,
-  },
-  groupHeaderInfo: {
-    alignItems: 'flex-start',
-  },
-  groupHeaderName: {
-    color: '#FFD700',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  groupHeaderMembers: {
-    color: '#B0B0B0',
-    fontSize: 14,
-    marginTop: 4,
-  },
-  createBetSection: {
-    padding: 20,
-  },
-  createBetButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    backgroundColor: '#23242A',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    marginBottom: 12,
-  },
-  createBetText: {
-    fontSize: 16,
-    color: '#FFD700',
-    fontWeight: '600',
-  },
-  betContainer: {
-    backgroundColor: '#23242A',
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderRadius: 12,
-    padding: 16,
-  },
-  betTitle: {
-    color: '#FFD700',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  userBetSummary: {
-    backgroundColor: '#FFD700',
-    borderRadius: 8,
-    padding: 8,
-    marginBottom: 12,
-  },
-  userBetSummaryText: {
-    color: '#000',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  optionsContainer: {
-    paddingVertical: 8,
-  },
-  bettingOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#181A20',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  bettingOptionSelected: {
-    backgroundColor: '#FFD700',
-    borderColor: '#FFD700',
-  },
-  optionName: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  optionNameSelected: {
-    color: '#000',
-  },
-  optionOdds: {
-    color: '#FFD700',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  optionOddsSelected: {
-    color: '#000',
-  },
-  userWagerText: {
-    color: '#000',
-    fontSize: 12,
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  wagersSection: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
-  },
-  wagersSectionTitle: {
-    color: '#FFD700',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  wagerItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  wagerUser: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
-  },
-  wagerDetails: {
-    color: '#B0B0B0',
-    fontSize: 12,
-    flex: 2,
-    textAlign: 'right',
-  },
-  selectionButton: {
-    backgroundColor: '#181A20',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  selectionButtonSelected: {
-    backgroundColor: '#FFD700',
-    borderColor: '#FFD700',
-  },
-  selectionButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  selectionButtonTextSelected: {
-    color: '#000',
-  },
-  betStatusText: {
-    color: '#B0B0B0',
-    fontSize: 12,
-    fontStyle: 'italic',
-    marginTop: 2,
-  },
-  bettingOptionCorrect: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
-  },
-  bettingOptionIncorrect: {
-    backgroundColor: '#333',
-    borderColor: '#333',
-    opacity: 0.7,
-  },
-  optionNameCorrect: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  optionNameIncorrect: {
-    color: '#999',
-  },
-  optionOddsCorrect: {
-    color: '#fff',
-  },
-  optionOddsIncorrect: {
-    color: '#999',
-  },
-  userBetSummaryWin: {
-    backgroundColor: '#4CAF50',
-  },
-  userBetSummaryLose: {
-    backgroundColor: '#F44336',
-  },
-  userBetSummaryTextWin: {
-    color: '#fff',
-  },
-  userBetSummaryTextLose: {
-    color: '#fff',
-  },
-  userWagerTextCorrect: {
-    color: '#fff',
-  },
-});
 
 export default GroupScreen;

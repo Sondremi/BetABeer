@@ -1,138 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import { Alert, FlatList, Image, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, TextInput } from 'react-native';
-import { collection, doc, query, where, getDocs, orderBy, addDoc, serverTimestamp, updateDoc, arrayUnion, getDoc, deleteDoc, arrayRemove } from 'firebase/firestore';
+import { 
+  KeyboardAvoidingView, 
+  Platform, 
+  Alert, 
+  FlatList, 
+  Image, 
+  ScrollView, 
+  Share, 
+  Text, 
+  TouchableOpacity, 
+  View, 
+  TextInput 
+} from 'react-native';
 import { auth, firestore } from '../services/firebase/FirebaseConfig'; // juster path
+import {
+  friendSearch,
+  sendFriendRequest,
+  acceptFriendRequest, 
+  declineFriendRequest,
+  cancelFriendRequest,
+  removeFriend,
+  getIncomingRequest,
+  getOutgoingRequest,
+  Friend,
+  FriendRequest
+} from '../services/firebase/friendService'
+import { doc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { globalStyles } from '../styles/globalStyles';
+import { friendsStyles } from '../styles/components/friendsStyles';
+//import { showAlert } from '../utils/platformAlert';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
 const RemoveFriendIcon = require('../../assets/icons/noun-user-removed-7856287.png');
 const PeopleIcon = require('../../assets/icons/noun-people-2196504.png');
-
-type Friend = { id: string; name: string; username: string; profilePicture: any };
-type FriendRequest = {
-  id: string;
-  fromUserId: string;
-  toUserId: string;
-  status: string;
-  createdAt: any;
-  name?: string;
-  username?: string;
-  profilePicture?: any; 
-}
-
-export const sendFriendRequest = async (toUserId: string) => {
-  const currentUser = auth.currentUser;
-  if (!currentUser) {
-    throw new Error("User not autenticated");
-  }
-
-  const friendRequestRef = collection(firestore, "friendRequests");
-  const docRef =  await addDoc(friendRequestRef, {
-    fromUserId: currentUser.uid,
-    toUserId,
-    status: "pending",
-    createdAt: serverTimestamp(),
-  });
-  console.log("Venneforespørsel opprettet", docRef.id);
-  return docRef.id;
-}
-
-export const getIncomingRequest = async (currentUserId: string) : Promise<FriendRequest[]> => {
-  const friendRequestRef = collection(firestore, "friendRequests");
-  const q = query(
-    friendRequestRef,
-    where("toUserId", "==", currentUserId),
-    where("status", "==", "pending")
-  );
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as FriendRequest[];
-};
-
-export const cancelFriendRequest = async (requestId: string) => {
-  try {
-    const requestDocRef = doc(firestore, 'friendRequests', requestId);
-    await deleteDoc(requestDocRef);
-    console.log('Friend request cancelled', requestId);
-  } catch(error) {
-    console.error(error)
-    throw new Error(`Failed to cancel friend request: ${(error as Error).message}`)
-  }
-}
-
-export const getOutgoingRequest = async (currentUserId: string) => {
-  const friendRequestRef = collection(firestore, "friendRequests");
-  const q = query(
-    friendRequestRef,
-    where("fromUserId", "==", currentUserId),
-    where("status", "==", "pending")
-  );
-  const snapshot = await getDocs(q);
-  const requests = snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as FriendRequest[];
-
-  const enrichedRequests = await Promise.all(
-    requests.map(async (request) => {
-      const userDocRef = doc(firestore, "users", request.toUserId);
-      const userDoc = await getDoc(userDocRef);
-      return {
-        ...request,
-        name: userDoc.exists() ? userDoc.data().name || 'Ukjent' : 'Ukjent',
-        username: userDoc.exists() ? userDoc.data().username || 'ukjent' : 'ukjent',
-        profilePicture: userDoc.exists() ? userDoc.data().profilePicture || DefaultProfilePicture : DefaultProfilePicture,
-      };
-    })
-  );
-  return enrichedRequests;
-}
-
-export const acceptFriendRequest = async (requestId: string, fromUserId: string, toUserId: string) => {
-  try {
-    const fromUserRef = doc(firestore, "users", fromUserId);
-    const toUserRef = doc(firestore, "users", toUserId);
-    await Promise.all([
-      updateDoc(fromUserRef, {friends: arrayUnion(toUserId)}),
-      updateDoc(toUserRef, {friends: arrayUnion(fromUserId)}),
-    ]);
-    const requestDocRef = doc(firestore, "friendRequests", requestId);
-    await deleteDoc(requestDocRef);
-    console.log(`Friendship established and request deleted: ${requestId}`)
-  } catch(error) {
-    console.log(error)
-    Alert.alert('Feil', `Kunne ikke akseptere forespørsel: ${(error as Error).message}`)
-  }
-}
-
-export const declineFriendRequest = async (requestId: string) => {
-  try {
-    const requestDocRef = doc(firestore, "friendRequests", requestId);
-    await deleteDoc(requestDocRef);
-    console.log("Forespørsel avslått og slettet", requestId);
-  } catch (error) {
-    console.error(error)
-    Alert.alert('Feil', `Kunne ikke avlså forespørsel: ${(error as Error).message}`);
-  }
-}
-
-export const removeFriend = async (currentuserId: string, friendId: string) => {
-  try {
-    const currentUserRef = doc(firestore, 'users', currentuserId);
-    const friendUserRef = doc(firestore, 'users', friendId);
-    updateDoc(friendUserRef, {friends: arrayRemove(currentuserId)});
-    updateDoc(currentUserRef, {friends: arrayRemove(friendId)});
-    console.log("Fjernet venn");
-  } catch(error) {
-    console.error(error);
-    Alert.alert('Feil', 'Kunne ikke slette venn')
-  }
-};
+const AcceptIcon = require('../../assets/icons/noun-add-2037478.png');
+const RejectIcon = require('../../assets/icons/noun-delete-7938028.png');
 
 const FriendsScreen = () => {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Friend[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
@@ -208,35 +114,14 @@ const FriendsScreen = () => {
     fetchFriends();
   }, []);
 
-  const friendSearch = async (searchTerm: string) => {
-    if (!searchTerm) return [];
-
-    const usersRef = collection(firestore, "users");
-
-    const q = query(
-      usersRef,
-      orderBy("username"),
-      where("username", ">=", searchTerm),
-      where("username", "<=", searchTerm + "\uf8ff")
-    );
-
-    try {
-      const querySnapshot = await getDocs(q);
-      const result = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      return result;
-    } catch(error) {
-        console.error("Feil under søk: " + error);
-        Alert.alert('Feil', 'Kunne ikke hente forespørsel: ' + (error as Error).message)
-        return [];
-    }
-  };
-
   const handleSearch = async () => {
-    const results = await friendSearch(searchTerm);
-    setSearchResults(results as Friend[]);
+    try {
+      const results = await friendSearch(searchTerm);
+      setSearchResults(results as Friend[]);
+    } catch(error) {
+      console.error('Error handling search: ', error);
+      Alert.alert('Feil', `Kunne ikke søke ${(error as Error).message}`);
+    }
   };
 
   // Dummy invite link - will be replaced with actual link generation later
@@ -244,7 +129,7 @@ const FriendsScreen = () => {
 
   const handleInviteFriends = async () => {
     try {
-      const result = await Share.share({
+      await Share.share({
         message: `Bli med meg på BetABeer! Bruk denne linken: ${inviteLink}`,
         url: inviteLink,
         title: 'Inviter venner til BetABeer',
@@ -371,100 +256,102 @@ const FriendsScreen = () => {
   }
 
   const renderFriend = ({ item }: { item: Friend }) => (
-    <View style={styles.friendItem}>
-      <Image source={item.profilePicture} style={styles.friendImage} />
-      <View style={styles.friendInfo}>
-        <Text style={styles.friendName}>{item.name}</Text>
-        <Text style={styles.friendUsername}>@{item.username}</Text>
+    <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]}>
+      <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]} />
+      <View style={globalStyles.itemInfo}>
+        <Text style={friendsStyles.friendName}>{item.name}</Text>
+        <Text style={globalStyles.secondaryText}>@{item.username}</Text>
       </View>
-      <TouchableOpacity
-        style={styles.removeFriendButton}
-        onPress={() => handleRemoveFriend(item)}
-      >
-      <Image source={RemoveFriendIcon} style={{ width: 24, height: 24, tintColor: '#FF0000' }} />
+      <TouchableOpacity style={friendsStyles.button} onPress={() => handleRemoveFriend(item)}>
+        <Image source={RemoveFriendIcon} style={globalStyles.deleteIcon} />
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+    <KeyboardAvoidingView
+      style={[Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container, { padding: 0 }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView contentContainerStyle={globalStyles.fullWidthScrollContent} keyboardShouldPersistTaps="handled">
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Venner</Text>
+        <View style={globalStyles.header}>
+          <Text style={globalStyles.headerTitle}>Venner</Text>
         </View>
 
         {/* Invite friends section */}
-        <View style={styles.inviteSection}>
-          <TouchableOpacity style={styles.inviteButton} onPress={handleInviteFriends}>
-            <Text style={styles.inviteButtonText}>Inviter venner</Text>
+        <View style={friendsStyles.inviteSection}>
+          <TouchableOpacity style={globalStyles.outlineButtonGold} onPress={handleInviteFriends}>
+            <Text style={globalStyles.outlineButtonGoldText}>Inviter venner</Text>
           </TouchableOpacity>
-          <Text style={styles.inviteDescription}>
-            Del lenken med venner for å invitere dem til appen
-          </Text>
+          <Text style={globalStyles.sectionDescription}>Del lenken med venner for å invitere dem til appen</Text>
         </View>
 
         {/* Outgoing Requests section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Utgående forespørsler</Text>
+        <View style={globalStyles.section}>
+          <Text style={globalStyles.sectionTitle}>Utgående forespørsler</Text>
           {outgoingRequests.length > 0 ? (
             <FlatList
               data={outgoingRequests}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
               renderItem={({ item }) => (
-                <View style={styles.friendItem} key={item.id}>
+                <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]} key={item.id}>
                   <Image
                     source={item.profilePicture}
-                    style={styles.friendImage}
+                    style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]}
                   />
-                  <View style={styles.friendInfo}>
-                    <Text style={styles.friendName}>{item.name}</Text>
-                    <Text style={styles.friendUsername}>@{item.username}</Text>
+                  <View style={globalStyles.itemInfo}>
+                    <Text style={friendsStyles.friendName}>{item.name}</Text>
+                    <Text style={globalStyles.secondaryText}>@{item.username}</Text>
                   </View>
-                  <TouchableOpacity
-                    style={styles.addFriendButton}
-                    onPress={() => handleCancelRequest(item)}
-                  >
-                    <Text style={{ color: '#FF3B30', fontWeight: '600' }}>Kanseller</Text>
-                  </TouchableOpacity>
+                  <View style={{flexDirection: 'row', gap: 8}}>
+                    <TouchableOpacity
+                      style={friendsStyles.button}
+                      onPress={() => handleCancelRequest(item)}
+                    >
+                      <Text style={{ color: '#FF3B30', fontWeight: '600' }}>Kanseller</Text> 
+                    </TouchableOpacity>
+                  </View>
                 </View>
               )}
             />
           ) : (
-            <Text style={{ color: '#B0B0B0' }}>
-              Ingen utgående forespørsler akkurat nå.
-            </Text>
+            <View style={globalStyles.emptyState}>
+              <Text style={globalStyles.emptyStateText}>
+                Ingen utgående forespørsler akkurat nå.
+              </Text>
+            </View>
           )}
         </View>
 
-        {/* FriendRequest section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Venneforespørsler</Text>
+        {/* Incmoing Request section */}
+        <View style={globalStyles.section}>
+          <Text style={globalStyles.sectionTitle}>Venneforespørsler</Text>
           {incomingRequests.length > 0 ? (
             <FlatList
               data={incomingRequests}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
               renderItem={({ item }) => (
-                <View style={styles.friendItem} key={item.id}>
+                <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]} key={item.id}>
                   <Image
                     source={item.profilePicture}
-                    style={styles.friendImage}
+                    style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]}
                   />
-                  <View style={styles.friendInfo}>
-                    <Text style={styles.friendName}>{item.name}</Text>
-                    <Text style={styles.friendUsername}>@{item.username}</Text>
+                  <View style={globalStyles.itemInfo}>
+                    <Text style={friendsStyles.friendName}>{item.name}</Text>
+                    <Text style={globalStyles.secondaryText}>@{item.username}</Text>
                   </View>
-                  <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                  <View style={{flexDirection: 'row', gap: 8}}>
                     <TouchableOpacity
-                      style={styles.addFriendButton}
+                      style={friendsStyles.button}
                       onPress={() => handleAcceptRequest(item)}
                     >
                       <Text style={{ color: '#007AFF', fontWeight: '600' }}>Godta</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={styles.addFriendButton}
+                      style={friendsStyles.button}
                       onPress={() => handleDeclineRequest(item)}
                       >
                       <Text style={{ color: '#FF3B30', fontWeight: '600' }}>Avslå</Text>
@@ -474,16 +361,17 @@ const FriendsScreen = () => {
               )}
             />
           ) : (
-            <Text style={{ color: '#B0B0B0' }}>
-              Ingen forespørsler akkurat nå.
-            </Text>
+            <View style={globalStyles.emptyState}>
+              <Image source={AddFriendIcon} style={globalStyles.settingsIcon}/>
+              <Text style={globalStyles.emptyStateText}>Ingen forespørsler akkurat nå.</Text>
+            </View>
           )}
         </View>
 
 
         {/* Friends section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mine venner ({friends.length})</Text>
+        <View style={globalStyles.section}>
+          <Text style={globalStyles.sectionTitle}>Mine venner ({friends.length})</Text>
           {friends.length > 0 ? (
             <FlatList
               data={friends}
@@ -493,19 +381,16 @@ const FriendsScreen = () => {
               showsVerticalScrollIndicator={false}
             />
           ) : (
-            <View style={styles.emptyState}>
-              <Image source={AddFriendIcon} style={{ width: 20, height: 20, tintColor: '#007AFF' }} />
-              <Text style={styles.emptyStateText}>Du har ingen venner ennå</Text>
-              <Text style={styles.emptyStateSubtext}>
-                Inviter venner for å komme i gang!
-              </Text>
+            <View style={globalStyles.emptyState}>
+              <Image source={PeopleIcon} style={globalStyles.settingsIcon} />
+              <Text style={globalStyles.emptyStateText}>Du har ingen venner enda</Text>
             </View>
           )}
         </View>
 
         {/* Search Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Søk etter brukere</Text>
+        <View style={globalStyles.section}>
+          <Text style={globalStyles.sectionTitle}>Søk etter brukere</Text>
           <View style={{ flexDirection: 'row', marginBottom: 10 }}>
             <TextInput
               placeholder="Skriv inn brukernavn"
@@ -545,20 +430,20 @@ const FriendsScreen = () => {
             keyExtractor={(item) => item.id}
             scrollEnabled={false}
             renderItem={({ item }) => (
-              <View style={styles.friendItem} key={item.id}>
+              <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]} key={item.id}>
                 <Image
                   source={item.profilePicture}
-                  style={styles.friendImage}
+                  style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]}
                 />
-                <View style={styles.friendInfo}>
-                  <Text style={styles.friendName}>{item.name}</Text>
-                  <Text style={styles.friendUsername}>@{item.username}</Text>
+                <View style={globalStyles.itemInfo}>
+                  <Text style={friendsStyles.friendName}>{item.name}</Text>
+                  <Text style={globalStyles.secondaryText}>@{item.username}</Text>
                 </View>
                 <TouchableOpacity
-                  style={styles.addFriendButton}
+                  style={friendsStyles.button}
                   onPress={() => handleAddFriend(item)}
                 >
-                  <Image source={AddFriendIcon} style={{ width: 24, height: 24, tintColor: '#007AFF' }} />
+                  <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
                 </TouchableOpacity>
               </View>
             )}
@@ -566,120 +451,8 @@ const FriendsScreen = () => {
         )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#181A20',
-  },
-  header: {
-    paddingTop: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFD700',
-  },
-  inviteSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 30,
-  },
-  inviteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    backgroundColor: '#23242A',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    marginBottom: 10,
-  },
-  inviteButtonText: {
-    fontSize: 16,
-    color: '#FFD700',
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  inviteDescription: {
-    fontSize: 14,
-    color: '#B0B0B0',
-    textAlign: 'center',
-  },
-  section: {
-    paddingHorizontal: 20,
-    paddingBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    marginBottom: 8,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    color: '#B0B0B0',
-    marginBottom: 20,
-  },
-  friendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#23242A',
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  friendImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 15,
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    backgroundColor: '#23242A',
-  },
-  friendInfo: {
-    flex: 1,
-  },
-  friendName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 2,
-  },
-  friendUsername: {
-    fontSize: 14,
-    color: '#FFD700',
-  },
-  addFriendButton: {
-    padding: 8,
-  },
-  removeFriendButton: {
-    padding: 8,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFD700',
-    marginTop: 15,
-    marginBottom: 5,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: '#B0B0B0',
-    textAlign: 'center',
-  },
-});
 
 export default FriendsScreen;

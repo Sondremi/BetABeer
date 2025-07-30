@@ -1,33 +1,22 @@
 # 🍻 BetABeer
 
-**Bet-A-Beer** er en sosial drikkelek-app der du og vennene dine kan lage og delta i morsomme bets – og betale med slurker, øl eller shots. Perfekt for vors, fest og kveld på byen.
+**BetABeer** er en sosial drikkelek-app der du og vennene dine kan lage og delta i morsomme bets – og betale med slurker eller shots. Perfekt for vors, fest eller en kveld på byen.
 
----
+[🌐 Prøv appen her!](https://bet-a-beer.netlify.app)
 
-## ✨ Funksjoner
+## ✨ Hvordan fungerer det?
 
-- Opprett og bli med i grupper med egne bets
-- Sett odds og alternativer i hvert bet
-- Bette med slurker, øl, cider eller shots
-- Inviter og legg til venner
+- Opprett eller bli med i grupper med egne bets
+- Legg til venner og inviter dem til en gruppe
+- Opprett betts og sett odds og alternativer i hvert bet
+- Bett med slurker, shot eller chugg
 - Se live resultater og odds
-- Visuell fordeling av slurker når vinner kåres
 - Statistikk over hvem som vinner mest – eller drikker mest
 - Innebygd promillekalkulator basert på høyde, vekt og kjønn
-- Moderne UI med mørkt tema og tilpassede ikoner
 
+## 👨‍💻 Vil du bidra eller teste appen selv?
 
----
-
-## 🧱 Teknologi
-
-| Lag      | Teknologi                  |
-| -------- | -------------------------- |
-| Frontend | React Native + Expo (TS)   |
-| Backend  | Node.js                    |
-| Database | Firebase                   |
-
----
+Følg stegene under for å sette opp prosjektet lokalt og bidra til videreutvikling.
 
 ## 🚀 Kom i gang
 
@@ -43,8 +32,7 @@
 ### 📥 1. Klon prosjektet
 
 ```bash
-git clone https://github.com/sondremi/BetABeer.git
-cd BetABeer
+git clone https://github.com/sondremi/BetABeer.git && cd BetABeer
 ```
 
 ---
@@ -82,19 +70,13 @@ npx expo start
 
 ## 🛠 Nyttige kommandoer
 
-Start prosjektet:
-
-```bash
-npx expo start
-```
-
 Resett cache:
 
 ```bash
 npx expo start --clear
 ```
 
-Eject fra Expo (hvis du trenger native moduler senere):
+Eject fra Expo (hvis du trenger native moduler):
 
 ```bash
 npx expo prebuild
