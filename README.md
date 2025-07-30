@@ -6,19 +6,18 @@
 
 ## ✨ Hvordan fungerer det?
 
-- Opprett eller bli med i grupper med egne bets
-- Legg til venner og inviter dem til en gruppe
-- Opprett betts og sett odds og alternativer i hvert bet
-- Bett med slurker, shot eller chugg
-- Se live resultater og odds
+- Logg inn eller opprett en bruker
+- Legg til venner
+- Opprett eller bli med i en gruppe og inviter vennene dine
+- Lag egne betts med en tittel, alternativer og odds til hvert alternativ
+- Bett på hva du mener er riktig alternativ med slurker, shot eller chugg av ulike drikketyper
+- Se live resultater fra alle bets i gruppen
 - Statistikk over hvem som vinner mest – eller drikker mest
 - Innebygd promillekalkulator basert på høyde, vekt og kjønn
 
 ## 👨‍💻 Vil du bidra eller teste appen selv?
 
 Følg stegene under for å sette opp prosjektet lokalt og bidra til videreutvikling.
-
-## 🚀 Kom i gang
 
 ### 🧰 Forutsetninger
 
