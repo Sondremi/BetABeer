@@ -1,0 +1,21 @@
+import { StyleSheet } from 'react-native';
+import { theme } from '../theme';
+
+export const friendsStyles = StyleSheet.create({
+  friendName: {
+    fontSize: theme.fonts.md,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
+  },
+  button: {
+    padding: 8,
+  },
+  inviteSection: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.lg,
+  },
+  friendSpacing: {
+    marginBottom: theme.spacing.lg,
+  }
+});

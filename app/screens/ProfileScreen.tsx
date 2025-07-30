@@ -1,12 +1,18 @@
 import { addDoc, collection, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
-import React, { useState } from 'react';
-import { FlatList, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { profileStyles } from '../styles/components/profileStyles';
+import { globalStyles } from '../styles/globalStyles';
+import { theme } from '../styles/theme';
+import { showAlert } from '../utils/platformAlert';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const ImageMissing = require('../../assets/images/image_missing.png');
 const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
+const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
+const RejectIcon = require('../../assets/icons/noun-delete-7938028.png');
 
 type Group = {
   id: string;
@@ -15,39 +21,57 @@ type Group = {
   image: any;
 };
 
+interface GroupInvitation {
+  groupId: string;
+  groupName: string;
+  from: string;
+  status: 'pending';
+  createdAt: string;
+}
+
 const ProfileScreen = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, acceptGroupInvitation, rejectGroupInvitation } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const [invitationsModalVisible, setInvitationsModalVisible] = useState(false);
+  const [groupInvitations, setGroupInvitations] = useState<GroupInvitation[]>([]);
+  const [handlingInvitation, setHandlingInvitation] = useState(false);
   const { router } = require('expo-router');
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!user) return;
     let isMounted = true;
-    const fetchGroups = async () => {
+
+    const fetchGroupsAndInvitations = async () => {
       const firestore = getFirestore();
-      const q = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
-      const snapshot = await getDocs(q);
+      // Fetch groups
+      const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
+      const groupSnapshot = await getDocs(groupQuery);
       if (!isMounted) return;
-      const groupList: Group[] = snapshot.docs.map(docSnap => ({
+      const groupList: Group[] = groupSnapshot.docs.map(docSnap => ({
         id: docSnap.id,
         name: docSnap.data().name,
         memberCount: docSnap.data().members.length,
         image: ImageMissing,
       }));
       setGroups(groupList);
-    };
-    fetchGroups();
-    const unsubscribeFocus = router.addListener ? router.addListener('focus', fetchGroups) : undefined;
 
-    const interval = setInterval(fetchGroups, 2000);
+      // Fetch user invitations
+      const userDoc = await getDoc(doc(firestore, 'users', user.id));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setGroupInvitations(userData.groupInvitations?.filter((inv: GroupInvitation) => inv.status === 'pending') || []);
+      }
+    };
+
+    fetchGroupsAndInvitations();
+    const interval = setInterval(fetchGroupsAndInvitations, 2000);
 
     return () => {
       isMounted = false;
-      if (unsubscribeFocus) unsubscribeFocus();
       clearInterval(interval);
     };
-  }, [user, router]);
+  }, [user]);
 
   const navigateToSettings = () => {
     router.push('/settings');
@@ -56,16 +80,6 @@ const ProfileScreen = () => {
   const navigateToGroup = (group: Group) => {
     router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(group) } });
   };
-
-  const renderGroupItem = ({ item }: { item: Group }) => (
-    <TouchableOpacity style={styles.groupItem} onPress={() => navigateToGroup(item)}>
-      <Image source={item.image} style={styles.groupImage} />
-      <View style={styles.groupOverlay}>
-        <Text style={styles.groupName}>{item.name}</Text>
-        <Text style={styles.groupMembers}>{item.memberCount} medlemmer</Text>
-      </View>
-    </TouchableOpacity>
-  );
 
   const handleCreateGroup = async () => {
     if (!user) return;
@@ -76,20 +90,20 @@ const ProfileScreen = () => {
         name: 'Gruppenavn',
         image: 'image_missing',
         members: [user.id],
-        betts: [],
+        bets: [],
         createdAt: serverTimestamp(),
         createdBy: user.id,
       });
       const userRef = doc(firestore, 'users', user.id);
       const userSnap = await getDoc(userRef);
-      let userGroups = [];
+      let userGroups: string[] = [];
       if (userSnap.exists() && userSnap.data().groups) {
         userGroups = userSnap.data().groups;
       }
       await updateDoc(userRef, {
         groups: [...userGroups, groupDoc.id],
       });
-      const newGroup = {
+      const newGroup: Group = {
         id: groupDoc.id,
         name: 'Gruppenavn',
         memberCount: 1,
@@ -98,244 +112,225 @@ const ProfileScreen = () => {
       setGroups(prev => [...prev, newGroup]);
       router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(newGroup) } });
     } catch (error) {
-      let msg = 'Kunne ikke opprette gruppe';
-      if (error instanceof Error) msg += ': ' + error.message;
-      alert(msg);
+      showAlert('Feil', 'Kunne ikke opprette gruppe');
     } finally {
       setCreatingGroup(false);
     }
   };
 
+  const handleAcceptInvitation = async (invitation: GroupInvitation) => {
+    if (!user) return;
+    setHandlingInvitation(true);
+    try {
+      await acceptGroupInvitation(user.id, invitation.groupId, invitation.from);
+      setGroupInvitations(prev => prev.filter(inv => inv.groupId !== invitation.groupId || inv.from !== invitation.from));
+      const firestore = getFirestore();
+      const groupDoc = await getDoc(doc(firestore, 'groups', invitation.groupId));
+      if (groupDoc.exists()) {
+        const groupData = groupDoc.data();
+        setGroups(prev => [
+          ...prev,
+          {
+            id: invitation.groupId,
+            name: groupData.name,
+            memberCount: groupData.members.length + 1,
+            image: ImageMissing,
+          },
+        ]);
+      }
+      showAlert('Suksess', `Du har blitt med i gruppen "${invitation.groupName}"`);
+    } catch (error) {
+      showAlert('Feil', 'Kunne ikke godta invitasjon');
+    } finally {
+      setHandlingInvitation(false);
+    }
+  };
+
+  const handleRejectInvitation = async (invitation: GroupInvitation) => {
+    if (!user) return;
+    setHandlingInvitation(true);
+    try {
+      await rejectGroupInvitation(user.id, invitation.groupId, invitation.from);
+      setGroupInvitations(prev => prev.filter(inv => inv.groupId !== invitation.groupId || inv.from !== invitation.from));
+      showAlert('Suksess', `Invitasjon til "${invitation.groupName}" avvist`);
+    } catch (error) {
+      showAlert('Feil', 'Kunne ikke avslå invitasjon');
+    } finally {
+      setHandlingInvitation(false);
+    }
+  };
+
+  const renderGroupItem = ({ item }: { item: Group }) => (
+    <TouchableOpacity style={profileStyles.groupItem} onPress={() => navigateToGroup(item)}>
+      <Image source={item.image} style={globalStyles.coverImage} />
+      <View style={globalStyles.overlay}>
+        <Text style={profileStyles.groupName}>{item.name}</Text>
+        <Text style={profileStyles.groupMembers}>{item.memberCount} medlemmer</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const [userNames, setUserNames] = useState<{ [id: string]: string }>({});
+
+  useEffect(() => {
+    const fetchNames = async () => {
+      if (!groupInvitations.length) return;
+      const firestore = getFirestore();
+      const idsToFetch = groupInvitations.map(inv => inv.from).filter(id => !(id in userNames));
+      const newNames: { [id: string]: string } = {};
+      await Promise.all(idsToFetch.map(async (id) => {
+        const userDoc = await getDoc(doc(firestore, 'users', id));
+        if (userDoc.exists()) {
+          newNames[id] = userDoc.data().name || id;
+        } else {
+          newNames[id] = id;
+        }
+      }));
+      if (Object.keys(newNames).length > 0) setUserNames(prev => ({ ...prev, ...newNames }));
+    };
+    fetchNames();
+  }, [groupInvitations]);
+
+  const renderInvitationItem = ({ item }: { item: GroupInvitation }) => (
+    <View style={[globalStyles.listItemRow, { paddingVertical: 10 }]}> 
+      <View style={{ flex: 1 }}>
+        <Text style={globalStyles.modalText}>{item.groupName}</Text>
+        <Text style={globalStyles.secondaryText}>Fra: {userNames[item.from] || item.from}</Text>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <TouchableOpacity
+          style={[globalStyles.selectionButton, { marginRight: theme.spacing.sm }]}
+          onPress={() => handleAcceptInvitation(item)}
+          disabled={handlingInvitation}
+        >
+          <Text style={globalStyles.selectionButtonText}>Godta</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[globalStyles.selectionButton, { backgroundColor: theme.colors.error }]}
+          onPress={() => handleRejectInvitation(item)}
+          disabled={handlingInvitation}
+        >
+          <Text style={[globalStyles.selectionButtonText, { color: theme.colors.background }]}>Avslå</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}> 
-        <Text style={styles.name}>Laster...</Text>
+      <View style={[globalStyles.container, globalStyles.centerContent]}>
+        <Text style={globalStyles.largeBoldText}>Laster...</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header with navigation buttons */}
-      <View style={styles.header}>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity style={styles.headerButton} onPress={navigateToSettings}>
-            <Image 
-              source={SettingsIcon} 
-              style={{ width: 20, height: 20, tintColor: '#000000' }}
+    <KeyboardAvoidingView
+      style={[
+        Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container,
+        { padding: 0 }
+      ]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={globalStyles.fullWidthScrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Header with navigation buttons */}
+        <View style={globalStyles.header}>
+          <View style={profileStyles.headerButtons}>
+            <TouchableOpacity
+              style={profileStyles.headerButton}
+              onPress={() => setInvitationsModalVisible(true)}
+            >
+              <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
+            </TouchableOpacity>
+            <TouchableOpacity style={profileStyles.headerButton} onPress={navigateToSettings}>
+              <Image source={SettingsIcon} style={globalStyles.settingsIcon} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Profile content */}
+        <View style={globalStyles.centeredSection}>
+          {/* Profile picture */}
+          <View style={profileStyles.profileImageContainer}>
+            <Image
+              source={DefaultProfilePicture}
+              style={[globalStyles.circularImage, { width: 120, height: 120 }]}
             />
-          </TouchableOpacity>
-        </View>
-      </View>
+            <TouchableOpacity
+              style={profileStyles.editProfileImageButton}
+              onPress={() => {
+                /* TODO: implement backend for editing profile picture */
+              }}
+            >
+              <Image source={PencilIcon} style={globalStyles.pencilIcon} />
+            </TouchableOpacity>
+          </View>
 
-      {/* Profile content */}
-      <View style={styles.profileContent}>
-        {/* Profile picture */}
-        <View style={styles.profileImageContainer}>
-          <Image
-            source={DefaultProfilePicture}
-            style={styles.profileImage}
+          {/* Name and username */}
+          <Text style={globalStyles.largeBoldText}>{user?.name || 'Navn'}</Text>
+          <Text style={globalStyles.secondaryText}>{user?.username || 'Brukernavn'}</Text>
+        </View>
+
+        {/* Groups section */}
+        <View style={profileStyles.groupsSection}>
+          <View style={profileStyles.groupsHeader}>
+            <Text style={globalStyles.sectionTitleLeft}>Mine grupper</Text>
+            <TouchableOpacity
+              style={globalStyles.outlineButton}
+              onPress={handleCreateGroup}
+              disabled={creatingGroup}
+            >
+              <Text style={globalStyles.outlineButtonText}>
+                {creatingGroup ? 'Oppretter...' : 'Opprett ny gruppe'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={groups}
+            renderItem={renderGroupItem}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            columnWrapperStyle={profileStyles.groupRow}
+            scrollEnabled={false}
+            showsVerticalScrollIndicator={false}
           />
-          <TouchableOpacity style={styles.editProfileImageButton} onPress={() => {/* TODO: implement backend for editing profile picture */}}>
-            <Image source={PencilIcon} style={{ width: 18, height: 18, tintColor: '#FFD700' }} />
-          </TouchableOpacity>
         </View>
+      </ScrollView>
 
-        {/* Name and username */}
-        <Text style={styles.name}>{user?.name || 'Navn'}</Text>
-        <Text style={styles.username}>{user?.username || 'Brukernavn'}</Text>
-      </View>
-
-      {/* Groups section */}
-      <View style={styles.groupsSection}>
-        <View style={styles.groupsHeaderRowSpread}>
-          <Text style={styles.sectionTitleLeft}>Mine grupper</Text>
-          <TouchableOpacity style={styles.createGroupButtonRight} onPress={handleCreateGroup} disabled={creatingGroup}>
-            <Text style={styles.createGroupButtonTextSmall}>{creatingGroup ? 'Oppretter...' : 'Opprett ny gruppe'}</Text>
-          </TouchableOpacity>
+      <Modal
+        visible={invitationsModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setInvitationsModalVisible(false)}
+      >
+        <View style={globalStyles.modalContainer}>
+          <View style={globalStyles.modalContent}>
+            <Text style={globalStyles.modalTitle}>Gruppeinvitasjoner</Text>
+            <FlatList
+              data={groupInvitations}
+              renderItem={renderInvitationItem}
+              keyExtractor={(item) => `${item.groupId}_${item.from}`}
+              ListEmptyComponent={
+                <Text style={globalStyles.emptyStateText}>Ingen ventende invitasjoner</Text>
+              }
+              contentContainerStyle={globalStyles.listContainer}
+            />
+            <View style={globalStyles.editButtonsContainer}>
+              <TouchableOpacity
+                onPress={() => setInvitationsModalVisible(false)}
+                disabled={handlingInvitation}
+              >
+                <Text style={globalStyles.cancelButtonText}>Lukk</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
-        <FlatList
-          data={groups}
-          renderItem={renderGroupItem}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={styles.groupRow}
-          scrollEnabled={false}
-          showsVerticalScrollIndicator={false}
-        />
-      </View>
-    </ScrollView>
+      </Modal>
+    </KeyboardAvoidingView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#181A20',
-  },
-  header: {
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 15,
-  },
-  headerButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: '#B0B0B0',
-  },
-  profileContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 30,
-  },
-  profileImageContainer: {
-    marginBottom: 30,
-    position: 'relative',
-  },
-  profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#23242A',
-    borderWidth: 2,
-    borderColor: '#FFD700',
-  },
-  editProfileImageButton: {
-    position: 'absolute',
-    right: 4,
-    bottom: 4,
-    backgroundColor: '#23242A',
-    borderRadius: 12,
-    padding: 2,
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  name: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    marginBottom: 8,
-  },
-  username: {
-    fontSize: 18,
-    color: '#B0B0B0',
-    fontWeight: '400',
-    marginBottom: 20,
-  },
-  createGroupButton: {
-    backgroundColor: '#FFD700',
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  createGroupButtonSmall: {
-    backgroundColor: '#FFD700',
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    alignItems: 'center',
-    marginLeft: 10,
-    height: 36,
-    justifyContent: 'center',
-  },
-  createGroupButtonText: {
-    color: '#181A20',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  createGroupButtonTextSmall: {
-    color: '#181A20',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  groupsHeaderRowSpread: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  sectionTitleLeft: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    marginBottom: 0,
-    textAlign: 'left',
-  },
-  createGroupButtonRight: {
-    backgroundColor: '#FFD700',
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    alignItems: 'center',
-    height: 36,
-    justifyContent: 'center',
-    marginTop: 0,
-  },
-  groupsSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    marginBottom: 20,
-  },
-  groupRow: {
-    justifyContent: 'space-between',
-    marginBottom: 15,
-  },
-  groupItem: {
-    width: '48%',
-    height: 140,
-    borderRadius: 15,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#23242A',
-    borderWidth: 2,
-    borderColor: '#FFD700',
-  },
-  groupImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-    opacity: 0.7,
-  },
-  groupOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(24, 26, 32, 0.7)',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  groupName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    marginBottom: 2,
-  },
-  groupMembers: {
-    fontSize: 12,
-    color: '#fff',
-    opacity: 0.9,
-  },
-});
 
 export default ProfileScreen;

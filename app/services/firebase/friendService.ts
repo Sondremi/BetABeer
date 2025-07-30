@@ -1,0 +1,158 @@
+import { collection, doc, query, where, getDocs, orderBy, addDoc, serverTimestamp, updateDoc, arrayUnion, getDoc, deleteDoc, arrayRemove } from 'firebase/firestore';
+import { firestore, auth } from './FirebaseConfig';
+import DefaultProfilePicture  from '../../../assets/images/default_profilepicture.png';
+
+export type Friend = { id: string; name: string; username: string; profilePicture: any };
+export type FriendRequest = {
+  id: string;
+  fromUserId: string;
+  toUserId: string;
+  status: string;
+  createdAt: any;
+  name?: string;
+  username?: string;
+  profilePicture?: any; 
+}
+
+export const friendSearch = async (searchTerm: string): Promise<Friend[]> => {
+  if (!searchTerm) return [];
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    console.error('Ingen autentisert bruker for søk');
+    return [];
+  }
+  const usersRef = collection(firestore, 'users');
+  const q = query(
+    usersRef,
+    where('username', '>=', searchTerm),
+    where('username', '<=', searchTerm + '\uf8ff'),
+    orderBy('username')
+  );
+  try {
+    const querySnapshot = await getDocs(q);
+    const result = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      name: doc.data().name || 'Ukjent',
+      username: doc.data().username || 'ukjent',
+      profilePicture: doc.data().profilePicture || DefaultProfilePicture,
+    })).filter((user) => user.id !== currentUser.uid);
+    return result;
+  } catch (error) {
+    console.error('Feil under søk:', error);
+    throw new Error(`Kunne ikke søke: ${(error as Error).message}`);
+  }
+};
+
+export const sendFriendRequest = async (toUserId: string) => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error('Bruker ikke autorisert');
+  }
+  if (toUserId === currentUser.uid) {
+    throw new Error('Kan ikke sende venneforespørsel til deg selv')
+  }
+  const friendRequestRef = collection(firestore, "friendRequests");
+  const docRef =  await addDoc(friendRequestRef, {
+    fromUserId: currentUser.uid,
+    toUserId,
+    status: "pending",
+    createdAt: serverTimestamp(),
+  });
+  console.log("Venneforespørsel opprettet", docRef.id);
+  return docRef.id;
+};
+
+export const getIncomingRequest = async (currentUserId: string) : Promise<FriendRequest[]> => {
+  const friendRequestRef = collection(firestore, "friendRequests");
+  const q = query(
+    friendRequestRef,
+    where("toUserId", "==", currentUserId),
+    where("status", "==", "pending")
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  })) as FriendRequest[];
+};
+
+export const cancelFriendRequest = async (requestId: string) => {
+  try {
+    const requestDocRef = doc(firestore, 'friendRequests', requestId);
+    await deleteDoc(requestDocRef);
+    console.log('Friend request cancelled', requestId);
+  } catch(error) {
+    console.error(error)
+    throw new Error(`Failed to cancel friend request: ${(error as Error).message}`)
+  }
+};
+
+export const getOutgoingRequest = async (currentUserId: string) : Promise<FriendRequest[]> => {
+  const friendRequestRef = collection(firestore, "friendRequests");
+  const q = query(
+    friendRequestRef,
+    where("fromUserId", "==", currentUserId),
+    where("status", "==", "pending")
+  );
+  const snapshot = await getDocs(q);
+  const requests = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  })) as FriendRequest[];
+
+  const enrichedRequests = await Promise.all(
+    requests.map(async (request) => {
+      const userDocRef = doc(firestore, "users", request.toUserId);
+      const userDoc = await getDoc(userDocRef);
+      return {
+        ...request,
+        name: userDoc.exists() ? userDoc.data().name || 'Ukjent' : 'Ukjent',
+        username: userDoc.exists() ? userDoc.data().username || 'ukjent' : 'ukjent',
+        profilePicture: userDoc.exists() ? userDoc.data().profilePicture || DefaultProfilePicture : DefaultProfilePicture,
+      };
+    })
+  );
+  return enrichedRequests;
+};
+
+export const acceptFriendRequest = async (requestId: string, fromUserId: string, toUserId: string) : Promise<void> => {
+  try {
+    const fromUserRef = doc(firestore, "users", fromUserId);
+    const toUserRef = doc(firestore, "users", toUserId);
+    await Promise.all([
+      updateDoc(fromUserRef, {friends: arrayUnion(toUserId)}),
+      updateDoc(toUserRef, {friends: arrayUnion(fromUserId)}),
+    ]);
+    const requestDocRef = doc(firestore, "friendRequests", requestId);
+    await deleteDoc(requestDocRef);
+    console.log(`Friendship established and request deleted: ${requestId}`)
+  } catch(error) {
+    console.error(error)
+    throw new Error(`Kunne ikke akseptere forespørsel: ${(error as Error).message}`)
+  }
+};
+
+export const declineFriendRequest = async (requestId: string) => {
+  try {
+    const requestDocRef = doc(firestore, "friendRequests", requestId);
+    await deleteDoc(requestDocRef);
+    console.log("Forespørsel avslått og slettet", requestId);
+  } catch (error) {
+    console.error(error)
+    throw new Error(`Kunne ikke avlså forespørsel: ${(error as Error).message}`);
+  }
+};
+
+export const removeFriend = async (currentuserId: string, friendId: string) => {
+  try {
+    const currentUserRef = doc(firestore, 'users', currentuserId);
+    const friendUserRef = doc(firestore, 'users', friendId);
+    updateDoc(friendUserRef, {friends: arrayRemove(currentuserId)});
+    updateDoc(currentUserRef, {friends: arrayRemove(friendId)});
+    console.log("Fjernet venn");
+  } catch(error) {
+    console.error(error);
+    throw new Error('Kunne ikke slette venn')
+  }
+};
+

@@ -19,6 +19,7 @@ export const authService = {
         email: userData.email,
         phone: userData.phone,
         friends: [],
+        groups: [],
         createdAt: serverTimestamp(),
       });
       return {
@@ -30,7 +31,7 @@ export const authService = {
       };
     } catch (error) {
       console.error('Create user error:', error);
-      throw new Error(error.message);
+      throw new Error('Kunne ikke opprette bruker');
     }
   },
 
@@ -47,12 +48,14 @@ export const authService = {
           name: userData.name,
           email: userData.email,
           phone: userData.phone,
+          friends: userData.friends || [],
+          groups: userData.groups || [],
         };
       }
       throw new Error('Brukerdata ikke funnet');
     } catch (error) {
       console.error('Login error:', error);
-      throw new Error(error.message);
+      throw new Error('Kunne ikke logge inn');
     }
   },
 
@@ -61,7 +64,7 @@ export const authService = {
       await signOut(auth);
     } catch (error) {
       console.error('Logout error:', error);
-      throw new Error(error.message);
+      throw new Error('Kunne ikke logge ut');
     }
   },
 
@@ -78,7 +81,7 @@ export const authService = {
       return updateData;
     } catch (error) {
       console.error('Update user error:', error);
-      throw new Error(error.message);
+      throw new Error('Kunne ikke oppdatere bruker');
     }
   },
 
@@ -91,7 +94,7 @@ export const authService = {
       }
     } catch (error) {
       console.error('Delete user error:', error);
-      throw new Error(error.message);
+      throw new Error('Kunne ikke slette bruker');
     }
   },
 

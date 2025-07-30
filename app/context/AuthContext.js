@@ -1,5 +1,4 @@
-
-import { doc, getDoc, getFirestore } from 'firebase/firestore';
+import { doc, getDoc, getFirestore, onSnapshot } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { authService } from '../services/firebase/authService';
 
@@ -33,6 +32,9 @@ export const AuthProvider = ({ children }) => {
               phone: userData.phone,
             });
           }
+          else {
+            setUser(null);
+          }
         } catch (error) {
           console.error('Feil ved henting av brukerdata:', error);
           setUser(null);
@@ -54,7 +56,6 @@ export const AuthProvider = ({ children }) => {
       if (firebaseUser) {
         currentUid = firebaseUser.uid;
         const userDocRef = doc(firestore, 'users', currentUid);
-        const { onSnapshot } = require('firebase/firestore');
         userDocUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const userData = docSnap.data();
@@ -65,7 +66,12 @@ export const AuthProvider = ({ children }) => {
               email: userData.email,
               phone: userData.phone,
             } : null);
+          } else {
+            setUser(null);
           }
+        }, (error) => {
+          console.error('Feil ved onSnapshot for brukerdata: ', error);
+          setUser(null);
         });
       }
     });
