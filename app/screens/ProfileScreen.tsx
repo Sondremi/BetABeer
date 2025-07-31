@@ -1,6 +1,6 @@
 import { addDoc, collection, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { profileStyles } from '../styles/components/profileStyles';
 import { globalStyles } from '../styles/globalStyles';
@@ -11,7 +11,6 @@ const DefaultProfilePicture = require('../../assets/images/default_profilepictur
 const ImageMissing = require('../../assets/images/image_missing.png');
 const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
-const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
 const RejectIcon = require('../../assets/icons/noun-delete-7938028.png');
 
 type Group = {
@@ -33,7 +32,6 @@ const ProfileScreen = () => {
   const { user, loading, acceptGroupInvitation, rejectGroupInvitation } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
-  const [invitationsModalVisible, setInvitationsModalVisible] = useState(false);
   const [groupInvitations, setGroupInvitations] = useState<GroupInvitation[]>([]);
   const [handlingInvitation, setHandlingInvitation] = useState(false);
   const { router } = require('expo-router');
@@ -192,7 +190,7 @@ const ProfileScreen = () => {
   }, [groupInvitations]);
 
   const renderInvitationItem = ({ item }: { item: GroupInvitation }) => (
-    <View style={[globalStyles.listItemRow, { paddingVertical: 10 }]}> 
+    <View style={[globalStyles.listItemRow, { paddingVertical: 10 }]}>
       <View style={{ flex: 1 }}>
         <Text style={globalStyles.modalText}>{item.groupName}</Text>
         <Text style={globalStyles.secondaryText}>Fra: {userNames[item.from] || item.from}</Text>
@@ -239,12 +237,6 @@ const ProfileScreen = () => {
         {/* Header with navigation buttons */}
         <View style={globalStyles.header}>
           <View style={profileStyles.headerButtons}>
-            <TouchableOpacity
-              style={profileStyles.headerButton}
-              onPress={() => setInvitationsModalVisible(true)}
-            >
-              <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
-            </TouchableOpacity>
             <TouchableOpacity style={profileStyles.headerButton} onPress={navigateToSettings}>
               <Image source={SettingsIcon} style={globalStyles.settingsIcon} />
             </TouchableOpacity>
@@ -274,6 +266,30 @@ const ProfileScreen = () => {
           <Text style={globalStyles.secondaryText}>{user?.username || 'Brukernavn'}</Text>
         </View>
 
+        {/* Group Invitations Section */}
+        <View style={globalStyles.section}>
+          <View style={profileStyles.groupsHeader}>
+            <Text style={globalStyles.sectionTitleLeft}>Gruppeinvitasjoner</Text>
+            {groupInvitations.length > 0 && (
+              <View style={profileStyles.invitationBadge}>
+                <Text style={profileStyles.invitationBadgeText}>{groupInvitations.length}</Text>
+              </View>
+            )}
+          </View>
+          {groupInvitations.length > 0 ? (
+            <FlatList
+              data={groupInvitations}
+              renderItem={renderInvitationItem}
+              keyExtractor={(item) => `${item.groupId}_${item.from}`}
+              contentContainerStyle={globalStyles.listContainer}
+              scrollEnabled={false}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <Text style={globalStyles.emptyStateText}>Ingen invitasjoner</Text>
+          )}
+        </View>
+
         {/* Groups section */}
         <View style={profileStyles.groupsSection}>
           <View style={profileStyles.groupsHeader}>
@@ -299,36 +315,6 @@ const ProfileScreen = () => {
           />
         </View>
       </ScrollView>
-
-      <Modal
-        visible={invitationsModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setInvitationsModalVisible(false)}
-      >
-        <View style={globalStyles.modalContainer}>
-          <View style={globalStyles.modalContent}>
-            <Text style={globalStyles.modalTitle}>Gruppeinvitasjoner</Text>
-            <FlatList
-              data={groupInvitations}
-              renderItem={renderInvitationItem}
-              keyExtractor={(item) => `${item.groupId}_${item.from}`}
-              ListEmptyComponent={
-                <Text style={globalStyles.emptyStateText}>Ingen ventende invitasjoner</Text>
-              }
-              contentContainerStyle={globalStyles.listContainer}
-            />
-            <View style={globalStyles.editButtonsContainer}>
-              <TouchableOpacity
-                onPress={() => setInvitationsModalVisible(false)}
-                disabled={handlingInvitation}
-              >
-                <Text style={globalStyles.cancelButtonText}>Lukk</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </KeyboardAvoidingView>
   );
 };
