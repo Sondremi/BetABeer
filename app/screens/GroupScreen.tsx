@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +7,7 @@ import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import { showAlert } from '../utils/platformAlert';
+import { auth, firestore } from '../services/firebase/FirebaseConfig'; // juster path
 
 const ImageMissing = require('../../assets/images/image_missing.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
@@ -56,17 +57,30 @@ interface Friend {
   profilePicture: any;
 }
 
+interface GroupInvitation {
+  id: string;
+  groupId: string;
+  groupName: string;
+  senderId: string;
+  receiverId: string;
+  status: 'accepted' | 'pending' | 'declined';
+  createdAt: string;
+}
+
 const GroupScreen = () => {
   const params = useLocalSearchParams();
   const router = useRouter();
-  const { user, sendGroupInvitation } = useAuth();
+  const { user } = useAuth();
   const [groups, setGroups] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
-  const [editingName, setEditingName] = useState(false);
-  const [groupName, setGroupName] = useState(selectedGroup ? selectedGroup.name : '');
+  const [groupName, setGroupName] = useState('');
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [deleting, setDeleting] = useState(false);  
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [invitationsModalVisible, setInvitationsModalVisible] = useState(false);
+  const [invitations, setInvitations] = useState<GroupInvitation[]>([]);
   const [betModalVisible, setBetModalVisible] = useState(false);
+  const [editingName, setEditingName] = useState(false);
   const [betTitle, setBetTitle] = useState('');
   const [betOptions, setBetOptions] = useState<{ name: string; odds: string }[]>([{ name: '', odds: '' }]);
   const [betSaving, setBetSaving] = useState(false);
@@ -87,7 +101,6 @@ const GroupScreen = () => {
   const [leaderboardModalVisible, setLeaderboardModalVisible] = useState(false);
   const [editMenuModalVisible, setEditMenuModalVisible] = useState(false);
   const [selectedEditBet, setSelectedEditBet] = useState<{ bet: Bet; index: number } | null>(null);
-  const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [inviting, setInviting] = useState(false);
 
@@ -99,12 +112,15 @@ const GroupScreen = () => {
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
-    const fetchGroups = async () => {
+
+    const fetchGroupsAndInvitations = async () => {
       const firestore = getFirestore();
-      const q = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
-      const snapshot = await getDocs(q);
+
+      // fetch groups
+      const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
+      const groupSnapshot = await getDocs(groupQuery);
       if (!isMounted) return;
-      const groupList = snapshot.docs.map(docSnap => ({
+      const groupList = groupSnapshot.docs.map(docSnap => ({
         id: docSnap.id,
         name: docSnap.data().name,
         memberCount: docSnap.data().members.length,
@@ -113,35 +129,46 @@ const GroupScreen = () => {
         members: docSnap.data().members,
       }));
       setGroups(groupList);
+
+      // fetch pending group invitations
+      const invitationQuery = query(
+        collection(firestore, 'group_invitations'),
+        where('receiverId', '==', user.id),
+        where('status', '==', 'pending')
+      );
+      const invitationSnapshot = await getDocs(invitationQuery);
+      if (!isMounted) return;
+      const invitationList = invitationSnapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      })) as GroupInvitation[];
+      setInvitations(invitationList);
+
+      // Set selected group
       let groupFromParams = null;
       if (params.selectedGroup) {
         try {
-          if (Array.isArray(params.selectedGroup)) {
-            groupFromParams = JSON.parse(params.selectedGroup[0]);
-          } else {
-            groupFromParams = JSON.parse(params.selectedGroup);
-          }
+          groupFromParams = Array.isArray(params.selectedGroup)
+            ? JSON.parse(params.selectedGroup[0])
+            : JSON.parse(params.selectedGroup);
         } catch (e) {
+          console.error(e);
           groupFromParams = null;
         }
       }
-      let foundGroup = null;
-      if (groupFromParams) {
-        foundGroup = groupList.find(g => g.id === groupFromParams.id);
-      }
-      if (foundGroup) {
-        setSelectedGroup(foundGroup);
-      } else if (groupList.length > 0) {
-        setSelectedGroup(groupList[0]);
-      } else {
-        setSelectedGroup(null);
-      }
+      const foundGroup = groupFromParams
+        ? groupList.find(g => g.id === groupFromParams.id)
+        : groupList.length > 0
+        ? groupList[0]
+        : null;
+      setSelectedGroup(foundGroup);
     };
-    fetchGroups();
+    fetchGroupsAndInvitations();
     return () => {
       isMounted = false;
     };
   }, [user, params.selectedGroup]);
+
 
   useEffect(() => {
     if (selectedGroup && selectedGroup.name !== groupName) {
@@ -149,47 +176,120 @@ const GroupScreen = () => {
     }
   }, [selectedGroup]);
 
+
   useEffect(() => {
-    if (!user || !selectedGroup) return;
+    if (!user) return;
     let isMounted = true;
-    const fetchFriends = async () => {
-      const friendData = await Promise.all(
-        user.friends.map(async (friendId: string) => {
-          const userDoc = await getDoc(doc(getFirestore(), 'users', friendId));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            return {
-              id: userDoc.id,
-              name: data.name || 'Ukjent navn',
-              username: data.username || 'ukjent',
-              profilePicture: ImageMissing,
-            };
+    const firestore = getFirestore();
+    const userRef = doc(firestore, 'users', user.id);
+    const unsubscribe = onSnapshot(userRef, (userDoc) => {
+      if (userDoc.exists() && isMounted) {
+        const data = userDoc.data();
+        const friends = data.friends || [];
+        // Fetch friend details
+        const fetchFriends = async () => {
+          const friendData = await Promise.all(
+            friends.map(async (friendId: string) => {
+              try {
+                const friendDoc = await getDoc(doc(firestore, 'users', friendId));
+                if (friendDoc.exists()) {
+                  const friendData = friendDoc.data();
+                  return {
+                    id: friendDoc.id,
+                    name: friendData.name || 'Ukjent navn',
+                    username: friendData.username || 'ukjent',
+                    profilePicture: ImageMissing,
+                  };
+                }
+                return null;
+              } catch (error) {
+                console.error(`Error fetching friend ${friendId}:`, error);
+                return null;
+              }
+            })
+          );
+          if (isMounted) {
+            setFriends(friendData.filter((friend): friend is Friend => friend !== null));
           }
-          return null;
-        })
-      );
-      if (isMounted) {
-        setFriends(friendData.filter((friend): friend is Friend => friend !== null));
+        };
+        fetchFriends();
       }
-    };
-    fetchFriends();
+    });
     return () => {
       isMounted = false;
+      unsubscribe();
     };
   }, [user, selectedGroup]);
 
-  const handleInviteFriend = async (friend: Friend) => {
-    if (!user || !selectedGroup) return;
-    setInviting(true);
-    try {
-      await sendGroupInvitation(user.id, friend.id, selectedGroup.id, selectedGroup.name);
-      showAlert('Invitasjon sendt', `Invitasjon sendt til ${friend.name}`);
-    } catch (error) {
-      showAlert('Feil', 'Kunne ikke sende gruppeinvitasjon');
-    } finally {
-      setInviting(false);
+ const handleInviteFriend = async (friend: Friend) => {
+  if (!user || !selectedGroup) {
+    console.error('=== DEBUG: Missing user or selectedGroup ===', { user, selectedGroup });
+    showAlert('Feil', 'Bruker eller gruppe ikke tilgjengelig');
+    return;
+  }
+  setInviting(true);
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      console.error('=== DEBUG: No authenticated user ===');
+      showAlert('Feil', 'Ingen autentisert bruker. Logg inn på nytt.');
+      return;
     }
-  };
+    const invitationData = {
+      groupId: selectedGroup.id,
+      groupName: selectedGroup.name,
+      senderId: currentUser.uid, // Use currentUser.uid directly
+      receiverId: friend.id,
+      status: 'pending',
+      createdAt: serverTimestamp(), // Align with FriendScreen
+    };
+    console.log('=== DEBUG: Invitation data ===', invitationData);
+    console.log('=== DEBUG: Data types ===', {
+      groupId: typeof invitationData.groupId,
+      groupName: typeof invitationData.groupName,
+      senderId: typeof invitationData.senderId,
+      receiverId: typeof invitationData.receiverId,
+      status: typeof invitationData.status,
+      createdAt: invitationData.createdAt === null ? 'serverTimestamp' : typeof invitationData.createdAt,
+    });
+    console.log('=== DEBUG: Authentication ===');
+    console.log('- auth.currentUser.uid:', currentUser.uid);
+    console.log('- context user.id:', user.id);
+    console.log('- UIDs match:', currentUser.uid === user.id);
+    console.log('=== DEBUG: Collection name ===', 'group_invitations');
+    console.log('=== DEBUG: Firestore instance ===', firestore);
+
+    // Check for existing invitation
+    console.log('=== DEBUG: Checking for existing invitations ===');
+    const existingInvitationQuery = query(
+      collection(firestore, 'group_invitations'),
+      where('groupId', '==', selectedGroup.id),
+      where('receiverId', '==', friend.id),
+      where('status', '==', 'pending')
+    );
+    const existingInvitationSnapshot = await getDocs(existingInvitationQuery);
+    console.log('=== DEBUG: Existing invitations found ===', existingInvitationSnapshot.docs.length);
+
+    if (!existingInvitationSnapshot.empty) {
+      showAlert('Feil', `Invitasjon til ${friend.name} er allerede sendt`);
+      return;
+    }
+
+    console.log('=== DEBUG: Attempting to create invitation ===');
+    const docRef = await addDoc(collection(firestore, 'group_invitations'), invitationData);
+    console.log('=== DEBUG: Invitation created successfully, doc ID ===', docRef.id);
+    showAlert('Invitasjon sendt', `Invitasjon sendt til ${friend.name}`);
+  } catch (error) {
+    console.error('=== ERROR DETAILS ===', error);
+    console.error('Error name:', (error as Error).name);
+    console.error('Error message:', (error as Error).message);
+    console.error('Error stack:', (error as Error).stack);
+    showAlert('Feil', `Kunne ikke sende gruppeinvitasjon: ${(error as Error).message}`);
+  } finally {
+    console.log('=== DEBUG: Finished handleInviteFriend ===');
+    setInviting(false);
+  }
+};
 
   const handleRemoveFriendFromGroup = async (friend: Friend) => {
     if (!selectedGroup) return;
@@ -238,6 +338,7 @@ const GroupScreen = () => {
               }
               router.replace('/profile');
             } catch (error) {
+              console.error(error)
               showAlert('Feil', 'Kunne ikke slette gruppe');
             } finally {
               setDeleting(false);
@@ -318,6 +419,7 @@ const GroupScreen = () => {
       setBets(prev => [...prev, newBet]);
       setBetModalVisible(false);
     } catch (error) {
+      console.error(error)
       showAlert('Feil', 'Kunne ikke lagre bet');
     } finally {
       setBetSaving(false);
@@ -527,6 +629,7 @@ const GroupScreen = () => {
       setBets(newBets);
       setEditBetModalVisible(false);
     } catch (error) {
+      console.error(error)
       showAlert('Feil', 'Kunne ikke lagre endringer');
     } finally {
       setEditBetSaving(false);
@@ -559,6 +662,7 @@ const GroupScreen = () => {
               setBets(newBets);
               setEditBetModalVisible(false);
             } catch (error) {
+              console.error(error)
               showAlert('Feil', 'Kunne ikke slette bet');
             } finally {
               setEditBetSaving(false);
@@ -581,6 +685,7 @@ const GroupScreen = () => {
       await updateDoc(doc(firestore, 'groups', selectedGroup.id), { name: groupName });
       setEditingName(false);
     } catch (error) {
+      console.error(error)
       showAlert('Feil', 'Kunne ikke oppdatere gruppenavn');
     } finally {
       setSaving(false);
@@ -1301,6 +1406,7 @@ const GroupScreen = () => {
                             await updateDoc(groupRef, { bets: newBets });
                             setBets(newBets);
                           } catch (error) {
+                            console.error(error)
                             showAlert('Feil', 'Kunne ikke slette bet');
                           } finally {
                             setEditBetSaving(false);
