@@ -57,5 +57,16 @@ service cloud.firestore {
         (request.resource.data.members.hasAny([request.auth.uid]))
       );
     }
+
+    match /group_invitations/{invitationId} {
+      allow read: if request.auth != null && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid);
+      allow write: if request.auth != null && (
+        // Allow creating if sender is authenticated user
+        (request.resource.data.senderId == request.auth.uid && resource.data == null) ||
+        // Allow updating status if receiver is authenticated user
+        (resource.data.receiverId == request.auth.uid && request.resource.data.keys().hasOnly(['status']))
+      );
+      allow delete: if request.auth != null && resource.data.receiverId == request.auth.uid;
+    }
   }
 }
