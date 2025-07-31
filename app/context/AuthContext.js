@@ -1,4 +1,4 @@
-import { doc, getDoc, getFirestore } from 'firebase/firestore';
+import { doc, getDoc, getFirestore, onSnapshot } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { authService } from '../services/firebase/authService';
 
@@ -30,9 +30,10 @@ export const AuthProvider = ({ children }) => {
               name: userData.name,
               email: userData.email,
               phone: userData.phone,
-              friends: userData.friends || [],
-              friendRequests: userData.friendRequests || [],
             });
+          }
+          else {
+            setUser(null);
           }
         } catch (error) {
           console.error('Feil ved henting av brukerdata:', error);
@@ -55,7 +56,6 @@ export const AuthProvider = ({ children }) => {
       if (firebaseUser) {
         currentUid = firebaseUser.uid;
         const userDocRef = doc(firestore, 'users', currentUid);
-        const { onSnapshot } = require('firebase/firestore');
         userDocUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const userData = docSnap.data();
@@ -65,10 +65,13 @@ export const AuthProvider = ({ children }) => {
               name: userData.name,
               email: userData.email,
               phone: userData.phone,
-              friends: userData.friends || [],
-              friendRequests: userData.friendRequests || [],
             } : null);
+          } else {
+            setUser(null);
           }
+        }, (error) => {
+          console.error('Feil ved onSnapshot for brukerdata: ', error);
+          setUser(null);
         });
       }
     });
@@ -86,12 +89,6 @@ export const AuthProvider = ({ children }) => {
     logout: authService.logoutUser,
     register: authService.createUser,
     updateUser: authService.updateUser,
-    sendFriendRequest: authService.sendFriendRequest,
-    acceptFriendRequest: authService.acceptFriendRequest,
-    rejectFriendRequest: authService.rejectFriendRequest,
-    sendGroupInvitation: authService.sendGroupInvitation,
-    acceptGroupInvitation: authService.acceptGroupInvitation,
-    rejectGroupInvitation: authService.rejectGroupInvitation,
   };
 
   return (

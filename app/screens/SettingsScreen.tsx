@@ -332,7 +332,6 @@ const SettingsScreen = () => {
           <View style={globalStyles.inputGroup}>
             <Text style={globalStyles.sectionTitle}>Logg ut</Text>
             <TouchableOpacity style={globalStyles.outlineButton} onPress={handleLogout}>
-              <Image source={LogoutIcon} style={{ width: 20, height: 20, tintColor: '#FFD700' }} />
               <Text style={globalStyles.outlineButtonText}>Logg ut</Text>
             </TouchableOpacity>
           </View>
@@ -349,7 +348,6 @@ const SettingsScreen = () => {
               onPress={handleDeleteUser}
               disabled={isLoading}
             >
-              <Image source={DeleteIcon} style={globalStyles.deleteIcon} />
               <Text style={globalStyles.dangerButtonText}>Slett bruker permanent</Text>
             </TouchableOpacity>
           </View>

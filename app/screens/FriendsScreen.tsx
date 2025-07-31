@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { KeyboardAvoidingView, FlatList, Image, Platform, SafeAreaView, ScrollView, Share, Text, TouchableOpacity, View, TextInput } from 'react-native';
-import { collection, query, where, getDocs, orderBy, getFirestore, doc, getDoc, updateDoc, arrayRemove } from 'firebase/firestore';
+import React, { useState, useEffect, useCallback } from 'react';
+import { KeyboardAvoidingView, Platform, FlatList, Image, ScrollView, Share, Text, TouchableOpacity, View, TextInput } from 'react-native';
+import { auth, firestore } from '../services/firebase/FirebaseConfig';
+import {friendSearch, sendFriendRequest, acceptFriendRequest, declineFriendRequest, cancelFriendRequest, removeFriend, getIncomingRequest, getOutgoingRequest, Friend, FriendRequest } from '../services/firebase/friendService';
+import { doc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { globalStyles } from '../styles/globalStyles';
 import { friendsStyles } from '../styles/components/friendsStyles';
 import { showAlert } from '../utils/platformAlert';
-import { useAuth } from '../context/AuthContext';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
@@ -13,168 +14,112 @@ const PeopleIcon = require('../../assets/icons/noun-people-2196504.png');
 const AcceptIcon = require('../../assets/icons/noun-add-2037478.png');
 const RejectIcon = require('../../assets/icons/noun-delete-7938028.png');
 
-type Friend = { id: string; name: string; username: string; profilePicture: any };
+const debounce = (func: (...args: any[]) => void, wait: number) => {
+  let timeout: ReturnType<typeof setTimeout>;
+  return (...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
 
 const FriendsScreen = () => {
-  const { user, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, withdrawFriendRequest } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Friend[]>([]);
+  const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
+  const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [friendRequests, setFriendRequests] = useState<Friend[]>([]);
-  const [sentFriendRequests, setSentFriendRequests] = useState<Friend[]>([]);
-  const [friendsOfFriends, setFriendsOfFriends] = useState<Friend[]>([]);
-  const [showSentRequests, setShowSentRequests] = useState(false);
+  const [showOutgoingRequests, setShowOutgoingRequests] = useState(false);
 
-  const inviteLink = 'https://bet-a-beer.netlify.app/';
-
-  // Fetch friends, received friend requests, and sent friend requests
   useEffect(() => {
-    const fetchFriendsData = async () => {
-      if (user?.friends?.length) {
-        const friendData = await Promise.all(
-          user.friends.map(async (friendId: string) => {
-            const userDoc = await getDoc(doc(getFirestore(), 'users', friendId));
-            if (userDoc.exists()) {
-              const data = userDoc.data();
-              return {
-                id: userDoc.id,
-                name: data.name || 'Ukjent navn',
-                username: data.username || 'ukjent',
-                profilePicture: DefaultProfilePicture,
-              };
-            }
-            return null;
-          })
-        );
-        setFriends(friendData.filter((friend): friend is Friend => friend !== null));
-      } else {
-        setFriends([]);
+    const fetchRequests = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        console.log('No user authentication');
+        return;
       }
 
-      if (user?.friendRequests?.length) {
-        const requestData = await Promise.all(
-          user.friendRequests.map(async (request: { from: string; status: string; createdAt?: string }) => {
-            if (request.status === 'pending') {
-              const userDoc = await getDoc(doc(getFirestore(), 'users', request.from));
-              if (userDoc.exists()) {
-                const data = userDoc.data();
-                return {
-                  id: userDoc.id,
-                  name: data.name || 'Ukjent navn',
-                  username: data.username || 'ukjent',
-                  profilePicture: DefaultProfilePicture,
-                };
-              }
-            }
-            return null;
-          })
-        );
-        setFriendRequests(requestData.filter((request): request is Friend => request !== null));
-      } else {
-        setFriendRequests([]);
-      }
-
-      // Fetch sent friend requests
-      const usersRef = collection(getFirestore(), 'users');
-      const sentRequests = await Promise.all(
-        (await getDocs(usersRef)).docs
-          .filter((doc) => doc.id !== user?.id && doc.data().friendRequests?.some((req: any) => req.from === user?.id && req.status === 'pending'))
-          .map(async (doc) => {
-            const data = doc.data();
+      try {
+        const [incoming, outgoing] = await Promise.all([
+          getIncomingRequest(currentUser.uid),
+          getOutgoingRequest(currentUser.uid),
+        ]);
+        const enrichedIncoming = await Promise.all(
+          incoming.map(async (request: FriendRequest) => {
+            const userDocRef = doc(firestore, "users", request.fromUserId);
+            const userDoc = await getDoc(userDocRef);
             return {
-              id: doc.id,
-              name: data.name || 'Ukjent navn',
-              username: data.username || 'ukjent',
-              profilePicture: DefaultProfilePicture,
+              ...request,
+              name: userDoc.exists() ? userDoc.data().name || 'Ukjent' : 'Ukjent',
+              username: userDoc.exists() ? userDoc.data().username || 'ukjent' : 'ukjent',
+              profilePicture: userDoc.exists() ? userDoc.data().profilePicture || DefaultProfilePicture : DefaultProfilePicture,
             };
           })
-      );
-      setSentFriendRequests(sentRequests.filter((request): request is Friend => request !== null));
-    };
-
-    fetchFriendsData();
-  }, [user]);
-
-  // Fetch friends of friends
-  useEffect(() => {
-    const fetchFriendsOfFriends = async () => {
-      if (user?.friends?.length) {
-        const allFriendsOfFriends: Friend[] = [];
-        for (const friendId of user.friends) {
-          const friendDoc = await getDoc(doc(getFirestore(), 'users', friendId));
-          if (friendDoc.exists()) {
-            const friendData = friendDoc.data();
-            if (friendData.friends) {
-              const fofData = await Promise.all(
-                friendData.friends.map(async (fofId: string) => {
-                  if (fofId !== user.id && !user.friends.includes(fofId)) {
-                    const fofDoc = await getDoc(doc(getFirestore(), 'users', fofId));
-                    if (fofDoc.exists()) {
-                      const data = fofDoc.data();
-                      return {
-                        id: fofDoc.id,
-                        name: data.name || 'Ukjent navn',
-                        username: data.username || 'ukjent',
-                        profilePicture: DefaultProfilePicture,
-                      };
-                    }
-                  }
-                  return null;
-                })
-              );
-              allFriendsOfFriends.push(...fofData.filter((fof): fof is Friend => fof !== null));
-            }
-          }
-        }
-        // Remove duplicates
-        const uniqueFriendsOfFriends = Array.from(
-          new Map(allFriendsOfFriends.map((item) => [item.id, item])).values()
         );
-        setFriendsOfFriends(uniqueFriendsOfFriends);
-      } else {
-        setFriendsOfFriends([]);
+        setIncomingRequests(enrichedIncoming);
+        setOutgoingRequests(outgoing);
+      } catch (error) {
+        console.error(error);
+        showAlert('Feil', `Kunne ikke hente forespørsel: ${(error as Error).message}`);
       }
     };
+    fetchRequests();
+  }, []);
 
-    fetchFriendsOfFriends();
-  }, [user]);
-
-  // Live search for users
   useEffect(() => {
-    searchUsers();
-  }, [searchTerm, user]);
+    const fetchFriends = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        console.log('No user authenticated');
+        return;
+      }
 
-  // Search users function
-  const searchUsers = async () => {
-    if (!searchTerm) {
+      try {
+        const userDocRef = doc(firestore, 'users', currentUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        const friendIds = userDoc.exists() ? userDoc.data().friends || [] : [];
+
+        const friendDocs = await Promise.all(
+          friendIds.map((id: string) => getDoc(doc(firestore, 'users', id)))
+        );
+        const friendsData = friendDocs
+          .filter((doc) => doc.exists())
+          .map((doc) => ({
+            id: doc.id,
+            name: doc.data().name || 'Ukjent',
+            username: doc.data().username || 'ukjent',
+            profilePicture: doc.data().profilePicture || DefaultProfilePicture,
+          }));
+        setFriends(friendsData);
+      } catch (error) {
+        console.error('Failed to fetch friends:', error);
+        showAlert('Feil', `Kunne ikke hente venner: ${(error as Error).message}`);
+      }
+    };
+    fetchFriends();
+  }, []);
+
+  const handleSearch = useCallback(debounce(async (term: string) => {
+    if (!term.trim()) {
       setSearchResults([]);
       return;
     }
-
-    const firestore = getFirestore();
-    const usersRef = collection(firestore, 'users');
-    const q = query(
-      usersRef,
-      orderBy('username'),
-      where('username', '>=', searchTerm),
-      where('username', '<=', searchTerm + '\uf8ff')
-    );
-
     try {
-      const querySnapshot = await getDocs(q);
-      const results = querySnapshot.docs
-        .map((doc) => ({
-          id: doc.id,
-          name: doc.data().name || 'Ukjent navn',
-          username: doc.data().username || 'ukjent',
-          profilePicture: DefaultProfilePicture,
-        }))
-        .filter((result) => result.id !== user?.id);
-      setSearchResults(results);
+      const results = await friendSearch(term);
+      const filteredResults = (results as Friend[]).filter(
+        (result) => !friends.some((friend) => friend.id === result.id)
+      );
+      setSearchResults(filteredResults);
     } catch (error) {
-      showAlert('Feil', 'Kunne ikke søke etter brukere');
+      console.error('Error handling search: ', error);
+      showAlert('Feil', `Kunne ikke søke ${(error as Error).message}`);
     }
-  };
+  }, 300), [friends]);
+
+  useEffect(() => {
+    handleSearch(searchTerm);
+  }, [searchTerm, handleSearch]);
+
+  const inviteLink = 'http://bet-a-beer.netlify.app';
 
   const handleInviteFriends = async () => {
     try {
@@ -184,39 +129,49 @@ const FriendsScreen = () => {
         title: 'Inviter venner til BetABeer',
       });
     } catch (error) {
-      showAlert('Feil', 'Kunne ikke dele invitasjon');
+      console.log(error);
+      showAlert('Feil', 'Kunne ikke dele invitasjonslenken');
     }
   };
 
   const handleAddFriend = async (friend: Friend) => {
-    if (!user) {
-      showAlert('Feil', 'Du må være logget inn for å sende en venneforespørsel');
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      showAlert('Ikke logget inn!');
       return;
     }
+
     try {
-      await sendFriendRequest(user.id, friend.id);
-      const userDoc = await getDoc(doc(getFirestore(), 'users', friend.id));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        setSentFriendRequests((prev) => [
-          ...prev,
-          {
-            id: friend.id,
-            name: userData.name || 'Ukjent navn',
-            username: userData.username || 'ukjent',
-            profilePicture: DefaultProfilePicture,
-          },
-        ]);
-        showAlert('Venneforespørsel sendt', `Venneforespørsel sendt til ${friend.name}`);
-      } else {
-        showAlert('Feil', 'Kunne ikke hente mottakerens data');
-      }
+      const requestId = await sendFriendRequest(friend.id);
+      setOutgoingRequests((prev) => [
+        ...prev,
+        {
+          id: requestId,
+          fromUserId: currentUser.uid,
+          toUserId: friend.id,
+          status: 'pending',
+          createdAt: serverTimestamp(),
+          name: friend.name || 'Ukjent',
+          username: friend.username || 'ukjent',
+          profilePicture: friend.profilePicture || DefaultProfilePicture,
+        },
+      ]);
+      setSearchResults([]);
+      setSearchTerm('');
+      showAlert('Venneforespørsel sendt', `Forespørsel sendt til ${friend.username}`);
     } catch (error) {
-      showAlert('Feil', 'Kunne ikke sende venneforespørsel');
+      console.error(error);
+      showAlert('Feil', 'Kunne ikke sende venneforespørselen');
     }
   };
 
   const handleRemoveFriend = (friend: Friend) => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      showAlert("Ikke logget inn!");
+      return;
+    }
+
     showAlert(
       'Fjern venn',
       `Er du sikker på at du vil fjerne ${friend.name} som venn?`,
@@ -230,16 +185,12 @@ const FriendsScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await updateDoc(doc(getFirestore(), 'users', user.id), {
-                friends: arrayRemove(friend.id),
-              });
-              await updateDoc(doc(getFirestore(), 'users', friend.id), {
-                friends: arrayRemove(user.id),
-              });
+              await removeFriend(currentUser.uid, friend.id);
               setFriends((prev) => prev.filter((f) => f.id !== friend.id));
               showAlert('Venn fjernet', `${friend.name} er fjernet fra vennelisten din`);
-            } catch (error) {
-              showAlert('Feil', 'Kunne ikke fjerne venn');
+            } catch(error) {
+              console.error(error);
+              showAlert('Feil', `Kunne ikke fjerne venn: ${(error as Error).message}`);
             }
           },
         },
@@ -247,46 +198,51 @@ const FriendsScreen = () => {
     );
   };
 
-  const handleAcceptFriendRequest = async (friend: Friend) => {
-    if (!user) {
-      showAlert('Feil', 'Du må være logget inn for å godta en venneforespørsel');
+  const handleAcceptRequest = async (request: FriendRequest) => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      showAlert('Ikke logget inn!');
       return;
     }
+
     try {
-      await acceptFriendRequest(user.id, friend.id);
-      setFriendRequests((prev) => prev.filter((req) => req.id !== friend.id));
-      setFriends((prev) => [...prev, friend]);
-      showAlert('Venneforespørsel godkjent', `${friend.name} er nå din venn`);
-    } catch (error) {
-      showAlert('Feil', 'Kunne ikke godta venneforespørsel');
+      await acceptFriendRequest(request.id, request.fromUserId, request.toUserId);
+      setIncomingRequests((prev) => prev.filter((r) => r.id !== request.id));
+      showAlert('Suksess', 'Venneforespørsel godtatt!');
+      setFriends((prev) => [
+        ...prev,
+        {
+          id: request.fromUserId,
+          name: request.name || 'Ukjent',
+          username: request.username || 'ukjent',
+          profilePicture: request.profilePicture || DefaultProfilePicture,
+        },
+      ]);
+    } catch(error) {
+      console.error(error);
+      showAlert('Feil', `Kunne ikke godta forespørselen: ${(error as Error).message}`);
     }
   };
 
-  const handleRejectFriendRequest = async (friend: Friend) => {
-    if (!user) {
-      showAlert('Feil', 'Du må være logget inn for å avslå en venneforespørsel');
-      return;
-    }
+  const handleDeclineRequest = async (request: FriendRequest) => {
     try {
-      await rejectFriendRequest(user.id, friend.id);
-      setFriendRequests((prev) => prev.filter((req) => req.id !== friend.id));
-      showAlert('Venneforespørsel avslått', `Venneforespørsel fra ${friend.name} er avslått`);
-    } catch (error) {
-      showAlert('Feil', 'Kunne ikke avslå venneforespørsel');
+      await declineFriendRequest(request.id);
+      setIncomingRequests((prev) => prev.filter((r) => r.id !== request.id));
+      showAlert('Suksess', 'Venneforespørsel avvist');
+    } catch(error) {
+      console.error(error);
+      showAlert('Feil', `Feil med å avslå forespørsel: ${(error as Error).message}`);
     }
   };
 
-  const handleWithdrawFriendRequest = async (friend: Friend) => {
-    if (!user) {
-      showAlert('Feil', 'Du må være logget inn for å trekke tilbake en venneforespørsel');
-      return;
-    }
+  const handleCancelRequest = async (request: FriendRequest) => {
     try {
-      await withdrawFriendRequest(user.id, friend.id);
-      setSentFriendRequests((prev) => prev.filter((req) => req.id !== friend.id));
-      showAlert('Venneforespørsel trukket tilbake', `Venneforespørsel til ${friend.name} er trukket tilbake`);
-    } catch (error) {
-      showAlert('Feil', 'Kunne ikke trekke tilbake venneforespørsel');
+      await cancelFriendRequest(request.id);
+      setOutgoingRequests((prev) => prev.filter((r) => r.id !== request.id));
+      showAlert('Suksess', 'Venneforespørsel kansellert');
+    } catch(error) {
+      console.error(error);
+      showAlert('Feil', `Kunne ikke kansellere forespørselen: ${(error as Error).message}`);
     }
   };
 
@@ -299,50 +255,6 @@ const FriendsScreen = () => {
       </View>
       <TouchableOpacity style={friendsStyles.button} onPress={() => handleRemoveFriend(item)}>
         <Image source={RemoveFriendIcon} style={globalStyles.deleteIcon} />
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderFriendRequest = ({ item }: { item: Friend }) => (
-    <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]}>
-      <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]} />
-      <View style={globalStyles.itemInfo}>
-        <Text style={friendsStyles.friendName}>{item.name}</Text>
-        <Text style={globalStyles.secondaryText}>@{item.username}</Text>
-      </View>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <TouchableOpacity style={friendsStyles.button} onPress={() => handleAcceptFriendRequest(item)}>
-          <Image source={AcceptIcon} style={globalStyles.settingsIcon} />
-        </TouchableOpacity>
-        <TouchableOpacity style={friendsStyles.button} onPress={() => handleRejectFriendRequest(item)}>
-          <Image source={RejectIcon} style={globalStyles.deleteIcon} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderSentFriendRequest = ({ item }: { item: Friend }) => (
-    <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]}>
-      <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]} />
-      <View style={globalStyles.itemInfo}>
-        <Text style={friendsStyles.friendName}>{item.name}</Text>
-        <Text style={globalStyles.secondaryText}>@{item.username}</Text>
-      </View>
-      <TouchableOpacity style={friendsStyles.button} onPress={() => handleWithdrawFriendRequest(item)}>
-        <Image source={RejectIcon} style={globalStyles.deleteIcon} />
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderFriendOfFriend = ({ item }: { item: Friend }) => (
-    <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]}>
-      <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]} />
-      <View style={globalStyles.itemInfo}>
-        <Text style={friendsStyles.friendName}>{item.name}</Text>
-        <Text style={globalStyles.secondaryText}>@{item.username}</Text>
-      </View>
-      <TouchableOpacity style={friendsStyles.button} onPress={() => handleAddFriend(item)}>
-        <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
       </TouchableOpacity>
     </View>
   );
@@ -366,58 +278,17 @@ const FriendsScreen = () => {
           <Text style={globalStyles.sectionDescription}>Del lenken med venner for å invitere dem til appen</Text>
         </View>
 
-        {/* Friend Requests section */}
-        <View style={globalStyles.section}>
-          <Text style={globalStyles.sectionTitle}>
-            {showSentRequests ? `Sendte venneforespørsler (${sentFriendRequests.length})` : `Mottatte venneforespørsler (${friendRequests.length})`}
-          </Text>
-          <View style={{ marginTop: 8, marginBottom: 10 }}>
-            <TouchableOpacity onPress={() => setShowSentRequests(!showSentRequests)}>
-              <Text style={{ color: '#FFD700', fontWeight: '600' }}>
-                {showSentRequests ? 'Vis mottatte' : 'Vis sendte'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {showSentRequests ? (
-            sentFriendRequests.length > 0 ? (
-              <FlatList
-                data={sentFriendRequests}
-                renderItem={renderSentFriendRequest}
-                keyExtractor={(item) => item.id}
-                scrollEnabled={false}
-                showsVerticalScrollIndicator={false}
-              />
-            ) : (
-              <View style={globalStyles.emptyState}>
-                <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
-                <Text style={globalStyles.emptyStateText}>Ingen sendte venneforespørsler</Text>
-              </View>
-            )
-          ) : friendRequests.length > 0 ? (
-            <FlatList
-              data={friendRequests}
-              renderItem={renderFriendRequest}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
-            />
-          ) : (
-            <View style={globalStyles.emptyState}>
-              <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
-              <Text style={globalStyles.emptyStateText}>Ingen mottatte venneforespørsler</Text>
-            </View>
-          )}
-        </View>
-
         {/* Search Section */}
         <View style={globalStyles.section}>
-          <Text style={globalStyles.sectionTitle}>Søk etter brukere</Text>
+          <Text style={globalStyles.sectionTitle}>Søk etter venner</Text>
           <View style={{ flexDirection: 'row', marginBottom: 10 }}>
             <TextInput
               placeholder="Skriv inn brukernavn"
               placeholderTextColor="#aaa"
               value={searchTerm}
-              onChangeText={setSearchTerm}
+              onChangeText={(text) => {
+                setSearchTerm(text);
+              }}
               autoCapitalize="none"
               style={{
                 flex: 1,
@@ -425,11 +296,11 @@ const FriendsScreen = () => {
                 borderRadius: 8,
                 padding: 12,
                 color: '#fff',
-                marginRight: 8,
+                marginRight: 8
               }}
             />
             <TouchableOpacity
-              onPress={searchUsers}
+              onPress={() => handleSearch(searchTerm)}
               style={{
                 backgroundColor: '#FFD700',
                 paddingVertical: 12,
@@ -440,18 +311,30 @@ const FriendsScreen = () => {
               <Text style={{ color: '#181A20', fontWeight: '600' }}>Søk</Text>
             </TouchableOpacity>
           </View>
-          {searchResults.length > 0 ? (
+          {searchResults.length > 0 && (
             <FlatList
               data={searchResults}
-              renderItem={renderFriendOfFriend}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]} key={item.id}>
+                  <Image
+                    source={item.profilePicture}
+                    style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]}
+                  />
+                  <View style={globalStyles.itemInfo}>
+                    <Text style={friendsStyles.friendName}>{item.name}</Text>
+                    <Text style={globalStyles.secondaryText}>@{item.username}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={friendsStyles.button}
+                    onPress={() => handleAddFriend(item)}
+                  >
+                    <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
+                  </TouchableOpacity>
+                </View>
+              )}
             />
-          ) : (
-            searchTerm.length > 0 && (
-              <Text style={{ color: '#B0B0B0', marginTop: 10 }}>Ingen brukere funnet.</Text>
-            )
           )}
         </View>
 
@@ -468,29 +351,92 @@ const FriendsScreen = () => {
             />
           ) : (
             <View style={globalStyles.emptyState}>
-              <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
-              <Text style={globalStyles.emptyStateText}>Du har ingen venner ennå</Text>
-              <Text style={globalStyles.secondaryText}>Inviter venner for å komme i gang!</Text>
+              <Image source={PeopleIcon} style={globalStyles.settingsIcon} />
+              <Text style={globalStyles.emptyStateText}>Du har ingen venner enda</Text>
             </View>
           )}
         </View>
 
-        {/* Friends of friends section */}
+        {/* Friend Requests section */}
         <View style={globalStyles.section}>
-          <Text style={globalStyles.sectionTitle}>Venner av venner</Text>
-          <Text style={globalStyles.sectionDescription}>Personer du kanskje kjenner gjennom dine venner</Text>
-          {friendsOfFriends.length > 0 ? (
+          <Text style={globalStyles.sectionTitle}>Venneforespørsler</Text>
+          <TouchableOpacity 
+            onPress={() => setShowOutgoingRequests(!showOutgoingRequests)}
+            style={{ marginBottom: 8 }}
+          >
+            <Text style={{ color: '#FFD700', fontWeight: '600' }}>
+              {showOutgoingRequests ? 'Vis mottatte forespørsler' : 'Vis sendte forespørsler'}
+            </Text>
+          </TouchableOpacity>
+          {showOutgoingRequests ? (
+            outgoingRequests.length > 0 ? (
+              <FlatList
+                data={outgoingRequests}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+                renderItem={({ item }) => (
+                  <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]} key={item.id}>
+                    <Image
+                      source={item.profilePicture}
+                      style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]}
+                    />
+                    <View style={globalStyles.itemInfo}>
+                      <Text style={friendsStyles.friendName}>{item.name}</Text>
+                      <Text style={globalStyles.secondaryText}>@{item.username}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={friendsStyles.button}
+                      onPress={() => handleCancelRequest(item)}
+                    >
+                      <Image source={RejectIcon} style={globalStyles.deleteIcon} />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              />
+            ) : (
+              <View style={globalStyles.emptyState}>
+                <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
+                <Text style={globalStyles.emptyStateText}>
+                  Ingen sendte forespørsler akkurat nå.
+                </Text>
+              </View>
+            )
+          ) : incomingRequests.length > 0 ? (
             <FlatList
-              data={friendsOfFriends}
-              renderItem={renderFriendOfFriend}
+              data={incomingRequests}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]} key={item.id}>
+                  <Image
+                    source={item.profilePicture}
+                    style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]}
+                  />
+                  <View style={globalStyles.itemInfo}>
+                    <Text style={friendsStyles.friendName}>{item.name}</Text>
+                    <Text style={globalStyles.secondaryText}>@{item.username}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TouchableOpacity
+                      style={friendsStyles.button}
+                      onPress={() => handleAcceptRequest(item)}
+                    >
+                      <Image source={AcceptIcon} style={globalStyles.settingsIcon} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={friendsStyles.button}
+                      onPress={() => handleDeclineRequest(item)}
+                    >
+                      <Image source={RejectIcon} style={globalStyles.deleteIcon} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             />
           ) : (
             <View style={globalStyles.emptyState}>
-              <Image source={PeopleIcon} style={globalStyles.settingsIcon} />
-              <Text style={globalStyles.emptyStateText}>Ingen forslag tilgjengelig</Text>
+              <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
+              <Text style={globalStyles.emptyStateText}>Ingen forespørsler akkurat nå.</Text>
             </View>
           )}
         </View>
