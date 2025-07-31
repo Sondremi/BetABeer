@@ -59,4 +59,17 @@ export const profileStyles = StyleSheet.create({
     color: theme.colors.text,
     opacity: 0.9,
   },
+  invitationBadge: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  invitationBadgeText: {
+    color: theme.colors.background,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
 });
