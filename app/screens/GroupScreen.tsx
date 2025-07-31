@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, query, Timestamp, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +7,7 @@ import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import { showAlert } from '../utils/platformAlert';
+import { auth, firestore } from '../services/firebase/FirebaseConfig'; // juster path
 
 const ImageMissing = require('../../assets/images/image_missing.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
@@ -220,39 +221,75 @@ const GroupScreen = () => {
     };
   }, [user, selectedGroup]);
 
-  const handleInviteFriend = async (friend: Friend) => {
-    if (!user || !selectedGroup) return;
-    setInviting(true);
-    try {
-      const firestore = getFirestore();
-      const existingInvitationQuery = query(
-        collection(firestore, 'group_invitations'),
-        where('groupId', '==', selectedGroup.id),
-        where('receiverId', '==', friend.id),
-        where('status', '==', 'pending')
-      );
-      const existingInvitationSnapshot = await getDocs(existingInvitationQuery);
-      if (!existingInvitationSnapshot.empty) {
-        showAlert('Feil', `Invitasjon til ${friend.name} er allerede sendt`);
-        return;
-      }
-      // Create new invitation document
-      await addDoc(collection(firestore, 'group_invitations'), {
-        groupId: selectedGroup.id,
-        groupName: selectedGroup.name,
-        senderId: user.id,
-        receiverId: friend.id,
-        status: 'pending',
-        createdAt: Timestamp.now(),
-      });
-      showAlert('Invitasjon sendt', `Invitasjon sendt til ${friend.name}`);
-    } catch (error) {
-      console.error(error)
-      showAlert('Feil', 'Kunne ikke sende gruppeinvitasjon');
-    } finally {
-      setInviting(false);
+ const handleInviteFriend = async (friend: Friend) => {
+  if (!user || !selectedGroup) {
+    console.error('=== DEBUG: Missing user or selectedGroup ===', { user, selectedGroup });
+    showAlert('Feil', 'Bruker eller gruppe ikke tilgjengelig');
+    return;
+  }
+  setInviting(true);
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      console.error('=== DEBUG: No authenticated user ===');
+      showAlert('Feil', 'Ingen autentisert bruker. Logg inn på nytt.');
+      return;
     }
-  };
+    const invitationData = {
+      groupId: selectedGroup.id,
+      groupName: selectedGroup.name,
+      senderId: currentUser.uid, // Use currentUser.uid directly
+      receiverId: friend.id,
+      status: 'pending',
+      createdAt: serverTimestamp(), // Align with FriendScreen
+    };
+    console.log('=== DEBUG: Invitation data ===', invitationData);
+    console.log('=== DEBUG: Data types ===', {
+      groupId: typeof invitationData.groupId,
+      groupName: typeof invitationData.groupName,
+      senderId: typeof invitationData.senderId,
+      receiverId: typeof invitationData.receiverId,
+      status: typeof invitationData.status,
+      createdAt: invitationData.createdAt === null ? 'serverTimestamp' : typeof invitationData.createdAt,
+    });
+    console.log('=== DEBUG: Authentication ===');
+    console.log('- auth.currentUser.uid:', currentUser.uid);
+    console.log('- context user.id:', user.id);
+    console.log('- UIDs match:', currentUser.uid === user.id);
+    console.log('=== DEBUG: Collection name ===', 'group_invitations');
+    console.log('=== DEBUG: Firestore instance ===', firestore);
+
+    // Check for existing invitation
+    console.log('=== DEBUG: Checking for existing invitations ===');
+    const existingInvitationQuery = query(
+      collection(firestore, 'group_invitations'),
+      where('groupId', '==', selectedGroup.id),
+      where('receiverId', '==', friend.id),
+      where('status', '==', 'pending')
+    );
+    const existingInvitationSnapshot = await getDocs(existingInvitationQuery);
+    console.log('=== DEBUG: Existing invitations found ===', existingInvitationSnapshot.docs.length);
+
+    if (!existingInvitationSnapshot.empty) {
+      showAlert('Feil', `Invitasjon til ${friend.name} er allerede sendt`);
+      return;
+    }
+
+    console.log('=== DEBUG: Attempting to create invitation ===');
+    const docRef = await addDoc(collection(firestore, 'group_invitations'), invitationData);
+    console.log('=== DEBUG: Invitation created successfully, doc ID ===', docRef.id);
+    showAlert('Invitasjon sendt', `Invitasjon sendt til ${friend.name}`);
+  } catch (error) {
+    console.error('=== ERROR DETAILS ===', error);
+    console.error('Error name:', (error as Error).name);
+    console.error('Error message:', (error as Error).message);
+    console.error('Error stack:', (error as Error).stack);
+    showAlert('Feil', `Kunne ikke sende gruppeinvitasjon: ${(error as Error).message}`);
+  } finally {
+    console.log('=== DEBUG: Finished handleInviteFriend ===');
+    setInviting(false);
+  }
+};
 
   const handleRemoveFriendFromGroup = async (friend: Friend) => {
     if (!selectedGroup) return;

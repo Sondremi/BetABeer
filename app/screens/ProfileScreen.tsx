@@ -216,7 +216,7 @@ const ProfileScreen = () => {
     <View style={[globalStyles.listItemRow, { paddingVertical: 10 }]}> 
       <View style={{ flex: 1 }}>
         <Text style={globalStyles.modalText}>{item.groupName}</Text>
-        <Text style={globalStyles.secondaryText}>Fra: {userNames[item.from] || item.from}</Text>
+        <Text style={globalStyles.secondaryText}>Fra: {userNames[item.senderId] || item.senderId}</Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <TouchableOpacity
@@ -333,7 +333,7 @@ const ProfileScreen = () => {
             <FlatList
               data={groupInvitations}
               renderItem={renderInvitationItem}
-              keyExtractor={(item) => `${item.groupId}_${item.from}`}
+              keyExtractor={(item) => `${item.groupId}_${item.senderId}`}
               ListEmptyComponent={
                 <Text style={globalStyles.emptyStateText}>Ingen ventende invitasjoner</Text>
               }
