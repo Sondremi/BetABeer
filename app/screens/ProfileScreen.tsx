@@ -157,7 +157,6 @@ const ProfileScreen = () => {
             members: updatedMembers,
           },
         ]);
-        showAlert('Suksess', `Du har blitt med i gruppen "${invitation.groupName}"`);
       } else {
         showAlert('Feil', 'Gruppen finnes ikke');
       }
@@ -177,7 +176,6 @@ const ProfileScreen = () => {
       const invitationRef = doc(firestore, 'group_invitations', invitation.id);
       await updateDoc(invitationRef, { status: 'declined' });
       setGroupInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
-      showAlert('Suksess', `Invitasjon til "${invitation.groupName}" avvist`);
     } catch (error) {
       console.error('Error declining invitation:', error);
       showAlert('Feil', 'Kunne ikke avslå invitasjonen');
@@ -261,7 +259,9 @@ const ProfileScreen = () => {
             <TouchableOpacity
               style={profileStyles.editProfileImageButton}
               onPress={() => {
-                /* TODO: implement backend for editing profile picture */
+                showAlert('Hold on', 'Har ikke fiksa profilbilde enda', [
+                  { text: 'OK', style: 'default' }
+                ]);
               }}
             >
               <Image source={PencilIcon} style={globalStyles.pencilIcon} />

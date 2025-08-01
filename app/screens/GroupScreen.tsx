@@ -198,10 +198,10 @@ const GroupScreen: React.FC = () => {
       memberIds.map(async (memberId) => {
         try {
           const userDoc = await getDoc(doc(db, 'users', memberId));
-          usernames[memberId] = userDoc.exists() ? userDoc.data().username || 'Ukjent' : 'Ukjent';
+          usernames[memberId] = userDoc.exists() ? userDoc.data().username || userDoc.data().displayName || userDoc.data().email || (user && memberId === user.id ? 'Meg' : 'Ukjent') : (user && memberId === user.id ? 'Meg' : 'Ukjent');
         } catch (error) {
           console.error(`Error fetching username for member ${memberId}:`, error);
-          usernames[memberId] = 'Ukjent';
+          usernames[memberId] = user && memberId === user.id ? 'Meg' : 'Ukjent';
         }
       })
     );
@@ -244,7 +244,6 @@ const GroupScreen: React.FC = () => {
       }
 
       await addDoc(collection(db, 'group_invitations'), invitationData);
-      showAlert('Invitasjon sendt', `Invitasjon sendt til ${friend.name}`);
     } catch (error) {
       console.error('Error inviting friend:', error);
       showAlert('Feil', `Kunne ikke sende gruppeinvitasjon: ${(error as Error).message}`);
@@ -264,7 +263,6 @@ const GroupScreen: React.FC = () => {
         const updatedMembers = (groupData.members || []).filter((id: string) => id !== friend.id);
         await updateDoc(groupRef, { members: updatedMembers });
         setSelectedGroup((prev) => prev ? { ...prev, members: updatedMembers } : prev);
-        showAlert('Fjernet', `${friend.name} er fjernet fra gruppen`);
       }
     } catch (error) {
       console.error('Error removing friend:', error);
@@ -921,7 +919,7 @@ const GroupScreen: React.FC = () => {
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Tittel på bet</Text>
               <TextInput
-                placeholder="Tittel på bett"
+                placeholder="Tittel på bet"
                 placeholderTextColor={theme.colors.textSecondary}
                 value={betTitle}
                 onChangeText={setBetTitle}
@@ -941,7 +939,7 @@ const GroupScreen: React.FC = () => {
                       style={globalStyles.input}
                     />
                   </View>
-                  <View style={{ width: 70 }}>
+                  <View style={{ width: 75 }}>
                     <Text style={globalStyles.label}>Odds</Text>
                     <TextInput
                       placeholder="Odds"
@@ -1154,11 +1152,15 @@ const GroupScreen: React.FC = () => {
                   horizontal
                   renderItem={({ item: memberId }) => {
                     const friend = friends.find(f => f.id === memberId);
+                    const isMe = user && memberId === user.id;
+                    const displayName = isMe
+                      ? user.name || user.displayName || user.email || 'Meg'
+                      : friend?.name || 'Ukjent';
                     return (
                       <View key={memberId} style={{ alignItems: 'center', marginRight: 14 }}>
                         <Image source={friend?.profilePicture || ImageMissing} style={[globalStyles.circularImage, { width: 36, height: 36, marginBottom: 2 }]} />
-                        <Text style={{ fontSize: 12, color: theme.colors.text, maxWidth: 60, textAlign: 'center' }} numberOfLines={1}>
-                          {friend?.name || 'Ukjent'}
+                        <Text style={{ fontSize: 12, color: theme.colors.text, maxWidth: 70, textAlign: 'center' }} numberOfLines={1}>
+                          {displayName}
                         </Text>
                       </View>
                     );
