@@ -919,7 +919,7 @@ const GroupScreen: React.FC = () => {
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Tittel på bet</Text>
               <TextInput
-                placeholder="Tittel på bett"
+                placeholder="Tittel på bet"
                 placeholderTextColor={theme.colors.textSecondary}
                 value={betTitle}
                 onChangeText={setBetTitle}
@@ -939,7 +939,7 @@ const GroupScreen: React.FC = () => {
                       style={globalStyles.input}
                     />
                   </View>
-                  <View style={{ width: 70 }}>
+                  <View style={{ width: 75 }}>
                     <Text style={globalStyles.label}>Odds</Text>
                     <TextInput
                       placeholder="Odds"
