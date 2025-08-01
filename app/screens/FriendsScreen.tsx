@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { KeyboardAvoidingView, Platform, FlatList, Image, ScrollView, Share, Text, TouchableOpacity, View, TextInput } from 'react-native';
+import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import React, { useCallback, useEffect, useState } from 'react';
+import { FlatList, Image, KeyboardAvoidingView, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, firestore } from '../services/firebase/FirebaseConfig';
-import {friendSearch, sendFriendRequest, acceptFriendRequest, declineFriendRequest, cancelFriendRequest, removeFriend, getIncomingRequest, getOutgoingRequest, Friend, FriendRequest } from '../services/firebase/friendService';
-import { doc, serverTimestamp, getDoc } from 'firebase/firestore';
-import { globalStyles } from '../styles/globalStyles';
+import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, Friend, FriendRequest, friendSearch, getIncomingRequest, getOutgoingRequest, removeFriend, sendFriendRequest } from '../services/firebase/friendService';
 import { friendsStyles } from '../styles/components/friendsStyles';
+import { globalStyles } from '../styles/globalStyles';
 import { showAlert } from '../utils/platformAlert';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
@@ -22,13 +22,14 @@ const debounce = (func: (...args: any[]) => void, wait: number) => {
   };
 };
 
+type FriendWithPending = Friend & { type?: 'friend' | 'pending'; requestId?: string };
+
 const FriendsScreen = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Friend[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [showOutgoingRequests, setShowOutgoingRequests] = useState(false);
+  const [friends, setFriends] = useState<FriendWithPending[]>([]);
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -39,10 +40,7 @@ const FriendsScreen = () => {
       }
 
       try {
-        const [incoming, outgoing] = await Promise.all([
-          getIncomingRequest(currentUser.uid),
-          getOutgoingRequest(currentUser.uid),
-        ]);
+        const incoming = await getIncomingRequest(currentUser.uid);
         const enrichedIncoming = await Promise.all(
           incoming.map(async (request: FriendRequest) => {
             const userDocRef = doc(firestore, "users", request.fromUserId);
@@ -56,6 +54,8 @@ const FriendsScreen = () => {
           })
         );
         setIncomingRequests(enrichedIncoming);
+
+        const outgoing = await getOutgoingRequest(currentUser.uid);
         setOutgoingRequests(outgoing);
       } catch (error) {
         console.error(error);
@@ -81,22 +81,33 @@ const FriendsScreen = () => {
         const friendDocs = await Promise.all(
           friendIds.map((id: string) => getDoc(doc(firestore, 'users', id)))
         );
-        const friendsData = friendDocs
+        const friendsData: FriendWithPending[] = friendDocs
           .filter((doc) => doc.exists())
           .map((doc) => ({
             id: doc.id,
             name: doc.data().name || 'Ukjent',
             username: doc.data().username || 'ukjent',
             profilePicture: doc.data().profilePicture || DefaultProfilePicture,
+            type: 'friend' as const,
           }));
-        setFriends(friendsData);
+
+        const pendingFriends: FriendWithPending[] = outgoingRequests.map((req) => ({
+          id: req.toUserId,
+          name: req.name || 'Ukjent',
+          username: req.username || 'ukjent',
+          profilePicture: req.profilePicture || DefaultProfilePicture,
+          type: 'pending' as const,
+          requestId: req.id,
+        })).filter((pending) => !friendsData.some((f) => f.id === pending.id));
+
+        setFriends([...friendsData, ...pendingFriends]);
       } catch (error) {
         console.error('Failed to fetch friends:', error);
         showAlert('Feil', `Kunne ikke hente venner: ${(error as Error).message}`);
       }
     };
     fetchFriends();
-  }, []);
+  }, [outgoingRequests]);
 
   const handleSearch = useCallback(debounce(async (term: string) => {
     if (!term.trim()) {
@@ -157,45 +168,61 @@ const FriendsScreen = () => {
         },
       ]);
       setSearchResults([]);
-      setSearchTerm('');
-      showAlert('Venneforespørsel sendt', `Forespørsel sendt til ${friend.username}`);
     } catch (error) {
       console.error(error);
       showAlert('Feil', 'Kunne ikke sende venneforespørselen');
     }
   };
 
-  const handleRemoveFriend = (friend: Friend) => {
+  const handleRemoveFriend = (friend: FriendWithPending) => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
       showAlert("Ikke logget inn!");
       return;
     }
 
-    showAlert(
-      'Fjern venn',
-      `Er du sikker på at du vil fjerne ${friend.name} som venn?`,
-      [
-        {
-          text: 'Avbryt',
-          style: 'cancel',
-        },
-        {
-          text: 'Fjern',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await removeFriend(currentUser.uid, friend.id);
-              setFriends((prev) => prev.filter((f) => f.id !== friend.id));
-              showAlert('Venn fjernet', `${friend.name} er fjernet fra vennelisten din`);
-            } catch(error) {
-              console.error(error);
-              showAlert('Feil', `Kunne ikke fjerne venn: ${(error as Error).message}`);
-            }
+    if (friend.type === 'pending') {
+      showAlert(
+        'Avbryt forespørsel',
+        `Vil du avbryte venneforespørselen til ${friend.name}?`,
+        [
+          { text: 'Avbryt', style: 'cancel' },
+          {
+            text: 'Avbryt forespørsel',
+            style: 'destructive',
+            onPress: async () => {
+              if (!friend.requestId) return;
+              try {
+                await cancelFriendRequest(friend.requestId);
+                setOutgoingRequests((prev) => prev.filter((req) => req.id !== friend.requestId));
+              } catch (error) {
+                showAlert('Feil', 'Kunne ikke avbryte forespørselen');
+              }
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    } else {
+      showAlert(
+        'Fjern venn',
+        `Er du sikker på at du vil fjerne ${friend.name} som venn?`,
+        [
+          { text: 'Avbryt', style: 'cancel' },
+          {
+            text: 'Fjern',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await removeFriend(currentUser.uid, friend.id);
+                setFriends((prev) => prev.filter((f) => f.id !== friend.id));
+              } catch (error) {
+                showAlert('Feil', 'Kunne ikke fjerne venn');
+              }
+            },
+          },
+        ]
+      );
+    }
   };
 
   const handleAcceptRequest = async (request: FriendRequest) => {
@@ -208,7 +235,6 @@ const FriendsScreen = () => {
     try {
       await acceptFriendRequest(request.id, request.fromUserId, request.toUserId);
       setIncomingRequests((prev) => prev.filter((r) => r.id !== request.id));
-      showAlert('Suksess', 'Venneforespørsel godtatt!');
       setFriends((prev) => [
         ...prev,
         {
@@ -228,7 +254,6 @@ const FriendsScreen = () => {
     try {
       await declineFriendRequest(request.id);
       setIncomingRequests((prev) => prev.filter((r) => r.id !== request.id));
-      showAlert('Suksess', 'Venneforespørsel avvist');
     } catch(error) {
       console.error(error);
       showAlert('Feil', `Feil med å avslå forespørsel: ${(error as Error).message}`);
@@ -239,22 +264,22 @@ const FriendsScreen = () => {
     try {
       await cancelFriendRequest(request.id);
       setOutgoingRequests((prev) => prev.filter((r) => r.id !== request.id));
-      showAlert('Suksess', 'Venneforespørsel kansellert');
     } catch(error) {
       console.error(error);
       showAlert('Feil', `Kunne ikke kansellere forespørselen: ${(error as Error).message}`);
     }
   };
 
-  const renderFriend = ({ item }: { item: Friend }) => (
+  const renderFriend = ({ item }: { item: FriendWithPending }) => (
     <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]}>
       <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]} />
       <View style={globalStyles.itemInfo}>
         <Text style={friendsStyles.friendName}>{item.name}</Text>
         <Text style={globalStyles.secondaryText}>@{item.username}</Text>
+        {item.type === 'pending' && <Text style={{ color: '#888' }}>Forespørsel sendt</Text>}
       </View>
       <TouchableOpacity style={friendsStyles.button} onPress={() => handleRemoveFriend(item)}>
-        <Image source={RemoveFriendIcon} style={globalStyles.deleteIcon} />
+        <Image source={item.type === 'pending' ? RejectIcon : RemoveFriendIcon} style={globalStyles.deleteIcon} />
       </TouchableOpacity>
     </View>
   );
@@ -345,7 +370,7 @@ const FriendsScreen = () => {
             <FlatList
               data={friends}
               renderItem={renderFriend}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item.id + (item.type === 'pending' ? '-pending' : '')}
               scrollEnabled={false}
               showsVerticalScrollIndicator={false}
             />
@@ -360,48 +385,7 @@ const FriendsScreen = () => {
         {/* Friend Requests section */}
         <View style={globalStyles.section}>
           <Text style={globalStyles.sectionTitle}>Venneforespørsler</Text>
-          <TouchableOpacity 
-            onPress={() => setShowOutgoingRequests(!showOutgoingRequests)}
-            style={{ marginBottom: 8 }}
-          >
-            <Text style={{ color: '#FFD700', fontWeight: '600' }}>
-              {showOutgoingRequests ? 'Vis mottatte forespørsler' : 'Vis sendte forespørsler'}
-            </Text>
-          </TouchableOpacity>
-          {showOutgoingRequests ? (
-            outgoingRequests.length > 0 ? (
-              <FlatList
-                data={outgoingRequests}
-                keyExtractor={(item) => item.id}
-                scrollEnabled={false}
-                renderItem={({ item }) => (
-                  <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]} key={item.id}>
-                    <Image
-                      source={item.profilePicture}
-                      style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]}
-                    />
-                    <View style={globalStyles.itemInfo}>
-                      <Text style={friendsStyles.friendName}>{item.name}</Text>
-                      <Text style={globalStyles.secondaryText}>@{item.username}</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={friendsStyles.button}
-                      onPress={() => handleCancelRequest(item)}
-                    >
-                      <Image source={RejectIcon} style={globalStyles.deleteIcon} />
-                    </TouchableOpacity>
-                  </View>
-                )}
-              />
-            ) : (
-              <View style={globalStyles.emptyState}>
-                <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
-                <Text style={globalStyles.emptyStateText}>
-                  Ingen sendte forespørsler akkurat nå.
-                </Text>
-              </View>
-            )
-          ) : incomingRequests.length > 0 ? (
+          {incomingRequests.length > 0 ? (
             <FlatList
               data={incomingRequests}
               keyExtractor={(item) => item.id}
@@ -436,7 +420,7 @@ const FriendsScreen = () => {
           ) : (
             <View style={globalStyles.emptyState}>
               <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
-              <Text style={globalStyles.emptyStateText}>Ingen forespørsler akkurat nå.</Text>
+              <Text style={globalStyles.emptyStateText}>Ingen forespørsler</Text>
             </View>
           )}
         </View>
