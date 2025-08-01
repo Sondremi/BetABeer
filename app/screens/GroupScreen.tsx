@@ -244,7 +244,6 @@ const GroupScreen: React.FC = () => {
       }
 
       await addDoc(collection(db, 'group_invitations'), invitationData);
-      showAlert('Invitasjon sendt', `Invitasjon sendt til ${friend.name}`);
     } catch (error) {
       console.error('Error inviting friend:', error);
       showAlert('Feil', `Kunne ikke sende gruppeinvitasjon: ${(error as Error).message}`);
@@ -264,7 +263,6 @@ const GroupScreen: React.FC = () => {
         const updatedMembers = (groupData.members || []).filter((id: string) => id !== friend.id);
         await updateDoc(groupRef, { members: updatedMembers });
         setSelectedGroup((prev) => prev ? { ...prev, members: updatedMembers } : prev);
-        showAlert('Fjernet', `${friend.name} er fjernet fra gruppen`);
       }
     } catch (error) {
       console.error('Error removing friend:', error);
