@@ -13,7 +13,6 @@
 - Bett på hva du mener er riktig alternativ med slurker, shot eller chugg av ulike drikketyper
 - Se live resultater fra alle bets i gruppen
 - Statistikk over hvem som vinner mest – eller drikker mest
-- Innebygd promillekalkulator basert på høyde, vekt og kjønn
 
 ## 👨‍💻 Vil du bidra eller teste appen selv?
 
