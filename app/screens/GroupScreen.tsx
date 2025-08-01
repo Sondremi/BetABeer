@@ -460,8 +460,9 @@ const GroupScreen: React.FC = () => {
 
   const openEditBetModal = (bet: Bet, idx: number) => {
     setSelectedEditBet({ bet, index: idx });
+    setEditBetIdx(idx);
     setEditMenuModalVisible(true);
-  };
+  }
 
   const handleSelectCorrectOption = async (optionId: string | null) => {
     if (selectCorrectBetIdx === null || !selectedGroup) return;
@@ -543,7 +544,8 @@ const GroupScreen: React.FC = () => {
   };
 
   const handleDeleteBet = async () => {
-    if (editBetIdx === null || !selectedGroup) return;
+    const idxToDelete = selectedEditBet?.index ?? editBetIdx;
+    if (idxToDelete === null || idxToDelete === undefined || !selectedGroup) return;
 
     showAlert(
       'Bekreft sletting',
@@ -563,10 +565,12 @@ const GroupScreen: React.FC = () => {
               if (groupSnap.exists() && groupSnap.data().bets) {
                 groupBets = groupSnap.data().bets;
               }
-              const newBets = groupBets.filter((_, idx: number) => idx !== editBetIdx);
+              const newBets = groupBets.filter((_, idx: number) => idx !== idxToDelete);
               await updateDoc(groupRef, { bets: newBets });
               setBets(newBets);
               setEditBetModalVisible(false);
+              setEditBetIdx(null);
+              setSelectedEditBet(null);
             } catch (error) {
               console.error('Error deleting bet:', error);
               showAlert('Feil', 'Kunne ikke slette bet');
