@@ -8,9 +8,6 @@ import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import { showAlert } from '../utils/platformAlert';
 
-const DeleteIcon = require('../../assets/icons/noun-delete-7938028.png');
-const LogoutIcon = require('../../assets/icons/noun-login-7932862.png');
-
 const SettingsScreen = () => {
   const router = useRouter();
 
