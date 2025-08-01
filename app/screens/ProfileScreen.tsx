@@ -259,7 +259,9 @@ const ProfileScreen = () => {
             <TouchableOpacity
               style={profileStyles.editProfileImageButton}
               onPress={() => {
-                /* TODO: implement backend for editing profile picture */
+                showAlert('Hold on', 'Har ikke fiksa profilbilde enda', [
+                  { text: 'OK', style: 'default' }
+                ]);
               }}
             >
               <Image source={PencilIcon} style={globalStyles.pencilIcon} />
