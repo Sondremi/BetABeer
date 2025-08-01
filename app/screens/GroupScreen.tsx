@@ -7,71 +7,19 @@ import { auth } from '../services/firebase/FirebaseConfig';
 import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
+import type { Bet, BettingOption, BetWager, DrinkType, Friend, Group, GroupInvitation, MeasureType, MemberDrinkStats } from '../types/bettingTypes';
 import { showAlert } from '../utils/platformAlert';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 const DeleteIcon = require('../../assets/icons/noun-delete-7938028.png');
 
-type DrinkType = 'Øl' | 'Cider' | 'Hard selzer' | 'Vin' | 'Sprit';
-type MeasureType = 'Slurker' | 'Shot' | 'Chug';
-
-interface BetWager {
-  userId: string;
-  username: string;
-  optionId: string;
-  drinkType: DrinkType;
-  measureType: MeasureType;
-  amount: number;
-  timestamp: number;
-}
-
-interface BettingOption {
-  id: string;
-  name: string;
-  odds: number;
-}
-
-interface Bet {
-  id: string;
-  title: string;
-  options: BettingOption[];
-  wagers?: BetWager[];
-  correctOptionId?: string;
-  isFinished?: boolean;
-}
-
-interface MemberDrinkStats {
-  userId: string;
-  username: string;
-  wins: number;
-  drinksToConsume: { [key in DrinkType]?: { [key in MeasureType]?: number } };
-  drinksToDistribute: { [key in DrinkType]?: { [key in MeasureType]?: number } };
-}
-
-interface Friend {
-  id: string;
-  name: string;
-  username: string;
-  profilePicture: any;
-}
-
-interface GroupInvitation {
-  id: string;
-  groupId: string;
-  groupName: string;
-  senderId: string;
-  receiverId: string;
-  status: 'accepted' | 'pending' | 'declined';
-  createdAt: any;
-}
-
 const GroupScreen: React.FC = () => {
   const params = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuth();
-  const [groups, setGroups] = useState<any[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<any>(null);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [groupName, setGroupName] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -80,7 +28,7 @@ const GroupScreen: React.FC = () => {
   const [betModalVisible, setBetModalVisible] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [betTitle, setBetTitle] = useState('');
-  const [betOptions, setBetOptions] = useState<{ name: string; odds: string }[]>([{ name: '', odds: '' }]);
+  const [betOptions, setBetOptions] = useState<Array<{ name: string; odds: string }>>([{ name: '', odds: '' }]);
   const [betSaving, setBetSaving] = useState(false);
   const [bets, setBets] = useState<Bet[]>([]);
   const [placeBetModalVisible, setPlaceBetModalVisible] = useState(false);
@@ -94,7 +42,7 @@ const GroupScreen: React.FC = () => {
   const [editBetModalVisible, setEditBetModalVisible] = useState(false);
   const [editBetIdx, setEditBetIdx] = useState<number | null>(null);
   const [editBetTitle, setEditBetTitle] = useState('');
-  const [editBetOptions, setEditBetOptions] = useState<{ name: string; odds: string }[]>([]);
+  const [editBetOptions, setEditBetOptions] = useState<Array<{ name: string; odds: string }>>([]);
   const [editBetSaving, setEditBetSaving] = useState(false);
   const [leaderboardModalVisible, setLeaderboardModalVisible] = useState(false);
   const [editMenuModalVisible, setEditMenuModalVisible] = useState(false);
@@ -103,7 +51,9 @@ const GroupScreen: React.FC = () => {
   const [inviting, setInviting] = useState(false);
   const [leaderboardData, setLeaderboardData] = useState<MemberDrinkStats[]>([]);
 
-  const currentGroup = selectedGroup ? { ...selectedGroup, name: groupName } : { id: 'default', name: 'Gruppenavn', memberCount: 0, image: ImageMissing };
+  const currentGroup: Group & { image: any } = selectedGroup
+    ? { ...selectedGroup, name: groupName, image: selectedGroup.image ?? ImageMissing }
+    : { id: 'default', name: 'Gruppenavn', memberCount: 0, image: ImageMissing, createdBy: '', members: [] };
   const drinkTypes: DrinkType[] = ['Øl', 'Cider', 'Hard selzer', 'Vin', 'Sprit'];
   const measureTypes: MeasureType[] = ['Slurker', 'Shot', 'Chug'];
 
@@ -155,7 +105,7 @@ const GroupScreen: React.FC = () => {
         : groupList.length > 0
         ? groupList[0]
         : null;
-      setSelectedGroup(foundGroup);
+      setSelectedGroup(foundGroup ?? null);
     };
     fetchGroupsAndInvitations();
     return () => {
@@ -313,7 +263,7 @@ const GroupScreen: React.FC = () => {
         const groupData = groupSnap.data();
         const updatedMembers = (groupData.members || []).filter((id: string) => id !== friend.id);
         await updateDoc(groupRef, { members: updatedMembers });
-        setSelectedGroup((prev: any) => prev ? { ...prev, members: updatedMembers } : prev);
+        setSelectedGroup((prev) => prev ? { ...prev, members: updatedMembers } : prev);
         showAlert('Fjernet', `${friend.name} er fjernet fra gruppen`);
       }
     } catch (error) {
@@ -510,8 +460,9 @@ const GroupScreen: React.FC = () => {
 
   const openEditBetModal = (bet: Bet, idx: number) => {
     setSelectedEditBet({ bet, index: idx });
+    setEditBetIdx(idx);
     setEditMenuModalVisible(true);
-  };
+  }
 
   const handleSelectCorrectOption = async (optionId: string | null) => {
     if (selectCorrectBetIdx === null || !selectedGroup) return;
@@ -593,7 +544,8 @@ const GroupScreen: React.FC = () => {
   };
 
   const handleDeleteBet = async () => {
-    if (editBetIdx === null || !selectedGroup) return;
+    const idxToDelete = selectedEditBet?.index ?? editBetIdx;
+    if (idxToDelete === null || idxToDelete === undefined || !selectedGroup) return;
 
     showAlert(
       'Bekreft sletting',
@@ -613,10 +565,12 @@ const GroupScreen: React.FC = () => {
               if (groupSnap.exists() && groupSnap.data().bets) {
                 groupBets = groupSnap.data().bets;
               }
-              const newBets = groupBets.filter((_, idx: number) => idx !== editBetIdx);
+              const newBets = groupBets.filter((_, idx: number) => idx !== idxToDelete);
               await updateDoc(groupRef, { bets: newBets });
               setBets(newBets);
               setEditBetModalVisible(false);
+              setEditBetIdx(null);
+              setSelectedEditBet(null);
             } catch (error) {
               console.error('Error deleting bet:', error);
               showAlert('Feil', 'Kunne ikke slette bet');

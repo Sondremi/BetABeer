@@ -6,30 +6,13 @@ import { useAuth } from '../context/AuthContext';
 import { profileStyles } from '../styles/components/profileStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
+import { Group, GroupInvitation } from '../types/bettingTypes';
 import { showAlert } from '../utils/platformAlert';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const ImageMissing = require('../../assets/images/image_missing.png');
 const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
-const RejectIcon = require('../../assets/icons/noun-delete-7938028.png');
-
-type Group = {
-  id: string;
-  name: string;
-  memberCount: number;
-  image: any;
-};
-
-interface GroupInvitation {
-  id: string;
-  groupId: string;
-  groupName: string;
-  senderId: string;
-  receiverId: string;
-  status: 'pending' | 'accepted' | 'declined';
-  createdAt: any;
-}
 
 const ProfileScreen = () => {
   const { user, loading } = useAuth();
@@ -46,8 +29,6 @@ const ProfileScreen = () => {
 
     const fetchGroupsAndInvitations = async () => {
       const firestore = getFirestore();
-
-      // Fetch groups
       const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
       const groupSnapshot = await getDocs(groupQuery);
       if (!isMounted) return;
@@ -56,10 +37,11 @@ const ProfileScreen = () => {
         name: docSnap.data().name,
         memberCount: docSnap.data().members.length,
         image: ImageMissing,
+        createdBy: docSnap.data().createdBy,
+        members: docSnap.data().members,
       }));
       setGroups(groupList);
 
-      // Fetch pending group invitations
       const invitationQuery = query(
         collection(firestore, 'group_invitations'),
         where('receiverId', '==', user.id),
@@ -136,6 +118,8 @@ const ProfileScreen = () => {
         name: 'Gruppenavn',
         memberCount: 1,
         image: ImageMissing,
+        createdBy: user.id,
+        members: [user.id],
       };
       setGroups(prev => [...prev, newGroup]);
       router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(newGroup) } });
@@ -169,6 +153,8 @@ const ProfileScreen = () => {
             name: groupData.name,
             memberCount: updatedMembers.length,
             image: ImageMissing,
+            createdBy: groupData.createdBy,
+            members: updatedMembers,
           },
         ]);
         showAlert('Suksess', `Du har blitt med i gruppen "${invitation.groupName}"`);
