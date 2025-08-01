@@ -1,6 +1,16 @@
 export type DrinkType = 'Øl' | 'Cider' | 'Hard selzer' | 'Vin' | 'Sprit';
 export type MeasureType = 'Slurker' | 'Shot' | 'Chug';
 
+export interface GroupInvitation {
+  id: string;
+  groupId: string;
+  groupName: string;
+  senderId: string;
+  receiverId: string;
+  status: 'accepted' | 'pending' | 'declined';
+  createdAt: any;
+}
+
 export interface BetWager {
   userId: string;
   username: string;
