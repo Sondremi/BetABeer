@@ -100,7 +100,8 @@ const FriendsScreen = () => {
           requestId: req.id,
         })).filter((pending) => !friendsData.some((f) => f.id === pending.id));
 
-        setFriends([...friendsData, ...pendingFriends]);
+        const allFriends = [...pendingFriends, ...friendsData];
+        setFriends(allFriends);
       } catch (error) {
         console.error('Failed to fetch friends:', error);
         showAlert('Feil', `Kunne ikke hente venner: ${(error as Error).message}`);
