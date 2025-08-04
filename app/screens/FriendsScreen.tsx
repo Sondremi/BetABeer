@@ -197,6 +197,7 @@ const FriendsScreen = () => {
                 await cancelFriendRequest(friend.requestId);
                 setOutgoingRequests((prev) => prev.filter((req) => req.id !== friend.requestId));
               } catch (error) {
+                console.error(error)
                 showAlert('Feil', 'Kunne ikke avbryte forespørselen');
               }
             },
@@ -217,6 +218,7 @@ const FriendsScreen = () => {
                 await removeFriend(currentUser.uid, friend.id);
                 setFriends((prev) => prev.filter((f) => f.id !== friend.id));
               } catch (error) {
+                console.error(error)
                 showAlert('Feil', 'Kunne ikke fjerne venn');
               }
             },
