@@ -28,7 +28,7 @@ const GroupScreen: React.FC = () => {
   const [betModalVisible, setBetModalVisible] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [betTitle, setBetTitle] = useState('');
-  const [betOptions, setBetOptions] = useState<Array<{ name: string; odds: string }>>([{ name: '', odds: '' }]);
+  const [betOptions, setBetOptions] = useState<{ name: string; odds: string }[]>([{ name: '', odds: '' }]);
   const [betSaving, setBetSaving] = useState(false);
   const [bets, setBets] = useState<Bet[]>([]);
   const [placeBetModalVisible, setPlaceBetModalVisible] = useState(false);
@@ -42,7 +42,7 @@ const GroupScreen: React.FC = () => {
   const [editBetModalVisible, setEditBetModalVisible] = useState(false);
   const [editBetIdx, setEditBetIdx] = useState<number | null>(null);
   const [editBetTitle, setEditBetTitle] = useState('');
-  const [editBetOptions, setEditBetOptions] = useState<Array<{ name: string; odds: string }>>([]);
+  const [editBetOptions, setEditBetOptions] = useState<{ name: string; odds: string }[]>([]);
   const [editBetSaving, setEditBetSaving] = useState(false);
   const [leaderboardModalVisible, setLeaderboardModalVisible] = useState(false);
   const [editMenuModalVisible, setEditMenuModalVisible] = useState(false);
@@ -759,7 +759,7 @@ const GroupScreen: React.FC = () => {
                   item.isFinished && item.correctOptionId !== userWager.optionId && groupStyles.userBetSummaryTextLose,
                 ]}
               >
-                Du har satset: {userWager.amount} {userWager.measureType} {userWager.drinkType} på "{getOptionName(item, userWager.optionId)}"
+                Du har satset: {userWager.amount} {userWager.measureType} {userWager.drinkType} på {getOptionName(item, userWager.optionId)}
                 {item.isFinished && (item.correctOptionId === userWager.optionId ? ' - DU VANT! 🎉' : ' - Du tapte 😢')}
               </Text>
             </View>
@@ -782,7 +782,7 @@ const GroupScreen: React.FC = () => {
                 <View key={idx} style={globalStyles.listItemRow}>
                   <Text style={groupStyles.wagerUser}>{wager.username}</Text>
                   <Text style={groupStyles.wagerDetails}>
-                    {wager.amount} {wager.measureType} {wager.drinkType} på "{getOptionName(item, wager.optionId)}"
+                    {wager.amount} {wager.measureType} {wager.drinkType} på {getOptionName(item, wager.optionId)}
                   </Text>
                 </View>
               ))}
