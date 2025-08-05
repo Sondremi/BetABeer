@@ -100,7 +100,7 @@ const FriendsScreen = () => {
           requestId: req.id,
         })).filter((pending) => !friendsData.some((f) => f.id === pending.id));
 
-        const allFriends = [...pendingFriends, ...friendsData];
+        const allFriends = [...pendingFriends, ...friendsData].sort((a, b) => a.name.localeCompare(b.name));
         setFriends(allFriends);
       } catch (error) {
         console.error('Failed to fetch friends:', error);
@@ -245,8 +245,9 @@ const FriendsScreen = () => {
           name: request.name || 'Ukjent',
           username: request.username || 'ukjent',
           profilePicture: request.profilePicture || DefaultProfilePicture,
+          type: 'friend' as const,
         },
-      ]);
+      ].sort((a, b) => a.name.localeCompare(b.name)));
     } catch(error) {
       console.error(error);
       showAlert('Feil', `Kunne ikke godta forespørselen: ${(error as Error).message}`);
