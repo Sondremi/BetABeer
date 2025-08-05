@@ -209,48 +209,72 @@ const GroupScreen: React.FC = () => {
   };
 
   const handleInviteFriend = async (friend: Friend) => {
-    if (!user || !selectedGroup) {
-      showAlert('Feil', 'Bruker eller gruppe ikke tilgjengelig');
+  if (!user || !selectedGroup) {
+    console.error('=== DEBUG: Missing user or selectedGroup ===', { user, selectedGroup });
+    showAlert('Feil', 'Bruker eller gruppe ikke tilgjengelig');
+    return;
+  }
+  setInviting(true);
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      console.error('=== DEBUG: No authenticated user ===');
+      showAlert('Feil', 'Ingen autentisert bruker. Logg inn på nytt.');
       return;
     }
-    setInviting(true);
-    try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        showAlert('Feil', 'Ingen autentisert bruker. Logg inn på nytt.');
-        return;
-      }
-      const db = getFirestore();
-      const invitationData = {
-        groupId: selectedGroup.id,
-        groupName: selectedGroup.name,
-        senderId: currentUser.uid,
-        receiverId: friend.id,
-        status: 'pending' as const,
-        createdAt: serverTimestamp(),
-      };
+    const db = getFirestore();
+    console.log('=== DEBUG: Firestore instance ===', db.app.name);
+    const invitationData = {
+      groupId: selectedGroup.id,
+      groupName: selectedGroup.name,
+      senderId: currentUser.uid,
+      receiverId: friend.id,
+      status: 'pending' as const,
+      createdAt: serverTimestamp(),
+    };
+    console.log('=== DEBUG: Invitation data ===', invitationData);
+    console.log('=== DEBUG: Data types ===', {
+      groupId: typeof invitationData.groupId,
+      groupName: typeof invitationData.groupName,
+      senderId: typeof invitationData.senderId,
+      receiverId: typeof invitationData.receiverId,
+      status: typeof invitationData.status,
+      createdAt: invitationData.createdAt === null ? 'serverTimestamp' : typeof invitationData.createdAt,
+    });
+    console.log('=== DEBUG: Authentication ===', {
+      currentUserUid: currentUser.uid,
+      contextUserId: user.id,
+      uidsMatch: currentUser.uid === user.id,
+    });
 
-      const existingInvitationQuery = query(
-        collection(db, 'group_invitations'),
-        where('groupId', '==', selectedGroup.id),
-        where('receiverId', '==', friend.id),
-        where('status', '==', 'pending')
-      );
-      const existingInvitationSnapshot = await getDocs(existingInvitationQuery);
+    const existingInvitationQuery = query(
+      collection(db, 'group_invitations'),
+      where('groupId', '==', selectedGroup.id),
+      where('receiverId', '==', friend.id),
+      where('status', '==', 'pending')
+    );
+    const existingInvitationSnapshot = await getDocs(existingInvitationQuery);
+    console.log('=== DEBUG: Existing invitations found ===', existingInvitationSnapshot.docs.length);
 
-      if (!existingInvitationSnapshot.empty) {
-        showAlert('Feil', `Invitasjon til ${friend.name} er allerede sendt`);
-        return;
-      }
-
-      await addDoc(collection(db, 'group_invitations'), invitationData);
-    } catch (error) {
-      console.error('Error inviting friend:', error);
-      showAlert('Feil', `Kunne ikke sende gruppeinvitasjon: ${(error as Error).message}`);
-    } finally {
-      setInviting(false);
+    if (!existingInvitationSnapshot.empty) {
+      showAlert('Feil', `Invitasjon til ${friend.name} er allerede sendt`);
+      return;
     }
-  };
+
+    const docRef = await addDoc(collection(db, 'group_invitations'), invitationData);
+    console.log('=== DEBUG: Invitation created successfully, doc ID ===', docRef.id);
+    showAlert('Invitasjon sendt', `Invitasjon sendt til ${friend.name}`);
+  } catch (error) {
+    console.error('=== ERROR DETAILS ===', error);
+    console.error('Error name:', (error as Error).name);
+    console.error('Error message:', (error as Error).message);
+    console.error('Error stack:', (error as Error).stack);
+    showAlert('Feil', `Kunne ikke sende gruppeinvitasjon: ${(error as Error).message}`);
+  } finally {
+    console.log('=== DEBUG: Finished handleInviteFriend ===');
+    setInviting(false);
+  }
+};
 
   const handleRemoveFriendFromGroup = async (friend: Friend) => {
     if (!selectedGroup) return;
