@@ -44,9 +44,10 @@ service cloud.firestore {
         && request.resource.data.status in ['accepted', 'rejected'];
       
       // Allow deletion by sender or receiver
-      allow delete: if request.auth != null 
-        && (resource.data.fromUserId == request.auth.uid 
-          || resource.data.toUserId == request.auth.uid);
+      allow delete: if request.auth != null && (
+        resource.data.fromUserId == request.auth.uid || 
+        resource.data.toUserId == request.auth.uid
+      );
     }
 
     // Groups Collection (unchanged, included for completeness)
@@ -59,10 +60,14 @@ service cloud.firestore {
     }
 
     match /group_invitations/{invitationId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if true;
+      allow read: if request.auth != null && (
+      resource.data.senderId == request.auth.uid ||
+      resource.data.receiverId == request.auth.uid);
+      allow create: if request.auth != null && request.resource.data.senderId == request.auth.uid;
+      allow delete: if request.auth != null && (
+        resource.data.senderId == request.auth.uid ||
+        resource.data.receiverId == request.auth.uid
+      );
     }
   }
 }
