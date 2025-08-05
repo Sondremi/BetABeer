@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { addDoc, collection, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, updateDoc, where, deleteDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
@@ -144,7 +144,7 @@ const ProfileScreen = () => {
         const groupData = groupSnap.data();
         const updatedMembers = [...(groupData.members || []), user.id];
         await updateDoc(groupRef, { members: updatedMembers });
-        await updateDoc(invitationRef, { status: 'accepted' });
+        await deleteDoc(invitationRef);
         setGroupInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
         setGroups(prev => [
           ...prev,
@@ -174,7 +174,7 @@ const ProfileScreen = () => {
     try {
       const firestore = getFirestore();
       const invitationRef = doc(firestore, 'group_invitations', invitation.id);
-      await updateDoc(invitationRef, { status: 'declined' });
+      await deleteDoc(invitationRef);
       setGroupInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
     } catch (error) {
       console.error('Error declining invitation:', error);
