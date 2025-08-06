@@ -7,7 +7,8 @@ import { auth } from '../services/firebase/FirebaseConfig';
 import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
-import type { Bet, BettingOption, BetWager, DrinkType, Friend, Group, GroupInvitation, MeasureType, MemberDrinkStats } from '../types/bettingTypes';
+import type { Bet, BettingOption, BetWager, DrinkType, MeasureType, MemberDrinkStats } from '../types/bettingTypes';
+import { GroupInvitation, Group, Friend, sendGroupInvitation, getGroupInvitation, acceptGroupInvitation, declineGroupInvitation, removeFriendFromGroup, exitGroup } from '../services/firebase/groupService';
 import { showAlert } from '../utils/platformAlert';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
