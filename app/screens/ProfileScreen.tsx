@@ -1,13 +1,15 @@
 import { useRouter } from 'expo-router';
-import { addDoc, collection, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, updateDoc, where, deleteDoc } from 'firebase/firestore';
+import { useFocusEffect } from 'expo-router';
+import { addDoc, collection, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { firestore } from '../services/firebase/FirebaseConfig';
 import { profileStyles } from '../styles/components/profileStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
-import { Group, GroupInvitation } from '../types/bettingTypes';
 import { showAlert } from '../utils/platformAlert';
+import { acceptGroupInvitation, declineGroupInvitation, getGroupInvitation, Group, GroupInvitation } from '../services/firebase/groupService';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const ImageMissing = require('../../assets/images/image_missing.png');
@@ -28,7 +30,6 @@ const ProfileScreen = () => {
     let isMounted = true;
 
     const fetchGroupsAndInvitations = async () => {
-      const firestore = getFirestore();
       const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
       const groupSnapshot = await getDocs(groupQuery);
       if (!isMounted) return;
@@ -42,22 +43,8 @@ const ProfileScreen = () => {
       }));
       setGroups(groupList);
 
-      const invitationQuery = query(
-        collection(firestore, 'group_invitations'),
-        where('receiverId', '==', user.id),
-        where('status', '==', 'pending')
-      );
-      const invitationSnapshot = await getDocs(invitationQuery);
+      const invitationList = await getGroupInvitation(user.id);
       if (!isMounted) return;
-      const invitationList = invitationSnapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        groupId: docSnap.data().groupId,
-        groupName: docSnap.data().groupName,
-        senderId: docSnap.data().senderId,
-        receiverId: docSnap.data().receiverId,
-        status: docSnap.data().status,
-        createdAt: docSnap.data().createdAt,
-      })) as GroupInvitation[];
       setGroupInvitations(invitationList);
     };
     fetchGroupsAndInvitations();
@@ -66,13 +53,12 @@ const ProfileScreen = () => {
     };
   }, [user]);
 
-
   useEffect(() => {
     const fetchNames = async () => {
       if (!groupInvitations.length) return;
       const firestore = getFirestore();
       const idsToFetch = groupInvitations
-        .map(inv => inv.senderId)
+        .map(inv => inv.fromUserId)
         .filter(id => !(id in userNames));
       const newNames: { [id: string]: string } = {};
       await Promise.all(
@@ -135,34 +121,25 @@ const ProfileScreen = () => {
     if (!user) return;
     setHandlingInvitation(true);
     try {
-      const firestore = getFirestore();
-      const invitationRef = doc(firestore, 'group_invitations', invitation.id);
+      await acceptGroupInvitation(invitation);
+      setGroupInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
       const groupRef = doc(firestore, 'groups', invitation.groupId);
       const groupSnap = await getDoc(groupRef);
-
       if (groupSnap.exists()) {
         const groupData = groupSnap.data();
-        const updatedMembers = [...(groupData.members || []), user.id];
-        await updateDoc(groupRef, { members: updatedMembers });
-        await deleteDoc(invitationRef);
-        setGroupInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
-        setGroups(prev => [
-          ...prev,
-          {
-            id: invitation.groupId,
-            name: groupData.name,
-            memberCount: updatedMembers.length,
-            image: ImageMissing,
-            createdBy: groupData.createdBy,
-            members: updatedMembers,
-          },
-        ]);
-      } else {
-        showAlert('Feil', 'Gruppen finnes ikke');
+        const newGroup: Group = {
+          id: invitation.groupId,
+          name: groupData.name,
+          memberCount: groupData.members.length + 1,
+          image: ImageMissing,
+          createdBy: groupData.createdBy,
+          members: [...groupData.members, user.id],
+        };
+        setGroups(prev => [...prev, newGroup]);
       }
     } catch (error) {
       console.error('Error accepting invitation:', error);
-      showAlert('Feil', 'Kunne ikke godta invitasjonen');
+      showAlert('Feil', `Kunne ikke godta invitasjonen: ${(error as Error).message}`);
     } finally {
       setHandlingInvitation(false);
     }
@@ -172,9 +149,7 @@ const ProfileScreen = () => {
     if (!user) return;
     setHandlingInvitation(true);
     try {
-      const firestore = getFirestore();
-      const invitationRef = doc(firestore, 'group_invitations', invitation.id);
-      await deleteDoc(invitationRef);
+      await declineGroupInvitation(invitation.id)
       setGroupInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
     } catch (error) {
       console.error('Error declining invitation:', error);
@@ -198,7 +173,7 @@ const ProfileScreen = () => {
     <View style={[globalStyles.listItemRow, { paddingVertical: 10 }]}>
       <View style={{ flex: 1, paddingBottom: 0 }}>
         <Text style={globalStyles.modalText}>{item.groupName}</Text>
-        <Text style={globalStyles.secondaryText}>Fra: {userNames[item.senderId] || item.senderId}</Text>
+        <Text style={globalStyles.secondaryText}>Fra: {userNames[item.fromUserId] || item.fromUserId}</Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <TouchableOpacity
