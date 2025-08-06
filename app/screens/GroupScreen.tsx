@@ -606,6 +606,9 @@ const GroupScreen: React.FC = () => {
 
   const renderFriendItem = ({ item }: { item: Friend }) => {
     const isMember = selectedGroup?.members.includes(item.id);
+    const isCreator = selectedGroup?.createdBy === item.id;
+    const isCurrentUserCreator = user?.id === selectedGroup?.createdBy;
+
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
         <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 50, height: 50, marginRight: 10 }]} />
@@ -614,6 +617,7 @@ const GroupScreen: React.FC = () => {
           <Text style={[globalStyles.secondaryText, { marginTop: 0, textAlign: 'left', lineHeight: 18 }]}>@{item.username}</Text>
         </View>
         {isMember ? (
+          !isCreator && isCurrentUserCreator && (
           <TouchableOpacity
             style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center', borderColor: 'red' }]}
             onPress={() => handleRemoveFriendFromGroup(item)}
@@ -621,7 +625,7 @@ const GroupScreen: React.FC = () => {
           >
             <Text style={[globalStyles.outlineButtonGoldText, { color: 'red' }]}>Fjern</Text>
           </TouchableOpacity>
-        ) : (
+        )) : (
           <TouchableOpacity
             style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center' }]}
             onPress={() => handleInviteFriend(item)}
