@@ -54,7 +54,8 @@ const GroupScreen: React.FC = () => {
   const [leaderboardData, setLeaderboardData] = useState<MemberDrinkStats[]>([]);
   const [membersModalVisible, setMembersModalVisible] = useState(false);
   const [memberData, setMemberData] = useState<Friend[]>([]);
-  
+  const [cachedUsernames, setCachedUsernames] = useState<{ [key: string]: string }>({});
+
 
   const currentGroup: Group & { image: any } = selectedGroup
     ? { ...selectedGroup, name: groupName, image: selectedGroup.image ?? ImageMissing }
@@ -227,18 +228,25 @@ const GroupScreen: React.FC = () => {
   }, [selectedGroup?.members]);
 
   const fetchMemberUsernames = async (memberIds: string[]): Promise<{ [key: string]: string }> => {
-    const usernames: { [key: string]: string } = {};
-    await Promise.all(
-      memberIds.map(async (memberId) => {
-        try {
-          const userDoc = await getDoc(doc(firestore, 'users', memberId));
-          usernames[memberId] = userDoc.exists() ? userDoc.data().username || userDoc.data().displayName || userDoc.data().email || (user && memberId === user.id ? 'Meg' : 'Ukjent') : (user && memberId === user.id ? 'Meg' : 'Ukjent');
-        } catch (error) {
-          console.error(`Error fetching username for member ${memberId}:`, error);
-          usernames[memberId] = user && memberId === user.id ? 'Meg' : 'Ukjent';
+    const usernames: { [key: string]: string } = { ...cachedUsernames };
+    const uncachedIds = memberIds.filter(id => !usernames[id]);
+    if (uncachedIds.length > 0) {
+      await Promise.all(
+        uncachedIds.map(async (memberId) => {
+          try {
+            const userDoc = await getDoc(doc(firestore, 'users', memberId));
+            usernames[memberId] = userDoc.exists() 
+            ? userDoc.data().username || userDoc.data().displayName || userDoc.data().email || 
+            (user && memberId === user.id ? 'Meg' : 'Ukjent') 
+            : (user && memberId === user.id ? 'Meg' : 'Ukjent');
+          } catch (error) {
+            console.error(`Error fetching username for member ${memberId}:`, error);
+            usernames[memberId] = user && memberId === user.id ? 'Meg' : 'Ukjent';
+          }
         }
-      })
-    );
+      ));
+      setCachedUsernames(usernames);
+    }
     return usernames;
   };
 
