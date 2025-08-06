@@ -36,6 +36,16 @@ export const sendGroupInvitation = async (toUserId: string, group: Group) => {
     throw new Error('Kan ikke sende venneforespørsel til deg selv')
   }
   const groupInvitationRef = collection(firestore, "group_invitations");
+  const q = query(
+    groupInvitationRef,
+    where('groupId', '==', group.id),
+    where('toUserId', '==', toUserId),
+    where('status', '==', 'pending')
+  );
+  const existingInvitations = await getDocs(q);
+  if (!existingInvitations.empty) {
+    throw new Error(`Invitasjon til bruker er allerede sendt`);
+  }
   const docRef =  await addDoc(groupInvitationRef, {
     groupName: group.name,
     groupId: group.id,
@@ -52,7 +62,7 @@ export const getGroupInvitation = async (currentUserId: string) : Promise<GroupI
   const groupInvitationRef = collection(firestore, "group_invitations");
   const q = query(
     groupInvitationRef,
-    where("receiver", "==", currentUserId),
+    where("toUserId", "==", currentUserId),
     where("status", "==", "pending")
   );
   const snapshot = await getDocs(q);
@@ -116,12 +126,15 @@ export const removeFriendFromGroup = async (friendId: string, groupId: string) =
     if (groupData.createdBy !== currentUser.uid) {
         throw new Error('Kun eier av gruppen kan fjerne medlemmer')
     }
-    if (friendId in groupData.members) {
-        const friendUserRef = doc(firestore, 'users', friendId);
-        updateDoc(groupRef, {members: arrayRemove(friendId)});
-        updateDoc(friendUserRef, {groups: arrayRemove(groupId)});
-        console.log("Fjernet venn");
+    if (!groupData.members.includes(friendId)) {
+      throw new Error('Bruker er ikke medlem av gruppen');
     }
+    const friendUserRef = doc(firestore, 'users', friendId);
+    await Promise.all([
+        updateDoc(groupRef, {members: arrayRemove(friendId)}),
+        updateDoc(friendUserRef, {groups: arrayRemove(groupId)})
+    ])
+    console.log("Fjernet venn");
   } catch(error) {
     console.error(error);
     throw new Error('Kunne ikke slette venn')
@@ -145,12 +158,42 @@ export const exitGroup = async (groupId: string) => {
         throw new Error('Gruppeeier kan ikke forlate gruppen')
     }
     const currentUserRef = doc(firestore, 'users', currentUser.uid);
-    updateDoc(currentUserRef, {groups: arrayRemove(groupId)});
-    updateDoc(groupRef, {members: arrayRemove(currentUser.uid)});
-    console.log("Fjernet venn");
+    await Promise.all([
+        updateDoc(currentUserRef, {groups: arrayRemove(groupId)}),
+        updateDoc(groupRef, {members: arrayRemove(currentUser.uid)})
+    ]);
+    console.log("Forlot gruppe");
   } catch(error) {
     console.error(error);
-    throw new Error('Kunne ikke slette venn')
+    throw new Error('Kunne ikke forlate gruppen')
   }
 };
 
+export const deleteGroup = async (groupId: string) => { 
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        console.log("Ikke autentisert");
+        return;
+    }
+    try {
+        const groupRef = doc(firestore, 'groups', groupId);
+        const groupSnap = await getDoc(groupRef);
+        if (!groupSnap.exists() || groupSnap.id === 'default') {
+            throw new Error('Gruppen finnes ikke eller er goofy');
+        }
+        const groupData = groupSnap.data();
+        if (groupData.createdBy !== currentUser.uid) {
+            throw new Error("Du er ikke grov nok til å slette gruppa");
+        }
+        const memberUpdates = groupData.members.map((memberId: string) => 
+            updateDoc(doc(firestore, 'users', memberId), {
+                groups: arrayRemove(groupId),
+            })
+        );
+        await Promise.all([...memberUpdates, deleteDoc(groupRef)]);
+        console.log('Gruppe slettet');
+    } catch (error) {
+        console.error(error);
+        throw new Error('Kunne ikke slette gruppe');
+    }
+};
