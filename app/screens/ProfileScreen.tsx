@@ -130,7 +130,7 @@ const ProfileScreen = () => {
         const newGroup: Group = {
           id: invitation.groupId,
           name: groupData.name,
-          memberCount: groupData.members.length + 1,
+          memberCount: groupData.members.length,
           image: ImageMissing,
           createdBy: groupData.createdBy,
           members: [...groupData.members, user.id],
