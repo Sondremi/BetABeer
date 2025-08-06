@@ -14,6 +14,7 @@ import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, upda
 const ImageMissing = require('../../assets/images/image_missing.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 const DeleteIcon = require('../../assets/icons/noun-delete-7938028.png');
+const PeopleIcon = require('../../assets/icons/noun-people-2196504.png');
 
 const GroupScreen: React.FC = () => {
   const params = useLocalSearchParams();
@@ -51,6 +52,9 @@ const GroupScreen: React.FC = () => {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [inviting, setInviting] = useState(false);
   const [leaderboardData, setLeaderboardData] = useState<MemberDrinkStats[]>([]);
+  const [membersModalVisible, setMembersModalVisible] = useState(false);
+  const [memberData, setMemberData] = useState<Friend[]>([]);
+  
 
   const currentGroup: Group & { image: any } = selectedGroup
     ? { ...selectedGroup, name: groupName, image: selectedGroup.image ?? ImageMissing }
@@ -180,6 +184,48 @@ const GroupScreen: React.FC = () => {
     }
   }, [leaderboardModalVisible, bets, selectedGroup]);
 
+  useEffect(() => {
+    if (!selectedGroup || !selectedGroup.members) {
+      setMemberData([]);
+      return;
+    }
+    let isMounted = true;
+
+    const fetchAndSortMembers = async () => {
+      const usernames = await fetchMemberUsernames(selectedGroup.members);
+      const members = await Promise.all(
+        selectedGroup.members.map(async (memberId) => {
+          try {
+            const userDoc = await getDoc(doc(firestore, 'users', memberId));
+            return {
+              id: memberId,
+              name: userDoc.exists() ? userDoc.data().name || 'Ukjent navn' : 'Ukjent navn',
+              username: usernames[memberId] || 'ukjent',
+              profilePicture: ImageMissing,
+            };
+          } catch (error) {
+            console.error(`Error fetching member ${memberId}:`, error);
+            return {
+              id: memberId,
+              name: 'Ukjent navn',
+              username: usernames[memberId] || 'ukjent',
+              profilePicture: ImageMissing,
+            };
+          }
+        })
+      );
+      if (!isMounted) return;
+      // Sort members alphabetically by username
+      const sortedMembers = members.sort((a, b) => a.username.localeCompare(b.username));
+      setMemberData(sortedMembers);
+    };
+
+    fetchAndSortMembers();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedGroup?.members]);
+
   const fetchMemberUsernames = async (memberIds: string[]): Promise<{ [key: string]: string }> => {
     const usernames: { [key: string]: string } = {};
     await Promise.all(
@@ -218,7 +264,11 @@ const GroupScreen: React.FC = () => {
     if (!selectedGroup) return;
     try {
       await removeFriendFromGroup(friend.id, selectedGroup.id);
-      setSelectedGroup((prev) => prev ? { ...prev, members: prev.members.filter(id => id !== friend.id), memberCount: prev.memberCount - 1 } : prev);
+      setSelectedGroup((prev) => prev ? { 
+        ...prev, members: prev.members.filter(id => id !== friend.id), 
+        memberCount: prev.memberCount - 1
+      } : prev);
+      setMemberData((prev) => prev.filter(member => member.id !== friend.id));
       showAlert('Suksess', `${friend.name} ble fjernet fra gruppen`);
     } catch (error) {
       console.error('Error removing friend:', error);
@@ -604,8 +654,7 @@ const GroupScreen: React.FC = () => {
     return drinkStrings.length > 0 ? drinkStrings.join(', ') : 'Ingen';
   };
 
-  const renderFriendItem = ({ item }: { item: Friend }) => {
-    const isMember = selectedGroup?.members.includes(item.id);
+  const renderMemberItem = ({ item }: { item: Friend }) => {
     const isCreator = selectedGroup?.createdBy === item.id;
     const isCurrentUserCreator = user?.id === selectedGroup?.createdBy;
 
@@ -616,8 +665,7 @@ const GroupScreen: React.FC = () => {
           <Text style={[groupStyles.wagerUser, { marginBottom: 0, textAlign: 'left', lineHeight: 20 }]}>{item.name}</Text>
           <Text style={[globalStyles.secondaryText, { marginTop: 0, textAlign: 'left', lineHeight: 18 }]}>@{item.username}</Text>
         </View>
-        {isMember ? (
-          !isCreator && isCurrentUserCreator && (
+        {!isCreator && isCurrentUserCreator && (
           <TouchableOpacity
             style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center', borderColor: 'red' }]}
             onPress={() => handleRemoveFriendFromGroup(item)}
@@ -625,7 +673,19 @@ const GroupScreen: React.FC = () => {
           >
             <Text style={[globalStyles.outlineButtonGoldText, { color: 'red' }]}>Fjern</Text>
           </TouchableOpacity>
-        )) : (
+        )}
+      </View>
+    );
+  };
+
+  const renderFriendItem = ({ item }: { item: Friend }) => {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
+        <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 50, height: 50, marginRight: 10 }]} />
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <Text style={[groupStyles.wagerUser, { marginBottom: 0, textAlign: 'left', lineHeight: 20 }]}>{item.name}</Text>
+          <Text style={[globalStyles.secondaryText, { marginTop: 0, textAlign: 'left', lineHeight: 18 }]}>@{item.username}</Text>
+        </View>
           <TouchableOpacity
             style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center' }]}
             onPress={() => handleInviteFriend(item)}
@@ -633,7 +693,6 @@ const GroupScreen: React.FC = () => {
           >
             <Text style={globalStyles.outlineButtonGoldText}>Inviter</Text>
           </TouchableOpacity>
-        )}
       </View>
     );
   };
@@ -840,6 +899,9 @@ const GroupScreen: React.FC = () => {
 
         <View style={groupStyles.createBetSection}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: theme.spacing.md }}>
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 6, justifyContent: 'center', alignItems: 'center' }]} onPress={() => setMembersModalVisible(true)}>
+              <Image source={PeopleIcon} style={[globalStyles.pencilIcon, { width: 20, height: 20 }]} />
+            </TouchableOpacity>
             <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1 }]} onPress={() => setInviteModalVisible(true)} disabled={inviting}>
               <Text style={globalStyles.outlineButtonGoldText}>Inviter venner</Text>
             </TouchableOpacity>
@@ -859,13 +921,38 @@ const GroupScreen: React.FC = () => {
         </View>
       </ScrollView>
 
+      <Modal visible={membersModalVisible} animationType="slide" transparent onRequestClose={() => setMembersModalVisible(false)}>
+        <View style={globalStyles.modalContainer}>
+          <View style={globalStyles.modalContent}>
+            <Text style={globalStyles.modalTitle}>Medlemmer i {currentGroup.name}</Text>
+            {memberData.length > 0 ? (
+              <FlatList
+                data={memberData}
+                renderItem={renderMemberItem}
+                keyExtractor={item => item.id}
+                contentContainerStyle={globalStyles.listContainer}
+                scrollEnabled
+                showsVerticalScrollIndicator={false}
+              />
+            ) : (
+              <Text style={globalStyles.emptyStateText}>Ingen medlemmer i gruppen</Text>
+            )}
+            <View style={globalStyles.editButtonsContainer}>
+              <TouchableOpacity onPress={() => setMembersModalVisible(false)} disabled={inviting}>
+                <Text style={globalStyles.cancelButtonText}>Lukk</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={inviteModalVisible} animationType="slide" transparent onRequestClose={() => setInviteModalVisible(false)}>
         <View style={globalStyles.modalContainer}>
           <View style={globalStyles.modalContent}>
             <Text style={globalStyles.modalTitle}>Inviter venner til {currentGroup.name}</Text>
             {friends.length > 0 ? (
               <FlatList
-                data={friends}
+                data={friends.filter(friend => !selectedGroup?.members.includes(friend.id))}
                 renderItem={renderFriendItem}
                 keyExtractor={item => item.id}
                 contentContainerStyle={globalStyles.listContainer}
