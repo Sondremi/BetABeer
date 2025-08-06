@@ -905,20 +905,20 @@ const GroupScreen: React.FC = () => {
           </View>
         </View>
 
-        <View style={groupStyles.createBetSection}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: theme.spacing.md }}>
-            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 6, justifyContent: 'center', alignItems: 'center' }]} onPress={() => setMembersModalVisible(true)}>
-              <Image source={PeopleIcon} style={[globalStyles.pencilIcon, { width: 20, height: 20 }]} />
+        <View style={[groupStyles.createBetSection, {paddingHorizontal: theme.spacing.md}]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: theme.spacing.xs }}>
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={() => setMembersModalVisible(true)}>
+              <Image source={PeopleIcon} style={{ width: 20, height: 20, tintColor: theme.colors.primary}} />
             </TouchableOpacity>
-            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1 }]} onPress={() => setInviteModalVisible(true)} disabled={inviting}>
-              <Text style={globalStyles.outlineButtonGoldText}>Inviter venner</Text>
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={() => setInviteModalVisible(true)} disabled={inviting}>
+              <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Inviter</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1 }]} onPress={() => setLeaderboardModalVisible(true)}>
-              <Text style={globalStyles.outlineButtonGoldText}>Vis ledertavle</Text>
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={() => setLeaderboardModalVisible(true)}>
+              <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Ledertavle</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={[globalStyles.outlineButtonGold, { marginTop: theme.spacing.md }]} onPress={openBetModal}>
-            <Text style={globalStyles.outlineButtonGoldText}>Opprett bett</Text>
+          <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={openBetModal}>
+            <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Opprett bett</Text>
           </TouchableOpacity>
         </View>
 
