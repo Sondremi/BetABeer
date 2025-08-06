@@ -18,6 +18,19 @@ service cloud.firestore {
             // Allow removing auth user's UID from friends
             request.resource.data.friends.size() == resource.data.friends.size() - 1 &&
             resource.data.friends.hasAll(request.resource.data.friends.concat([request.auth.uid]))
+          ) || (
+            // Allow adding or removing group IDs from user's groups array
+            resource.data.groups is list &&
+            request.resource.data.groups is list &&
+            (
+              // Allow adding one group ID
+              request.resource.data.groups.size() == resource.data.groups.size() + 1 &&
+              request.resource.data.groups.hasAll(resource.data.groups)
+            ) || (
+              // Allow removing group IDs
+              request.resource.data.groups.size() <= resource.data.groups.size() &&
+              resource.data.groups.hasAll(request.resource.data.groups)
+            )
           )
         )
       );
@@ -50,7 +63,7 @@ service cloud.firestore {
       );
     }
 
-    // Groups Collection (unchanged, included for completeness)
+    // Groups Collection 
     match /groups/{groupId} {
       allow read: if true;
       allow create: if request.auth != null &&
@@ -59,12 +72,27 @@ service cloud.firestore {
         request.resource.data.members.hasAny([request.auth.uid]) &&
         request.resource.data.name is string;
       allow write: if request.auth != null && (
-        (request.resource == null && resource.data.members.hasAny([request.auth.uid])) || 
+        (request.resource == null && resource.data.members.hasAny([request.auth.uid])) || // Allow deletion by members
         (
-          request.resource.data.members.hasAny([request.auth.uid]) &&
+          // Allow updates by members, ensuring createdBy remains unchanged
+          resource.data.members.hasAny([request.auth.uid]) &&
           resource.data.createdBy is string &&
           request.resource.data.createdBy == resource.data.createdBy &&
           request.resource.data.members.hasAny([resource.data.createdBy])
+        ) || (
+          // Allow members to remove themselves from the members array
+          resource.data.members.hasAny([request.auth.uid]) &&
+          resource.data.createdBy is string &&
+          request.resource.data.createdBy == resource.data.createdBy &&
+          request.resource.data.members.size() <= resource.data.members.size() &&
+          resource.data.members.hasAll(request.resource.data.members.concat([request.auth.uid]))
+        ) || (
+          // Allow adding user IDs to the members array
+          resource.data.createdBy is string &&
+          request.resource.data.createdBy == resource.data.createdBy &&
+          request.resource.data.members.size() == resource.data.members.size() + 1 &&
+          request.resource.data.members.hasAll(resource.data.members) &&
+          request.resource.data.members.hasAny([request.auth.uid])
         )
       );
     }

@@ -1,15 +1,15 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { auth } from '../services/firebase/FirebaseConfig';
+import { firestore } from '../services/firebase/FirebaseConfig';
 import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import type { Bet, BettingOption, BetWager, DrinkType, MeasureType, MemberDrinkStats } from '../types/bettingTypes';
-import { GroupInvitation, Group, Friend, sendGroupInvitation, getGroupInvitation, acceptGroupInvitation, declineGroupInvitation, removeFriendFromGroup, exitGroup } from '../services/firebase/groupService';
+import { GroupInvitation, Group, Friend, sendGroupInvitation, getGroupInvitation, removeFriendFromGroup, exitGroup, deleteGroup } from '../services/firebase/groupService';
 import { showAlert } from '../utils/platformAlert';
+import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
@@ -63,8 +63,7 @@ const GroupScreen: React.FC = () => {
     let isMounted = true;
 
     const fetchGroupsAndInvitations = async () => {
-      const db = getFirestore();
-      const groupQuery = query(collection(db, 'groups'), where('members', 'array-contains', user.id));
+      const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
       const groupSnapshot = await getDocs(groupQuery);
       if (!isMounted) return;
       const groupList = groupSnapshot.docs.map(docSnap => ({
@@ -77,17 +76,8 @@ const GroupScreen: React.FC = () => {
       }));
       setGroups(groupList);
 
-      const invitationQuery = query(
-        collection(db, 'group_invitations'),
-        where('receiverId', '==', user.id),
-        where('status', '==', 'pending')
-      );
-      const invitationSnapshot = await getDocs(invitationQuery);
+      const invitationList = await getGroupInvitation(user.id);
       if (!isMounted) return;
-      const invitationList = invitationSnapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      })) as GroupInvitation[];
       setInvitations(invitationList);
 
       let groupFromParams = null;
@@ -123,8 +113,7 @@ const GroupScreen: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
-    const db = getFirestore();
-    const userRef = doc(db, 'users', user.id);
+    const userRef = doc(firestore, 'users', user.id);
     const unsubscribe = onSnapshot(userRef, (userDoc) => {
       if (userDoc.exists() && isMounted) {
         const data = userDoc.data();
@@ -133,7 +122,7 @@ const GroupScreen: React.FC = () => {
           const friendData = await Promise.all(
             friends.map(async (friendId: string) => {
               try {
-                const friendDoc = await getDoc(doc(db, 'users', friendId));
+                const friendDoc = await getDoc(doc(firestore, 'users', friendId));
                 if (friendDoc.exists()) {
                   const friendData = friendDoc.data();
                   return {
@@ -170,8 +159,7 @@ const GroupScreen: React.FC = () => {
     }
     let isMounted = true;
     const fetchBets = async () => {
-      const db = getFirestore();
-      const groupRef = doc(db, 'groups', selectedGroup.id);
+      const groupRef = doc(firestore, 'groups', selectedGroup.id);
       const groupSnap = await getDoc(groupRef);
       if (!isMounted) return;
       if (groupSnap.exists() && groupSnap.data().bets) {
@@ -193,12 +181,11 @@ const GroupScreen: React.FC = () => {
   }, [leaderboardModalVisible, bets, selectedGroup]);
 
   const fetchMemberUsernames = async (memberIds: string[]): Promise<{ [key: string]: string }> => {
-    const db = getFirestore();
     const usernames: { [key: string]: string } = {};
     await Promise.all(
       memberIds.map(async (memberId) => {
         try {
-          const userDoc = await getDoc(doc(db, 'users', memberId));
+          const userDoc = await getDoc(doc(firestore, 'users', memberId));
           usernames[memberId] = userDoc.exists() ? userDoc.data().username || userDoc.data().displayName || userDoc.data().email || (user && memberId === user.id ? 'Meg' : 'Ukjent') : (user && memberId === user.id ? 'Meg' : 'Ukjent');
         } catch (error) {
           console.error(`Error fetching username for member ${memberId}:`, error);
@@ -210,98 +197,63 @@ const GroupScreen: React.FC = () => {
   };
 
   const handleInviteFriend = async (friend: Friend) => {
-  if (!user || !selectedGroup) {
-    console.error('=== DEBUG: Missing user or selectedGroup ===', { user, selectedGroup });
-    showAlert('Feil', 'Bruker eller gruppe ikke tilgjengelig');
-    return;
-  }
-  setInviting(true);
-  try {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      console.error('=== DEBUG: No authenticated user ===');
-      showAlert('Feil', 'Ingen autentisert bruker. Logg inn på nytt.');
+    if (!user || !selectedGroup) {
+      console.error('=== DEBUG: Missing user or selectedGroup ===', { user, selectedGroup });
+      showAlert('Feil', 'Bruker eller gruppe ikke tilgjengelig');
       return;
     }
-    const db = getFirestore();
-    console.log('=== DEBUG: Firestore instance ===', db.app.name);
-    const invitationData = {
-      groupId: selectedGroup.id,
-      groupName: selectedGroup.name,
-      senderId: currentUser.uid,
-      receiverId: friend.id,
-      status: 'pending' as const,
-      createdAt: serverTimestamp(),
-    };
-    console.log('=== DEBUG: Invitation data ===', invitationData);
-    console.log('=== DEBUG: Data types ===', {
-      groupId: typeof invitationData.groupId,
-      groupName: typeof invitationData.groupName,
-      senderId: typeof invitationData.senderId,
-      receiverId: typeof invitationData.receiverId,
-      status: typeof invitationData.status,
-      createdAt: invitationData.createdAt === null ? 'serverTimestamp' : typeof invitationData.createdAt,
-    });
-    console.log('=== DEBUG: Authentication ===', {
-      currentUserUid: currentUser.uid,
-      contextUserId: user.id,
-      uidsMatch: currentUser.uid === user.id,
-    });
-
-    const existingInvitationQuery = query(
-      collection(db, 'group_invitations'),
-      where('groupId', '==', selectedGroup.id),
-      where('receiverId', '==', friend.id),
-      where('status', '==', 'pending')
-    );
-    const existingInvitationSnapshot = await getDocs(existingInvitationQuery);
-    console.log('=== DEBUG: Existing invitations found ===', existingInvitationSnapshot.docs.length);
-
-    if (!existingInvitationSnapshot.empty) {
-      showAlert('Feil', `Invitasjon til ${friend.name} er allerede sendt`);
-      return;
+    setInviting(true);
+    try {
+      await sendGroupInvitation(friend.id, selectedGroup);
+      showAlert('Invitasjon sendt', `Invitasjon sendt til ${friend.name}`);
+    } catch(error) {
+      console.error(error);
+      showAlert('Feil', `Kunne ikke sende invitasjon til ${friend.name}: ${(error as Error).message}`)
+    } finally {
+      setInviting(false);
     }
-
-    const docRef = await addDoc(collection(db, 'group_invitations'), invitationData);
-    console.log('=== DEBUG: Invitation created successfully, doc ID ===', docRef.id);
-    showAlert('Invitasjon sendt', `Invitasjon sendt til ${friend.name}`);
-  } catch (error) {
-    console.error('=== ERROR DETAILS ===', error);
-    console.error('Error name:', (error as Error).name);
-    console.error('Error message:', (error as Error).message);
-    console.error('Error stack:', (error as Error).stack);
-    showAlert('Feil', `Kunne ikke sende gruppeinvitasjon: ${(error as Error).message}`);
-  } finally {
-    console.log('=== DEBUG: Finished handleInviteFriend ===');
-    setInviting(false);
-  }
-};
+  };
 
   const handleRemoveFriendFromGroup = async (friend: Friend) => {
     if (!selectedGroup) return;
     try {
-      const db = getFirestore();
-      const groupRef = doc(db, 'groups', selectedGroup.id);
-      const groupSnap = await getDoc(groupRef);
-      if (groupSnap.exists()) {
-        const groupData = groupSnap.data();
-        const updatedMembers = (groupData.members || []).filter((id: string) => id !== friend.id);
-        await updateDoc(groupRef, { members: updatedMembers });
-        setSelectedGroup((prev) => prev ? { ...prev, members: updatedMembers } : prev);
-      }
+      await removeFriendFromGroup(friend.id, selectedGroup.id);
+      setSelectedGroup((prev) => prev ? { ...prev, members: prev.members.filter(id => id !== friend.id), memberCount: prev.memberCount - 1 } : prev);
+      showAlert('Suksess', `${friend.name} ble fjernet fra gruppen`);
     } catch (error) {
       console.error('Error removing friend:', error);
       showAlert('Feil', 'Kunne ikke fjerne medlem fra gruppe');
     }
   };
 
-  const handleDeleteGroup = async () => {
-    const groupToDelete = currentGroup;
-    if (!groupToDelete || groupToDelete.id === 'default') return;
+  const handleExitGroup = async () => {
+    if (!selectedGroup) return;
+    showAlert(
+      'Bekreft utmeldelse',
+      `Er du sikker på at du vil forlate gruppen "${selectedGroup.name}"?`,
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: 'Forlat',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await exitGroup(selectedGroup.id);
+              router.replace('/profile');
+            } catch (error) {
+              showAlert('Feil', `Kunne ikke forlate gruppe: ${(error as Error).message}`);
+            }
+          },
+        },
+      ]
+    );
+  };
 
+  const handleDeleteGroup = async () => {
+    if (!selectedGroup) return;
     showAlert(
       'Bekreft sletting',
-      `Er du sikker på at du vil slette gruppen "${groupToDelete.name}"? Dette kan ikke angres.`,
+      `Er du sikker på at du vil slette gruppen "${selectedGroup.name}"? Dette kan ikke angres.`,
       [
         { text: 'Avbryt', style: 'cancel' },
         {
@@ -310,18 +262,7 @@ const GroupScreen: React.FC = () => {
           onPress: async () => {
             setDeleting(true);
             try {
-              const db = getFirestore();
-              await deleteDoc(doc(db, 'groups', groupToDelete.id));
-              const userId = groupToDelete.createdBy;
-              if (userId) {
-                const userRef = doc(db, 'users', userId);
-                const userSnap = await getDoc(userRef);
-                if (userSnap.exists()) {
-                  const userGroups: string[] = userSnap.data().groups || [];
-                  const updatedGroups = userGroups.filter((gid: string) => gid !== groupToDelete.id);
-                  await updateDoc(userRef, { groups: updatedGroups });
-                }
-              }
+              await deleteGroup(selectedGroup.id);
               router.replace('/profile');
             } catch (error) {
               console.error('Error deleting group:', error);
@@ -343,8 +284,7 @@ const GroupScreen: React.FC = () => {
     }
     setSaving(true);
     try {
-      const db = getFirestore();
-      await updateDoc(doc(db, 'groups', selectedGroup.id), { name: groupName });
+      await updateDoc(doc(firestore, 'groups', selectedGroup.id), { name: groupName });
       setEditingName(false);
     } catch (error) {
       console.error('Error saving group name:', error);
@@ -380,8 +320,7 @@ const GroupScreen: React.FC = () => {
     }
     setBetSaving(true);
     try {
-      const db = getFirestore();
-      const groupRef = doc(db, 'groups', selectedGroup.id);
+      const groupRef = doc(firestore, 'groups', selectedGroup.id);
       const groupSnap = await getDoc(groupRef);
       let groupBets: Bet[] = [];
       if (groupSnap.exists() && groupSnap.data().bets) {
@@ -427,8 +366,7 @@ const GroupScreen: React.FC = () => {
 
     setPlacingBet(true);
     try {
-      const db = getFirestore();
-      const groupRef = doc(db, 'groups', selectedGroup.id);
+      const groupRef = doc(firestore, 'groups', selectedGroup.id);
       const groupSnap = await getDoc(groupRef);
 
       if (groupSnap.exists()) {
@@ -880,6 +818,11 @@ const GroupScreen: React.FC = () => {
                           style={{ marginLeft: theme.spacing.sm, opacity: deleting ? 0.5 : 1 }}
                         >
                           <Image source={DeleteIcon} style={globalStyles.deleteIcon} />
+                        </TouchableOpacity>
+                      )}
+                      {selectedGroup && user && selectedGroup.createdBy !== user.id && (
+                        <TouchableOpacity onPress={handleExitGroup} disabled={deleting}>
+                          <Image source={DeleteIcon} style={globalStyles.pencilIcon} />
                         </TouchableOpacity>
                       )}
                     </View>
