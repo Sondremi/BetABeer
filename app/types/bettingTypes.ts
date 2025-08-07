@@ -1,16 +1,6 @@
 export type DrinkType = 'Øl' | 'Cider' | 'Hard selzer' | 'Vin' | 'Sprit';
 export type MeasureType = 'Slurker' | 'Shot' | 'Chug';
 
-export interface GroupInvitation {
-  id: string;
-  groupId: string;
-  groupName: string;
-  senderId: string;
-  receiverId: string;
-  status: 'accepted' | 'pending' | 'declined';
-  createdAt: any;
-}
-
 export interface BetWager {
   userId: string;
   username: string;
@@ -40,22 +30,8 @@ export interface MemberDrinkStats {
   userId: string;
   username: string;
   wins: number;
+  totalDrinksWon: number;
+  profilePicture: any;
   drinksToConsume: { [key in DrinkType]?: { [key in MeasureType]?: number } };
   drinksToDistribute: { [key in DrinkType]?: { [key in MeasureType]?: number } };
-}
-
-export interface Friend {
-  id: string;
-  name: string;
-  username: string;
-  profilePicture: any;
-}
-
-export interface Group {
-  id: string;
-  name: string;
-  memberCount: number;
-  image: any;
-  createdBy: string;
-  members: string[];
 }
