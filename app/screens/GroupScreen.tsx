@@ -59,6 +59,10 @@ const GroupScreen: React.FC = () => {
   const [leaderboardView, setLeaderboardView] = useState<'betsWon' | 'drinksWon'>('betsWon');
   const [sendingFriendRequest, setSendingFriendRequest] = useState(false);
   const [pendingFriendRequests, setPendingFriendRequests] = useState<FriendRequest[]>([]);
+  const [userDrinksToDistribute, setUserDrinksToDistribute] = useState<MemberDrinkStats['drinksToDistribute']>({});
+  const [distributeModalVisible, setDistributeModalVisible] = useState(false);
+  const [distributingDrinks, setDistributingDrinks] = useState(false);
+  const [distributions, setDistributions] = useState<{ userId: string; drinkType: DrinkType; measureType: MeasureType; amount: number }[]>([]);
 
   const currentGroup: Group & { image: any } = selectedGroup
     ? { ...selectedGroup, name: groupName, image: selectedGroup.image ?? ImageMissing }
@@ -245,6 +249,12 @@ const GroupScreen: React.FC = () => {
     fetchPendingRequests();
   }, [user?.id, membersModalVisible]);
 
+  useEffect(() => {
+    if (!user?.id || !leaderboardData) return;
+    const userStats = leaderboardData.find(stat => stat.userId === user.id);
+    setUserDrinksToDistribute(userStats?.drinksToDistribute || {});
+  }, [leaderboardData, user?.id]);
+
   const fetchMemberUsernames = async (memberIds: string[]): Promise<{ [key: string]: string }> => {
     const usernames: { [key: string]: string } = { ...cachedUsernames };
     const uncachedIds = memberIds.filter(id => !usernames[id]);
@@ -266,6 +276,12 @@ const GroupScreen: React.FC = () => {
       setCachedUsernames(usernames);
     }
     return usernames;
+  };
+
+  const handleDistributeDrinks = async (distributions: { userId: string; drinkType: DrinkType; measureType: MeasureType; amount: number }[]) => {
+    console.log('Distributing drinks:', distributions);
+    showAlert('Suksess', 'Drikker fordelt (placeholder)!');
+    setDistributeModalVisible(false);
   };
 
   const handleSendFriendRequest = async (member: Friend) => {
@@ -742,13 +758,13 @@ const GroupScreen: React.FC = () => {
             <Text style={[globalStyles.outlineButtonGoldText, { color: 'red' }]}>Fjern</Text>
           </TouchableOpacity>
         )}
-        {!isFriend && !hasPendingRequest && isCurrentUserCreator && (
+        {!isFriend && !hasPendingRequest && !isCurrentUserCreator && (
           <TouchableOpacity
             style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center', marginLeft: 8 }]}
             onPress={() => handleSendFriendRequest(item)}
             disabled={inviting || sendingFriendRequest}
           >
-            <Text style={globalStyles.outlineButtonGoldText}>Send vennerequest</Text>
+            <Text style={globalStyles.outlineButtonGoldText}>Legg til</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -1005,17 +1021,89 @@ const GroupScreen: React.FC = () => {
               <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Ledertavle</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={openBetModal}>
-            <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Opprett bett</Text>
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={openBetModal}>
+              <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Opprett bett</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+            style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={() => setDistributeModalVisible(true)} disabled={!Object.keys(userDrinksToDistribute).length}>
+            <Image 
+              source={PencilIcon} // Placeholder, replace with drink icon (e.g., ../../assets/icons/drink.png)
+              style={{ width: 20, height: 20, tintColor: theme.colors.primary }} 
+            />
           </TouchableOpacity>
         </View>
-
         <View style={{ paddingBottom: theme.spacing.xl }}>
           {bets.map((item, idx) => (
             <View key={item.id}>{renderBet({ item, index: idx })}</View>
           ))}
         </View>
       </ScrollView>
+
+      <Modal visible={distributeModalVisible} animationType="slide" transparent onRequestClose={() => setDistributeModalVisible(false)}>
+        <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+          <View style={[
+            globalStyles.modalContent, 
+            { padding: theme.spacing.md, borderRadius: theme.borderRadius.lg, maxHeight: '80%', width: '90%' }
+          ]}>
+            <Text style={[
+              globalStyles.modalTitle, 
+              { marginBottom: theme.spacing.md, fontSize: 18, fontWeight: '600', color: theme.colors.text }
+            ]}>
+              Del ut drikke!
+            </Text>
+            {Object.keys(userDrinksToDistribute).length > 0 ? (
+              <View>
+                <Text style={{ fontSize: 14, color: theme.colors.text, marginBottom: theme.spacing.sm }}>
+                  Tilgjengelige drikker:
+                </Text>
+                {Object.entries(userDrinksToDistribute).map(([drinkType, measures]) => (
+                  Object.entries(measures).map(([measureType, amount]) => (
+                    <Text key={`${drinkType}-${measureType}`} style={{ fontSize: 12, color: theme.colors.textSecondary, marginBottom: 4 }}>
+                      {amount} {measureType} {drinkType}
+                    </Text>
+                  ))
+                ))}
+                <Text style={{ fontSize: 14, color: theme.colors.text, marginVertical: theme.spacing.sm }}>
+                  Velg medlemmer:
+                </Text>
+                <FlatList
+                  data={memberData}
+                  renderItem={({ item }) => (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
+                      <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 50, height: 50, marginRight: 10 }]} />
+                      <View style={{ flex: 1, justifyContent: 'center' }}>
+                        <Text style={[groupStyles.wagerUser, { fontSize: 14, color: theme.colors.text }]}>{item.name}</Text>
+                        <Text style={[globalStyles.secondaryText, { fontSize: 12, color: theme.colors.textSecondary }]}>@{item.username}</Text>
+                      </View>
+                      {/* Placeholder for input fields (to be added in Step 2) */}
+                      <TouchableOpacity
+                        style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14 }]}
+                        onPress={() => handleDistributeDrinks([{ userId: item.id, drinkType: 'Øl', measureType: 'Slurker', amount: 1 }])}
+                        disabled={inviting}
+                      >
+                        <Text style={globalStyles.outlineButtonGoldText}>Fordel (placeholder)</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  keyExtractor={item => item.id}
+                  contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
+                  scrollEnabled
+                  showsVerticalScrollIndicator={false}
+                />
+              </View>
+            ) : (
+              <Text style={[globalStyles.emptyStateText, { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginVertical: theme.spacing.md }]}>
+                Ingen drikker tilgjengelig for utdeling
+              </Text>
+            )}
+            <View style={[globalStyles.editButtonsContainer, { marginTop: theme.spacing.md }]}>
+              <TouchableOpacity onPress={() => setDistributeModalVisible(false)} disabled={inviting}>
+                <Text style={[globalStyles.cancelButtonText, { fontSize: 16, color: theme.colors.primary }]}>Lukk</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={membersModalVisible} animationType="slide" transparent onRequestClose={() => setMembersModalVisible(false)}>
         <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
