@@ -10,6 +10,7 @@ import type { Bet, BettingOption, BetWager, DrinkType, MeasureType, MemberDrinkS
 import { GroupInvitation, Group, Friend, sendGroupInvitation, getGroupInvitation, removeFriendFromGroup, exitGroup, deleteGroup } from '../services/firebase/groupService';
 import { showAlert } from '../utils/platformAlert';
 import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
+import { sendFriendRequest, getOutgoingRequest, FriendRequest } from '../services/firebase/friendService';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
@@ -55,7 +56,9 @@ const GroupScreen: React.FC = () => {
   const [membersModalVisible, setMembersModalVisible] = useState(false);
   const [memberData, setMemberData] = useState<Friend[]>([]);
   const [cachedUsernames, setCachedUsernames] = useState<{ [key: string]: string }>({});
-
+  const [leaderboardView, setLeaderboardView] = useState<'betsWon' | 'drinksWon'>('betsWon');
+  const [sendingFriendRequest, setSendingFriendRequest] = useState(false);
+  const [pendingFriendRequests, setPendingFriendRequests] = useState<FriendRequest[]>([]);
 
   const currentGroup: Group & { image: any } = selectedGroup
     ? { ...selectedGroup, name: groupName, image: selectedGroup.image ?? ImageMissing }
@@ -181,9 +184,9 @@ const GroupScreen: React.FC = () => {
 
   useEffect(() => {
     if (leaderboardModalVisible) {
-      getLeaderboardData().then(setLeaderboardData);
+      getLeaderboardData(leaderboardView).then(setLeaderboardData);
     }
-  }, [leaderboardModalVisible, bets, selectedGroup]);
+  }, [leaderboardModalVisible, bets, selectedGroup, leaderboardView]);
 
   useEffect(() => {
     if (!selectedGroup || !selectedGroup.members) {
@@ -227,6 +230,21 @@ const GroupScreen: React.FC = () => {
     };
   }, [selectedGroup?.members]);
 
+  useEffect(() => {
+    if (!user?.id || !membersModalVisible) return;
+    
+    const fetchPendingRequests = async () => {
+      try {
+        const requests = await getOutgoingRequest(user.id);
+        setPendingFriendRequests(requests);
+      } catch (error) {
+        console.error('Error fetching pending friend requests:', error);
+      }
+    };
+    
+    fetchPendingRequests();
+  }, [user?.id, membersModalVisible]);
+
   const fetchMemberUsernames = async (memberIds: string[]): Promise<{ [key: string]: string }> => {
     const usernames: { [key: string]: string } = { ...cachedUsernames };
     const uncachedIds = memberIds.filter(id => !usernames[id]);
@@ -248,6 +266,25 @@ const GroupScreen: React.FC = () => {
       setCachedUsernames(usernames);
     }
     return usernames;
+  };
+
+  const handleSendFriendRequest = async (member: Friend) => {
+    if (!user?.id) {
+      showAlert('Feil', 'Bruker ikke autentisert');
+      return;
+    }
+    setSendingFriendRequest(true);
+    try {
+      await sendFriendRequest(member.id);
+      const updatedRequests = await getOutgoingRequest(user.id);
+      setPendingFriendRequests(updatedRequests);
+      showAlert('Suksess', `Vennerequest sendt til ${member.name}`);
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+      showAlert('Feil', (error as Error).message || 'Kunne ikke sende vennerequest');
+    } finally {
+      setSendingFriendRequest(false);
+    }
   };
 
   const handleInviteFriend = async (friend: Friend) => {
@@ -602,23 +639,41 @@ const GroupScreen: React.FC = () => {
     );
   };
 
-  const getLeaderboardData = async (): Promise<MemberDrinkStats[]> => {
+  const getLeaderboardData = async (sortBy: 'betsWon' | 'drinksWon'): Promise<MemberDrinkStats[]> => {
     if (!selectedGroup || !selectedGroup.members) return [];
 
     const usernames = await fetchMemberUsernames(selectedGroup.members);
-    const finishedBets = bets.filter(bet => bet.isFinished && bet.correctOptionId);
     const memberStats: { [userId: string]: MemberDrinkStats } = {};
 
-    selectedGroup.members.forEach((userId: string) => {
-      memberStats[userId] = {
-        userId,
-        username: usernames[userId] || 'Ukjent',
-        wins: 0,
-        drinksToConsume: {},
-        drinksToDistribute: {},
-      };
-    });
+    await Promise.all(
+      selectedGroup.members.map(async (userId: string) => {
+        try {
+          const userDoc = await getDoc(doc(firestore, 'users', userId));
+          memberStats[userId] = {
+            userId,
+            username: usernames[userId] || 'Ukjent',
+            wins: 0,
+            totalDrinksWon: 0,
+            profilePicture: userDoc.exists() ? userDoc.data().profilePicture || ImageMissing : ImageMissing,
+            drinksToConsume: {},
+            drinksToDistribute: {},
+          };
+        } catch (error) {
+          console.error(`Error fetching member ${userId}:`, error);
+          memberStats[userId] = {
+            userId,
+            username: usernames[userId] || 'Ukjent',
+            wins: 0,
+            totalDrinksWon: 0,
+            profilePicture: ImageMissing,
+            drinksToConsume: {},
+            drinksToDistribute: {},
+          };
+        }
+      })
+    );
 
+    const finishedBets = bets.filter(bet => bet.isFinished && bet.correctOptionId);
     finishedBets.forEach(bet => {
       const wagers = bet.wagers || [];
       wagers.forEach(wager => {
@@ -640,13 +695,16 @@ const GroupScreen: React.FC = () => {
         if (wager.optionId === bet.correctOptionId) {
           stats.wins += 1;
           stats.drinksToDistribute[drinkType][measureType]! += calculatedAmount;
+          stats.totalDrinksWon += calculatedAmount;
         } else {
           stats.drinksToConsume[drinkType][measureType]! += calculatedAmount;
         }
       });
     });
-
-    return Object.values(memberStats).sort((a, b) => b.wins - a.wins);
+    
+    return Object.values(memberStats).sort((a, b) => 
+      sortBy === 'betsWon'? b.wins - a.wins : b.totalDrinksWon - a.totalDrinksWon
+    );
   };
 
   const formatDrinks = (drinks: { [key in DrinkType]?: { [key in MeasureType]?: number } }): string => {
@@ -665,6 +723,8 @@ const GroupScreen: React.FC = () => {
   const renderMemberItem = ({ item }: { item: Friend }) => {
     const isCreator = selectedGroup?.createdBy === item.id;
     const isCurrentUserCreator = user?.id === selectedGroup?.createdBy;
+    const isFriend = friends.some(f => f.id === item.id);
+    const hasPendingRequest = pendingFriendRequests.some(r => r.toUserId === item.id);
 
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
@@ -677,9 +737,18 @@ const GroupScreen: React.FC = () => {
           <TouchableOpacity
             style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center', borderColor: 'red' }]}
             onPress={() => handleRemoveFriendFromGroup(item)}
-            disabled={inviting}
+            disabled={inviting || sendingFriendRequest}
           >
             <Text style={[globalStyles.outlineButtonGoldText, { color: 'red' }]}>Fjern</Text>
+          </TouchableOpacity>
+        )}
+        {!isFriend && !hasPendingRequest && isCurrentUserCreator && (
+          <TouchableOpacity
+            style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center', marginLeft: 8 }]}
+            onPress={() => handleSendFriendRequest(item)}
+            disabled={inviting || sendingFriendRequest}
+          >
+            <Text style={globalStyles.outlineButtonGoldText}>Send vennerequest</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -827,16 +896,35 @@ const GroupScreen: React.FC = () => {
     );
   };
 
-  const renderLeaderboardItem = ({ item }: { item: MemberDrinkStats }) => {
+  const renderLeaderboardItem = ({ item, index }: { item: MemberDrinkStats; index: number }) => {
+    const metric = leaderboardView === 'betsWon' ? `${item.wins} bets vunnet` : `${item.totalDrinksWon} drikker vunnet`
     return (
-      <View style={groupStyles.betContainer}>
-        <View style={globalStyles.listItemRow}>
-          <Text style={[groupStyles.wagerUser, { fontWeight: 'bold' }]}>{item.username} ({item.wins} vunnet)</Text>
+      <View style={{flexDirection: 'row', 
+      alignItems: 'center', 
+      paddingVertical: 8, 
+      borderBottomWidth: 1, 
+      borderBottomColor: theme.colors.border }}>
+          <Text style={{ 
+            width: 30, 
+            fontSize: 14, 
+            color: theme.colors.text, 
+            textAlign: 'center',
+            marginRight: 10 
+          }}>
+            {index + 4}
+          </Text>
+          <Image 
+            source={item.profilePicture || ImageMissing} 
+            style={[globalStyles.circularImage, { width: 40, height: 40, marginRight: 10 }]} 
+          />
           <View style={{ flex: 1 }}>
-            <Text style={[groupStyles.wagerDetails, { color: theme.colors.error }]}>Drikke selv: {formatDrinks(item.drinksToConsume)}</Text>
-            <Text style={[groupStyles.wagerDetails, { color: theme.colors.success, fontWeight: 'bold' }]}>Dele ut: {formatDrinks(item.drinksToDistribute)}</Text>
+            <Text style={[groupStyles.wagerUser, { fontSize: 14, color: theme.colors.text }]}>
+              {item.username}
+            </Text>
+            <Text style={[globalStyles.secondaryText, { fontSize: 12, color: theme.colors.textSecondary }]}>
+              {metric}
+            </Text>
           </View>
-        </View>
       </View>
     );
   };
@@ -930,24 +1018,24 @@ const GroupScreen: React.FC = () => {
       </ScrollView>
 
       <Modal visible={membersModalVisible} animationType="slide" transparent onRequestClose={() => setMembersModalVisible(false)}>
-        <View style={globalStyles.modalContainer}>
-          <View style={globalStyles.modalContent}>
-            <Text style={globalStyles.modalTitle}>Medlemmer i {currentGroup.name}</Text>
+        <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+          <View style={[globalStyles.modalContent, {padding: theme.spacing.md, borderRadius: theme.borderRadius.lg,  maxHeight: '80%', width: '90%'}]}>
+            <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.md, fontSize: 18, fontWeight: '600', color: theme.colors.text}]}>Medlemmer i {currentGroup.name}</Text>
             {memberData.length > 0 ? (
               <FlatList
                 data={memberData}
                 renderItem={renderMemberItem}
                 keyExtractor={item => item.id}
-                contentContainerStyle={globalStyles.listContainer}
+                contentContainerStyle={[globalStyles.listContainer, {paddingBottom: theme.spacing.md}]}
                 scrollEnabled
                 showsVerticalScrollIndicator={false}
               />
             ) : (
-              <Text style={globalStyles.emptyStateText}>Ingen medlemmer i gruppen</Text>
+              <Text style={[globalStyles.emptyStateText, { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginVertical: theme.spacing.md}]}>Ingen medlemmer i gruppen</Text>
             )}
-            <View style={globalStyles.editButtonsContainer}>
+            <View style={[globalStyles.editButtonsContainer, { marginTop: theme.spacing.md }]}>
               <TouchableOpacity onPress={() => setMembersModalVisible(false)} disabled={inviting}>
-                <Text style={globalStyles.cancelButtonText}>Lukk</Text>
+                <Text style={[globalStyles.cancelButtonText, { fontSize: 16, color: theme.colors.primary }]}>Lukk</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1207,50 +1295,167 @@ const GroupScreen: React.FC = () => {
       </Modal>
 
       <Modal visible={leaderboardModalVisible} animationType="slide" transparent onRequestClose={() => setLeaderboardModalVisible(false)}>
-        <View style={globalStyles.modalContainer}>
-          <View style={globalStyles.modalContent}>
-            <Text style={globalStyles.modalTitle}>Ledertavle - Ferdige bets</Text>
-            {selectedGroup && selectedGroup.members && (
-              <View style={{ marginBottom: 12 }}>
-                <Text style={[globalStyles.label, { marginBottom: 4 }]}>Medlemmer:</Text>
-                <FlatList
-                  data={selectedGroup.members}
-                  keyExtractor={id => id}
-                  horizontal
-                  renderItem={({ item: memberId }) => {
-                    const friend = friends.find(f => f.id === memberId);
-                    const isMe = user && memberId === user.id;
-                    const displayName = isMe
-                      ? user.name || user.displayName || user.email || 'Meg'
-                      : friend?.name || 'Ukjent';
-                    return (
-                      <View key={memberId} style={{ alignItems: 'center', marginRight: 14 }}>
-                        <Image source={friend?.profilePicture || ImageMissing} style={[globalStyles.circularImage, { width: 36, height: 36, marginBottom: 2 }]} />
-                        <Text style={{ fontSize: 12, color: theme.colors.text, maxWidth: 70, textAlign: 'center' }} numberOfLines={1}>
-                          {displayName}
+        <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+          <View style={[globalStyles.modalContent, { padding: theme.spacing.md, borderRadius: theme.borderRadius.lg, maxHeight: '80%', width: '90%' }]}>
+            <Text style={[
+              globalStyles.modalTitle, { marginBottom: theme.spacing.sm, fontSize: 18, fontWeight: '600', color: theme.colors.text }]}>
+                Ledertavle - {leaderboardView === 'betsWon' ? 'Bets Vunnet' : 'Drikker Vunnet'}
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
+                <TouchableOpacity 
+                  style={[globalStyles.outlineButtonGold,
+                    { 
+                      flex: 1, 
+                      paddingVertical: 8, 
+                      justifyContent: 'center', 
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderRadius: theme.borderRadius.sm,
+                      backgroundColor: leaderboardView === 'betsWon' ? theme.colors.primary : 'transparent'
+                    }
+                  ]} 
+                  onPress={() => setLeaderboardView('betsWon')}
+                >
+                  <Text style={[globalStyles.outlineButtonGoldText,{ color: leaderboardView === 'betsWon' ? theme.colors.background : theme.colors.primary, fontSize: 14 }]}>Bets vunnet</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    globalStyles.outlineButtonGold,
+                    { 
+                      flex: 1, 
+                      paddingVertical: 8, 
+                      justifyContent: 'center', 
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderRadius: theme.borderRadius.sm,
+                      backgroundColor: leaderboardView === 'drinksWon' ? theme.colors.primary : 'transparent'
+                    }
+                  ]}
+                  onPress={() => setLeaderboardView('drinksWon')}
+                >
+                  <Text style={[
+                    globalStyles.outlineButtonGoldText,
+                    { color: leaderboardView === 'drinksWon' ? theme.colors.background : theme.colors.primary, fontSize: 14 }
+                  ]}>
+                    Drikker Vunnet
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {leaderboardData.length > 0 ? (
+                <View style={{ marginBottom: theme.spacing.md }}>
+                  {/* Podium layout */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', marginBottom: theme.spacing.lg}}>
+                    {/* 2nd Place (Silver) */}
+                    {leaderboardData[1] && (
+                      <View style={{ 
+                        alignItems: 'center', 
+                        width: '30%', 
+                        marginRight: 10,
+                        backgroundColor: '#C0C0C0', 
+                        borderRadius: theme.borderRadius.sm, 
+                        padding: 10,
+                        height: 140,
+                        justifyContent: 'space-between'
+                        }}>
+                        <Image 
+                          source={leaderboardData[1].profilePicture || ImageMissing} 
+                          style={[globalStyles.circularImage, { width: 50, height: 50, marginBottom: 6 }]} 
+                        />
+                        <Text style={{ fontSize: 14, color: theme.colors.text, textAlign: 'center' }} numberOfLines={1}>
+                          {leaderboardData[1].username}
+                        </Text>
+                        <Image 
+                          source={PencilIcon} // Placeholder, replace with ../../assets/icons/trophy.png
+                          style={{ width: 24, height: 24, tintColor: theme.colors.text, marginBottom: 4 }} 
+                        />
+                        <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center', paddingBottom: 8 }}>
+                          {leaderboardView === 'betsWon' ? `${leaderboardData[1].wins}` : `${leaderboardData[1].totalDrinksWon}`}
+                        </Text>
+                      </View>  
+                    )}
+                    {/* 1st Place (Gold) */}
+                    {leaderboardData[0] && (
+                      <View style={{ 
+                        alignItems: 'center', 
+                        width: '40%', 
+                        backgroundColor: '#FFD700', 
+                        borderRadius: theme.borderRadius.sm, 
+                        padding: 12,
+                        height: 170,
+                        justifyContent: 'space-between'
+                      }}>
+                        <Image 
+                          source={leaderboardData[0].profilePicture || ImageMissing} 
+                          style={[globalStyles.circularImage, { width: 60, height: 60, marginBottom: 6 }]} 
+                        />
+                        <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text, textAlign: 'center' }} numberOfLines={1}>
+                          {leaderboardData[0].username}
+                        </Text>
+                        <Image 
+                          source={PencilIcon} // Placeholder, replace with ../../assets/icons/trophy.png
+                          style={{ width: 30, height: 30, tintColor: theme.colors.text, marginBottom: 6 }} 
+                        />
+                        <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center', paddingBottom: 8 }}>
+                          {leaderboardView === 'betsWon' ? `${leaderboardData[0].wins}` : `${leaderboardData[0].totalDrinksWon}`}
                         </Text>
                       </View>
-                    );
-                  }}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingBottom: 4 }}
-                />
+                    )}
+                    {/* 3rd Place (Bronze) */}
+                    {leaderboardData[2] && (
+                      <View style={{ 
+                        alignItems: 'center', 
+                        width: '30%', 
+                        marginLeft: 10,
+                        backgroundColor: '#CD7F32', 
+                        borderRadius: theme.borderRadius.sm, 
+                        padding: 10,
+                        height: 140,
+                        justifyContent: 'space-between'
+                      }}>
+                        <Image 
+                          source={leaderboardData[2].profilePicture || ImageMissing} 
+                          style={[globalStyles.circularImage, { width: 50, height: 50, marginBottom: 6 }]} 
+                        />
+                        <Text style={{ fontSize: 14, color: theme.colors.text, textAlign: 'center' }} numberOfLines={1}>
+                          {leaderboardData[2].username}
+                        </Text>
+                        <Image 
+                          source={PencilIcon} // Placeholder, replace with ../../assets/icons/trophy.png
+                          style={{ width: 24, height: 24, tintColor: theme.colors.text, marginBottom: 4 }} 
+                        />
+                        <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center', paddingBottom: 8 }}>
+                          {leaderboardView === 'betsWon' ? `${leaderboardData[2].wins}` : `${leaderboardData[2].totalDrinksWon}`}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  {/* Remaining Members */}
+                  {leaderboardData.length > 3 && (
+                    <FlatList
+                      data={leaderboardData.slice(3)}
+                      renderItem={renderLeaderboardItem}
+                      keyExtractor={item => item.userId}
+                      contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
+                      scrollEnabled
+                      showsVerticalScrollIndicator={false}
+                    />
+                  )}
+                </View>
+              ) : (
+                <Text style={[
+                  globalStyles.emptyStateText, 
+                  { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginVertical: theme.spacing.md }
+                ]}>
+                  Ingen ferdige bets ennå
+                </Text>
+              )}
+              <View style={[globalStyles.editButtonsContainer, { marginTop: theme.spacing.md }]}>
+                <TouchableOpacity onPress={() => setLeaderboardModalVisible(false)}>
+                  <Text style={[globalStyles.cancelButtonText, { fontSize: 16, color: theme.colors.primary }]}>Lukk</Text>
+                </TouchableOpacity>
               </View>
-            )}
-            <FlatList
-              data={leaderboardData}
-              renderItem={renderLeaderboardItem}
-              keyExtractor={item => item.userId}
-              ListEmptyComponent={<Text style={globalStyles.emptyStateText}>Ingen ferdige bets ennå</Text>}
-              contentContainerStyle={globalStyles.listContainer}
-            />
-            <View style={globalStyles.editButtonsContainer}>
-              <TouchableOpacity onPress={() => setLeaderboardModalVisible(false)}>
-                <Text style={globalStyles.cancelButtonText}>Lukk</Text>
-              </TouchableOpacity>
             </View>
           </View>
-        </View>
       </Modal>
 
       <Modal visible={editMenuModalVisible} animationType="slide" transparent onRequestClose={() => setEditMenuModalVisible(false)}>
