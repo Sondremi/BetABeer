@@ -7,7 +7,7 @@ import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import type { Bet, BettingOption, BetWager, DrinkType, MeasureType, MemberDrinkStats } from '../types/bettingTypes';
-import { GroupInvitation, Group, Friend, sendGroupInvitation, getGroupInvitation, removeFriendFromGroup, exitGroup, deleteGroup } from '../services/firebase/groupService';
+import { GroupInvitation, Group, Friend, sendGroupInvitation, getGroupInvitation, removeFriendFromGroup, exitGroup, deleteGroup, distributeDrinks } from '../services/firebase/groupService';
 import { showAlert } from '../utils/platformAlert';
 import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import { sendFriendRequest, getOutgoingRequest, FriendRequest } from '../services/firebase/friendService';
@@ -278,10 +278,31 @@ const GroupScreen: React.FC = () => {
     return usernames;
   };
 
-  const handleDistributeDrinks = async (distributions: { userId: string; drinkType: DrinkType; measureType: MeasureType; amount: number }[]) => {
-    console.log('Distributing drinks:', distributions);
-    showAlert('Suksess', 'Drikker fordelt (placeholder)!');
-    setDistributeModalVisible(false);
+  const handleDistributeDrinks = async () => {
+    if (!user?.id || !selectedGroup?.id) {
+      showAlert('Feil', 'Bruker eller gruppe ikke tilgjengelig');
+      return;
+    }
+    setDistributingDrinks(true);
+    try {
+      await distributeDrinks(user.id, selectedGroup.id, distributions);
+      
+      // Refresh leaderboardData
+      const updatedLeaderboard = await getLeaderboardData(leaderboardView);
+      setLeaderboardData(updatedLeaderboard);
+
+      // Clear state
+      setUserDrinksToDistribute({});
+      setDistributions([]);
+
+      showAlert('Suksess', 'Drikker fordelt!');
+      setDistributeModalVisible(false);
+    } catch (error) {
+      console.error('Error distributing drinks:', error);
+      showAlert('Feil', (error as Error).message || 'Kunne ikke fordele drikker');
+    } finally {
+      setDistributingDrinks(false);
+    }
   };
 
   const handleSendFriendRequest = async (member: Friend) => {
@@ -655,6 +676,12 @@ const GroupScreen: React.FC = () => {
     );
   };
 
+  const getMeasureTypes = (measures: { [key in MeasureType]?: number } | undefined): MeasureType[] => {
+    if (!measures) return ['Slurker'];
+    const validMeasureTypes: MeasureType[] = ['Slurker', 'Shot', 'Chug'];
+    return Object.keys(measures).filter((key): key is MeasureType => validMeasureTypes.includes(key as MeasureType));
+  };
+
   const getLeaderboardData = async (sortBy: 'betsWon' | 'drinksWon'): Promise<MemberDrinkStats[]> => {
     if (!selectedGroup || !selectedGroup.members) return [];
 
@@ -734,6 +761,46 @@ const GroupScreen: React.FC = () => {
       });
     });
     return drinkStrings.length > 0 ? drinkStrings.join(', ') : 'Ingen';
+  };
+
+  const handleMemberTap = (userId: string) => {
+    // Find first available drink and measure type
+    const drinkTypes = Object.keys(userDrinksToDistribute) as DrinkType[];
+    if (drinkTypes.length === 0) return; // No drinks available
+    const drinkType = drinkTypes[0];
+    const measureTypes = getMeasureTypes(userDrinksToDistribute[drinkType]);
+    const measureType = measureTypes[0];
+
+    // Check if enough drinks are available
+    const availableAmount = userDrinksToDistribute[drinkType]?.[measureType] || 0;
+    if (availableAmount <= 0) return;
+
+    // Update distributions
+    setDistributions(prev => {
+      const existing = prev.find(d => d.userId === userId && d.drinkType === drinkType && d.measureType === measureType);
+      if (existing) {
+        return prev.map(d =>
+          d.userId === userId && d.drinkType === drinkType && d.measureType === measureType
+            ? { ...d, amount: d.amount + 1 }
+            : d
+        );
+      }
+      return [...prev, { userId, drinkType, measureType, amount: 1 }];
+    });
+
+    // Update local drinksToDistribute
+    setUserDrinksToDistribute(prev => {
+      const updated = { ...prev };
+      updated[drinkType] = { ...updated[drinkType], [measureType]: (updated[drinkType]?.[measureType] || 0) - 1 };
+      // Check if updated[drinkType] exists and the measureType amount is <= 0
+      if (updated[drinkType] && updated[drinkType][measureType]! <= 0) {
+        delete updated[drinkType][measureType];
+        if (Object.keys(updated[drinkType]).length === 0) {
+          delete updated[drinkType];
+        }
+      }
+      return updated;
+    });
   };
 
   const renderMemberItem = ({ item }: { item: Friend }) => {
@@ -1024,8 +1091,7 @@ const GroupScreen: React.FC = () => {
             <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={openBetModal}>
               <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Opprett bett</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-            style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={() => setDistributeModalVisible(true)} disabled={!Object.keys(userDrinksToDistribute).length}>
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={() => setDistributeModalVisible(true)}>
             <Image 
               source={PencilIcon} // Placeholder, replace with drink icon (e.g., ../../assets/icons/drink.png)
               style={{ width: 20, height: 20, tintColor: theme.colors.primary }} 
@@ -1049,7 +1115,7 @@ const GroupScreen: React.FC = () => {
               globalStyles.modalTitle, 
               { marginBottom: theme.spacing.md, fontSize: 18, fontWeight: '600', color: theme.colors.text }
             ]}>
-              Del ut drikke!
+              Utdel drikker
             </Text>
             {Object.keys(userDrinksToDistribute).length > 0 ? (
               <View>
@@ -1069,27 +1135,40 @@ const GroupScreen: React.FC = () => {
                 <FlatList
                   data={memberData}
                   renderItem={({ item }) => (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
-                      <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 50, height: 50, marginRight: 10 }]} />
-                      <View style={{ flex: 1, justifyContent: 'center' }}>
-                        <Text style={[groupStyles.wagerUser, { fontSize: 14, color: theme.colors.text }]}>{item.name}</Text>
-                        <Text style={[globalStyles.secondaryText, { fontSize: 12, color: theme.colors.textSecondary }]}>@{item.username}</Text>
-                      </View>
-                      {/* Placeholder for input fields (to be added in Step 2) */}
+                    <View style={{ width: '33.33%', padding: theme.spacing.sm, alignItems: 'center' }}>
                       <TouchableOpacity
-                        style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14 }]}
-                        onPress={() => handleDistributeDrinks([{ userId: item.id, drinkType: 'Øl', measureType: 'Slurker', amount: 1 }])}
-                        disabled={inviting}
+                        onPress={() => handleMemberTap(item.id)}
+                        disabled={distributingDrinks || Object.keys(userDrinksToDistribute).length === 0}
                       >
-                        <Text style={globalStyles.outlineButtonGoldText}>Fordel (placeholder)</Text>
+                        <Image
+                          source={item.profilePicture}
+                          style={[globalStyles.circularImage, { width: 60, height: 60, marginBottom: 4 }]}
+                        />
+                        <Text style={[groupStyles.wagerUser, { fontSize: 12, color: theme.colors.text, textAlign: 'center' }]}>
+                          {item.name}
+                        </Text>
+                        <Text style={[globalStyles.secondaryText, { fontSize: 10, color: theme.colors.textSecondary, textAlign: 'center' }]}>
+                          @{item.username}
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   )}
                   keyExtractor={item => item.id}
+                  numColumns={3}
                   contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
                   scrollEnabled
                   showsVerticalScrollIndicator={false}
                 />
+                <TouchableOpacity
+                  style={[
+                    globalStyles.outlineButtonGold,
+                    { paddingVertical: 8, justifyContent: 'center', alignItems: 'center', marginTop: theme.spacing.md }
+                  ]}
+                  onPress={handleDistributeDrinks}
+                  disabled={distributingDrinks || distributions.length === 0}
+                >
+                  <Text style={globalStyles.outlineButtonGoldText}>Send</Text>
+                </TouchableOpacity>
               </View>
             ) : (
               <Text style={[globalStyles.emptyStateText, { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginVertical: theme.spacing.md }]}>
@@ -1097,7 +1176,7 @@ const GroupScreen: React.FC = () => {
               </Text>
             )}
             <View style={[globalStyles.editButtonsContainer, { marginTop: theme.spacing.md }]}>
-              <TouchableOpacity onPress={() => setDistributeModalVisible(false)} disabled={inviting}>
+              <TouchableOpacity onPress={() => setDistributeModalVisible(false)} disabled={distributingDrinks}>
                 <Text style={[globalStyles.cancelButtonText, { fontSize: 16, color: theme.colors.primary }]}>Lukk</Text>
               </TouchableOpacity>
             </View>

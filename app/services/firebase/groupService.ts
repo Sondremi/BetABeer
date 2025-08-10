@@ -1,5 +1,6 @@
-import { collection, doc, query, where, getDocs, addDoc, serverTimestamp, updateDoc, arrayUnion, getDoc, deleteDoc, arrayRemove } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs, addDoc, serverTimestamp, updateDoc, arrayUnion, getDoc, deleteDoc, arrayRemove, increment } from 'firebase/firestore';
 import { firestore, auth } from './FirebaseConfig';
+import { MemberDrinkStats, DrinkType, MeasureType } from '../../types/bettingTypes'
 
 export interface GroupInvitation {
   id: string;
@@ -196,4 +197,71 @@ export const deleteGroup = async (groupId: string) => {
         console.error(error);
         throw new Error('Kunne ikke slette gruppe');
     }
+};
+
+export const distributeDrinks = async (
+  fromUserId: string,
+  groupId: string,
+  distributions: { userId: string; drinkType: DrinkType; measureType: MeasureType; amount: number }[]
+): Promise<void> => {
+  if (!fromUserId || !groupId) {
+    throw new Error('Bruker eller gruppe ikke tilgjengelig');
+  }
+
+  // Fetch user's drinksToDistribute from Firestore
+  const fromUserRef = doc(firestore, 'users', fromUserId);
+  const fromUserDoc = await getDoc(fromUserRef);
+  if (!fromUserDoc.exists()) {
+    throw new Error('Bruker ikke funnet');
+  }
+  const userData = fromUserDoc.data();
+  const drinksToDistribute: MemberDrinkStats['drinksToDistribute'] = userData.drinksToDistribute || {};
+
+  // Validate distributions
+  const totalsByDrink: { [key in DrinkType]?: { [key in MeasureType]?: number } } = {};
+  distributions.forEach(({ drinkType, measureType, amount }) => {
+    if (!totalsByDrink[drinkType]) totalsByDrink[drinkType] = {};
+    if (!totalsByDrink[drinkType]![measureType]) totalsByDrink[drinkType]![measureType] = 0;
+    totalsByDrink[drinkType]![measureType]! += amount;
+  });
+  for (const [drinkType, measures] of Object.entries(totalsByDrink)) {
+    for (const [measureType, total] of Object.entries(measures)) {
+      const available = drinksToDistribute[drinkType as DrinkType]?.[measureType as MeasureType] || 0;
+      if (total > available) {
+        throw new Error(`Ikke nok ${measureType} ${drinkType} tilgjengelig`);
+      }
+    }
+  }
+
+  // Update Firestore
+  await Promise.all(distributions.map(async ({ userId, drinkType, measureType, amount }) => {
+    // Verify toUserId is a group member
+    const groupRef = doc(firestore, 'groups', groupId);
+    const groupDoc = await getDoc(groupRef);
+    if (!groupDoc.exists() || !groupDoc.data().members.includes(userId)) {
+      throw new Error('Mottaker er ikke medlem av gruppen');
+    }
+
+    // Create distribution record
+    const distributionRef = collection(firestore, `groups/${groupId}/drink_distributions`);
+    await addDoc(distributionRef, {
+      fromUserId,
+      toUserId: userId,
+      drinkType,
+      measureType,
+      amount,
+      createdAt: serverTimestamp(),
+    });
+
+    // Update recipient's drinksToConsume
+    const toUserRef = doc(firestore, 'users', userId);
+    await updateDoc(toUserRef, {
+      [`drinksToConsume.${drinkType}.${measureType}`]: increment(amount)
+    });
+
+    // Update distributor's drinksToDistribute
+    await updateDoc(fromUserRef, {
+      [`drinksToDistribute.${drinkType}.${measureType}`]: increment(-amount)
+    });
+  }));
 };
