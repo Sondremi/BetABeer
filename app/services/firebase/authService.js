@@ -17,7 +17,9 @@ export const authService = {
         username: userData.username,
         name: userData.name,
         email: userData.email,
-        phone: userData.phone,
+        phone: userData.phone ?? null,
+        weight: userData.weight ?? null,
+        gender: userData.gender ?? null,
         friends: [],
         groups: [],
         createdAt: serverTimestamp(),
@@ -27,7 +29,9 @@ export const authService = {
         username: userData.username,
         name: userData.name,
         email: userData.email,
-        phone: userData.phone,
+        phone: userData.phone ?? null,
+        weight: userData.weight ?? null,
+        gender: userData.gender ?? null, 
       };
     } catch (error) {
       console.error('Create user error:', error);
@@ -48,6 +52,8 @@ export const authService = {
           name: userData.name,
           email: userData.email,
           phone: userData.phone,
+          weight: userData.weight,
+          gender: userData.gender,
           friends: userData.friends || [],
           groups: userData.groups || [],
         };

@@ -7,10 +7,11 @@ import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import type { Bet, BettingOption, BetWager, DrinkType, MeasureType, MemberDrinkStats } from '../types/bettingTypes';
-import { GroupInvitation, Group, Friend, sendGroupInvitation, getGroupInvitation, removeFriendFromGroup, exitGroup, deleteGroup, distributeDrinks } from '../services/firebase/groupService';
+import { GroupInvitation, Group, Friend, sendGroupInvitation, removeFriendFromGroup, exitGroup, deleteGroup, distributeDrinks } from '../services/firebase/groupService';
+import { sendFriendRequest, getOutgoingRequest, FriendRequest } from '../services/firebase/friendService';
+import { getGroupInvitation } from '../services/firebase/profileService';
 import { showAlert } from '../utils/platformAlert';
 import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
-import { sendFriendRequest, getOutgoingRequest, FriendRequest } from '../services/firebase/friendService';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
