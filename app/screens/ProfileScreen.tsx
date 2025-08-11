@@ -1,6 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
-import { addDoc, collection, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
@@ -9,7 +8,8 @@ import { profileStyles } from '../styles/components/profileStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import { showAlert } from '../utils/platformAlert';
-import { acceptGroupInvitation, declineGroupInvitation, getGroupInvitation, Group, GroupInvitation } from '../services/firebase/groupService';
+import { Group, GroupInvitation } from '../services/firebase/groupService';
+import { acceptGroupInvitation, declineGroupInvitation, getGroupInvitation } from '../services/firebase/profileService';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const ImageMissing = require('../../assets/images/image_missing.png');
@@ -56,7 +56,6 @@ const ProfileScreen = () => {
   useEffect(() => {
     const fetchNames = async () => {
       if (!groupInvitations.length) return;
-      const firestore = getFirestore();
       const idsToFetch = groupInvitations
         .map(inv => inv.fromUserId)
         .filter(id => !(id in userNames));
@@ -86,7 +85,6 @@ const ProfileScreen = () => {
     if (!user) return;
     setCreatingGroup(true);
     try {
-      const firestore = getFirestore();
       const groupDoc = await addDoc(collection(firestore, 'groups'), {
         name: 'Gruppenavn',
         image: 'image_missing',
