@@ -1,20 +1,26 @@
 import { useRouter } from 'expo-router';
-import { addDoc, collection, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { FlatList, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { firestore } from '../services/firebase/FirebaseConfig';
 import { profileStyles } from '../styles/components/profileStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
-import { Group, GroupInvitation } from '../types/bettingTypes';
 import { showAlert } from '../utils/platformAlert';
+import { Group, GroupInvitation } from '../services/firebase/groupService';
+import { acceptGroupInvitation, declineGroupInvitation, getGroupInvitation, createGroup, profileService } from '../services/firebase/profileService';
+import { DrinkEntry, DrinkCategory } from '../types/drinkTypes';
+import { authService } from '../services/firebase/authService';
+import { Picker } from '@react-native-picker/picker';
+import { LineChart } from 'react-native-chart-kit';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const ImageMissing = require('../../assets/images/image_missing.png');
 const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 
-const ProfileScreen = () => {
+const ProfileScreen: React.FC = () => {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [groups, setGroups] = useState<Group[]>([]);
@@ -22,13 +28,32 @@ const ProfileScreen = () => {
   const [groupInvitations, setGroupInvitations] = useState<GroupInvitation[]>([]);
   const [handlingInvitation, setHandlingInvitation] = useState(false);
   const [userNames, setUserNames] = useState<{ [id: string]: string }>({});
+  const [userInfo, setUserInfo] = useState<{
+    weight?: number;
+    gender?: 'male' | 'female';
+    drinks?: DrinkEntry[];
+  }>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [drinkModalVisible, setDrinkModalVisible] = useState(false);
+  const [drinkForm, setDrinkForm] = useState<{
+    category: DrinkCategory | '';
+    sizeDl: number | '';
+    alcoholPercent: number | '' | 'custom';
+    quantity: number | '';
+    customAlcoholPercent: string;
+  }>({
+    category: '',
+    sizeDl: '',
+    alcoholPercent: '',
+    quantity: '',
+    customAlcoholPercent: '',
+  });
 
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
 
     const fetchGroupsAndInvitations = async () => {
-      const firestore = getFirestore();
       const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
       const groupSnapshot = await getDocs(groupQuery);
       if (!isMounted) return;
@@ -42,22 +67,8 @@ const ProfileScreen = () => {
       }));
       setGroups(groupList);
 
-      const invitationQuery = query(
-        collection(firestore, 'group_invitations'),
-        where('receiverId', '==', user.id),
-        where('status', '==', 'pending')
-      );
-      const invitationSnapshot = await getDocs(invitationQuery);
+      const invitationList = await getGroupInvitation(user.id);
       if (!isMounted) return;
-      const invitationList = invitationSnapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        groupId: docSnap.data().groupId,
-        groupName: docSnap.data().groupName,
-        senderId: docSnap.data().senderId,
-        receiverId: docSnap.data().receiverId,
-        status: docSnap.data().status,
-        createdAt: docSnap.data().createdAt,
-      })) as GroupInvitation[];
       setGroupInvitations(invitationList);
     };
     fetchGroupsAndInvitations();
@@ -66,13 +77,11 @@ const ProfileScreen = () => {
     };
   }, [user]);
 
-
   useEffect(() => {
     const fetchNames = async () => {
       if (!groupInvitations.length) return;
-      const firestore = getFirestore();
       const idsToFetch = groupInvitations
-        .map(inv => inv.senderId)
+        .map(inv => inv.fromUserId)
         .filter(id => !(id in userNames));
       const newNames: { [id: string]: string } = {};
       await Promise.all(
@@ -88,6 +97,82 @@ const ProfileScreen = () => {
     fetchNames();
   }, [groupInvitations]);
 
+  useEffect(() => {
+    loadUserData();
+  }, []);
+  
+  const loadUserData = async () => {
+    try {
+      const currentUser = authService.getCurrentUser();
+      if (currentUser) {
+        const userData = await profileService.getUserData(currentUser.uid);
+        setUserInfo(userData);
+        if (!userData.weight || !userData.gender) {
+          showAlert(
+            'Mangler informasjon',
+            'Du må angi vekt og kjønn i innstillingene for å bruke promillekalkulatoren.',
+            [
+              {
+                text: 'Gå til innstillinger',
+                onPress: () => router.push('/settings'),
+              },
+              { text: 'Avbryt', style: 'cancel' },
+            ]
+          );
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      showAlert('Feil', 'Kunne ikke laste brukerdata');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getSizeOptions = (category: DrinkCategory | '') => {
+    switch (category) {
+      case 'øl':
+        return [3.3, 5];
+      case 'vin':
+        return [1.25, 1.5, 1.75, 3.75, 7.5];
+      case 'sprit':
+        return [0.4, 0.5, 3.5, 5, 7];
+      default:
+        return [];
+    }
+  };
+
+  const getAlcoholPercentOptions = (category: DrinkCategory | '') => {
+    switch (category) {
+      case 'øl':
+        return [4.7];
+      case 'vin':
+        return [10, 12, 14, 'custom'];
+      case 'sprit':
+        return [22, 30, 40, 60, 'custom'];
+      default:
+        return [];
+    }
+  };
+
+  const validateCustomAlcoholPercent = () => {
+    if (drinkForm.alcoholPercent !== 'custom') return true;
+    const value = parseFloat(drinkForm.customAlcoholPercent);
+    if (isNaN(value)) {
+      showAlert('Feil', 'Ugyldig alkoholprosent');
+      return false;
+    }
+    if (drinkForm.category === 'vin' && (value < 10 || value > 20)) {
+      showAlert('Feil', 'Alkoholprosent for vin må være mellom 10 og 20');
+      return false;
+    }
+    if (drinkForm.category === 'sprit' && (value < 22 || value > 70)) {
+      showAlert('Feil', 'Alkoholprosent for sprit må være mellom 22 og 70');
+      return false;
+    }
+    return true;
+  };
+
   const navigateToSettings = () => {
     router.push('/settings');
   };
@@ -96,33 +181,93 @@ const ProfileScreen = () => {
     router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(group) } });
   };
 
+  const handleAddDrink = async () => {
+    if (!drinkForm.category) {
+      showAlert('Feil', 'Velg en drikkekategori');
+      return;
+    }
+    if (!drinkForm.sizeDl) {
+      showAlert('Feil', 'Velg en størrelse');
+      return;
+    }
+    if (!drinkForm.alcoholPercent) {
+      showAlert('Feil', 'Velg en alkoholprosent');
+      return;
+    }
+    if (!validateCustomAlcoholPercent()) {
+      return;
+    }
+    if (!drinkForm.quantity) {
+      showAlert('Feil', 'Velg antall');
+      return;
+    }
+    const alcoholPercent = 
+      drinkForm.alcoholPercent === 'custom' 
+        ? parseFloat(drinkForm.customAlcoholPercent)
+        : parseFloat(drinkForm.alcoholPercent.toString());
+    const drink: DrinkEntry = {
+      category: drinkForm.category,
+      sizeDl: parseFloat(drinkForm.sizeDl.toString()),
+      alcoholPercent, 
+      quantity: parseInt(drinkForm.quantity.toString(), 10),
+      timestamp: Date.now(),
+    };
+    try {
+      const currentUser = authService.getCurrentUser();
+      if (currentUser) {
+        await profileService.addDrink(currentUser.uid, drink);
+        setUserInfo(prev => ({ ...prev, drinks: [...(prev.drinks || []), drink] }));
+        showAlert('Suksess', 'Drikke lagt til');
+      }
+    } catch (error) {
+      console.error(error);
+      showAlert('Feil', 'Kunne ikke legge til drikke');
+    }
+    setDrinkModalVisible(false);
+    setDrinkForm({
+      category: '',
+      sizeDl: '',
+      alcoholPercent: '',
+      quantity: '',
+      customAlcoholPercent: '',
+    });
+  };
+
+  const handleResetDrinks = () => {
+    showAlert(
+      'Nullstill drikker',
+      'Er du sikker på at du vil slette alle registrerte drikker?',
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: 'Nullstill',
+          style: 'destructive',
+          async onPress() {
+            try {
+              const currentUser = authService.getCurrentUser();
+              if (currentUser) {
+                await profileService.resetDrinks(currentUser.uid);
+                setUserInfo(prev => ({ ...prev, drinks: [] }));
+                showAlert('Suksess', 'Drikker nullstilt');
+              }
+            } catch (error) {
+              console.error(error);
+              showAlert('Feil', 'Kunne ikke nullstille drikker');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleCreateGroup = async () => {
     if (!user) return;
     setCreatingGroup(true);
     try {
-      const firestore = getFirestore();
-      const groupDoc = await addDoc(collection(firestore, 'groups'), {
-        name: 'Gruppenavn',
-        image: 'image_missing',
-        members: [user.id],
-        bets: [],
-        createdAt: serverTimestamp(),
-        createdBy: user.id,
-      });
-      const userRef = doc(firestore, 'users', user.id);
-      const userSnap = await getDoc(userRef);
-      let userGroups: string[] = userSnap.exists() && userSnap.data().groups ? userSnap.data().groups : [];
-      await updateDoc(userRef, { groups: [...userGroups, groupDoc.id] });
-      const newGroup: Group = {
-        id: groupDoc.id,
-        name: 'Gruppenavn',
-        memberCount: 1,
-        image: ImageMissing,
-        createdBy: user.id,
-        members: [user.id],
-      };
-      setGroups(prev => [...prev, newGroup]);
-      router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(newGroup) } });
+      const newGroup = await createGroup(user.id);
+      const groupWithImage: Group = {...newGroup, image: ImageMissing}
+      setGroups(prev => [...prev, groupWithImage]);
+      router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(groupWithImage) } });
     } catch (error) {
       console.error('Error creating group:', error);
       showAlert('Feil', 'Kunne ikke opprette gruppe');
@@ -135,34 +280,25 @@ const ProfileScreen = () => {
     if (!user) return;
     setHandlingInvitation(true);
     try {
-      const firestore = getFirestore();
-      const invitationRef = doc(firestore, 'group_invitations', invitation.id);
+      await acceptGroupInvitation(invitation);
+      setGroupInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
       const groupRef = doc(firestore, 'groups', invitation.groupId);
       const groupSnap = await getDoc(groupRef);
-
       if (groupSnap.exists()) {
         const groupData = groupSnap.data();
-        const updatedMembers = [...(groupData.members || []), user.id];
-        await updateDoc(groupRef, { members: updatedMembers });
-        await updateDoc(invitationRef, { status: 'accepted' });
-        setGroupInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
-        setGroups(prev => [
-          ...prev,
-          {
-            id: invitation.groupId,
-            name: groupData.name,
-            memberCount: updatedMembers.length,
-            image: ImageMissing,
-            createdBy: groupData.createdBy,
-            members: updatedMembers,
-          },
-        ]);
-      } else {
-        showAlert('Feil', 'Gruppen finnes ikke');
+        const newGroup: Group = {
+          id: invitation.groupId,
+          name: groupData.name,
+          memberCount: groupData.members.length,
+          image: ImageMissing,
+          createdBy: groupData.createdBy,
+          members: [...groupData.members, user.id],
+        };
+        setGroups(prev => [...prev, newGroup]);
       }
     } catch (error) {
       console.error('Error accepting invitation:', error);
-      showAlert('Feil', 'Kunne ikke godta invitasjonen');
+      showAlert('Feil', `Kunne ikke godta invitasjonen: ${(error as Error).message}`);
     } finally {
       setHandlingInvitation(false);
     }
@@ -172,9 +308,7 @@ const ProfileScreen = () => {
     if (!user) return;
     setHandlingInvitation(true);
     try {
-      const firestore = getFirestore();
-      const invitationRef = doc(firestore, 'group_invitations', invitation.id);
-      await updateDoc(invitationRef, { status: 'declined' });
+      await declineGroupInvitation(invitation.id)
       setGroupInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
     } catch (error) {
       console.error('Error declining invitation:', error);
@@ -183,6 +317,14 @@ const ProfileScreen = () => {
       setHandlingInvitation(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <View style={[globalStyles.container, globalStyles.centerContent]}>
+        <Text style={globalStyles.circularImage}>Laster...</Text>
+      </View>
+    );
+  }
 
   const renderGroupItem = ({ item }: { item: Group }) => (
     <TouchableOpacity style={profileStyles.groupItem} onPress={() => navigateToGroup(item)}>
@@ -198,7 +340,7 @@ const ProfileScreen = () => {
     <View style={[globalStyles.listItemRow, { paddingVertical: 10 }]}>
       <View style={{ flex: 1, paddingBottom: 0 }}>
         <Text style={globalStyles.modalText}>{item.groupName}</Text>
-        <Text style={globalStyles.secondaryText}>Fra: {userNames[item.senderId] || item.senderId}</Text>
+        <Text style={globalStyles.secondaryText}>Fra: {userNames[item.fromUserId] || item.fromUserId}</Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <TouchableOpacity
@@ -273,6 +415,72 @@ const ProfileScreen = () => {
           <Text style={globalStyles.secondaryText}>{user?.username || 'Brukernavn'}</Text>
         </View>
 
+        { /* Promillegreier */ }
+        <View style={globalStyles.section}>
+          <View style={globalStyles.inputGroup}>
+            <Text style={globalStyles.sectionTitle}>Promillekalkulator</Text>
+            <TouchableOpacity
+              style={[globalStyles.primaryButtonShadow, (!userInfo.weight || !userInfo.gender) && globalStyles.disabledButton]}
+              onPress={() => setDrinkModalVisible(true)}
+              disabled={!userInfo.weight || !userInfo.gender}
+            >
+              <Text style={globalStyles.primaryButtonText}>Legg til drikke</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[globalStyles.dangerButton, (!userInfo.weight || !userInfo.gender) && globalStyles.disabledButton]}
+              onPress={handleResetDrinks}
+              disabled={!userInfo.weight || !userInfo.gender}
+            >
+              <Text style={globalStyles.dangerButtonText}>Nullstill drikker</Text>
+            </TouchableOpacity>
+          </View>
+          {userInfo.weight && userInfo.gender && userInfo.drinks && userInfo.drinks.length > 0 && (
+          <View style={globalStyles.inputGroup}>
+            <Text style={globalStyles.sectionTitle}>Promille over tid</Text>
+            <LineChart
+              data={{
+                labels: Array.from({ length: 7 }, (_, i) => `${i * 0.5}h`), // 0 to 3h, every 30min
+                datasets: [
+                  {
+                    data: Array.from({ length: 7 }, (_, i) => {
+                      const time = Math.min(...userInfo.drinks!.map(d => d.timestamp)) + i * 0.5 * 60 * 60 * 1000;
+                      return profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
+                    }),
+                    color: () => theme.colors.primary ?? '#FFD700', // Gold line
+                  },
+                ],
+              }}
+              width={Dimensions.get('window').width - theme.spacing.md * 2} // Adjust for padding
+              height={220}
+              yAxisLabel=""
+              yAxisSuffix="‰"
+              chartConfig={{
+                backgroundColor: theme.colors.background ?? '#000000',
+                backgroundGradientFrom: theme.colors.background ?? '#000000',
+                backgroundGradientTo: theme.colors.background ?? '#000000',
+                decimalPlaces: 3,
+                color: () => theme.colors.text ?? '#FFFFFF',
+                labelColor: () => theme.colors.text ?? '#FFFFFF',
+                style: { borderRadius: theme.borderRadius.md },
+                propsForDots: { r: '6', strokeWidth: '2', stroke: theme.colors.primary },
+              }}
+              bezier
+              style={{ marginVertical: theme.spacing.md }}
+            />
+            <Text style={[globalStyles.label, { color: theme.colors.primary ?? '#FFD700' }]}>
+              Maks promille neste 30 min: {
+                Math.max(
+                  ...Array.from({ length: 2 }, (_, i) => {
+                    const time = Date.now() + i * 15 * 60 * 1000; // Next 0 and 15min
+                    return profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
+                  })
+                ).toFixed(3)
+              }‰
+            </Text>
+          </View>
+        )}
+        </View>
+
         {/* Group Invitations Section */}
         <View style={globalStyles.section}>
           <View style={profileStyles.groupsHeader}>
@@ -321,6 +529,133 @@ const ProfileScreen = () => {
             scrollEnabled={false}
             showsVerticalScrollIndicator={false}
           />
+          <Modal
+            visible={drinkModalVisible}
+            animationType="slide"
+            transparent
+            onRequestClose={() => setDrinkModalVisible(false)}
+          >
+            <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+              <View style={[globalStyles.modalContent, { padding: theme.spacing.md, borderRadius: theme.borderRadius.lg }]}>
+                <ScrollView contentContainerStyle={{ paddingBottom: theme.spacing.md }} showsVerticalScrollIndicator={false}>
+                  <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.md }]}>
+                    Legg til drikke
+                  </Text>
+
+                  <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
+                    <Text style={globalStyles.label}>Kategori</Text>
+                    <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 40 }]}>
+                      <Picker
+                        style={{ width: '100%', color: theme.colors.primary}}
+                        itemStyle={{ color: theme.colors.primary }}
+                        selectedValue={drinkForm.category}
+                        onValueChange={(value: DrinkCategory | '') =>
+                          setDrinkForm({ ...drinkForm, category: value, sizeDl: '', alcoholPercent: '', customAlcoholPercent: '' })
+                        }
+                      >
+                        <Picker.Item label="Velg kategori" value="" />
+                        <Picker.Item label="Øl" value="øl" />
+                        <Picker.Item label="Vin" value="vin" />
+                        <Picker.Item label="Sprit" value="sprit" />
+                      </Picker>
+                    </View>
+                  </View>
+
+                  {drinkForm.category && (
+                    <>
+                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
+                        <Text style={globalStyles.label}>Størrelse (dl)</Text>
+                        <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 40 }]}>
+                          <Picker
+                            style={{ width: '100%', color: theme.colors.primary }}
+                            itemStyle={{ color: theme.colors.primary }}
+                            selectedValue={drinkForm.sizeDl}
+                            onValueChange={(value: number | '') => setDrinkForm({ ...drinkForm, sizeDl: value })}
+                          >
+                            <Picker.Item label="Velg størrelse" value="" />
+                            {getSizeOptions(drinkForm.category).map(size => (
+                              <Picker.Item key={size} label={`${size} dl`} value={size} />
+                            ))}
+                          </Picker>
+                        </View>
+                      </View>
+
+                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
+                        <Text style={globalStyles.label}>Alkoholprosent</Text>
+                        <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 40 }]}>
+                          <Picker
+                            style={{ width: '100%', color: theme.colors.primary }}
+                            itemStyle={{ color: theme.colors.primary }}
+                            selectedValue={drinkForm.alcoholPercent}
+                            onValueChange={(value: number | '' | 'custom') =>
+                              setDrinkForm({ ...drinkForm, alcoholPercent: value, customAlcoholPercent: '' })
+                            }
+                          >
+                            <Picker.Item label="Velg alkoholprosent" value="" />
+                            {getAlcoholPercentOptions(drinkForm.category).map(percent => (
+                              <Picker.Item
+                                key={percent}
+                                label={percent === 'custom' ? 'Egendefinert' : `${percent}%`}
+                                value={percent}
+                              />
+                            ))}
+                          </Picker>
+                        </View>
+                      </View>
+
+                      {drinkForm.alcoholPercent === 'custom' && (
+                        <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
+                          <Text style={globalStyles.label}>Egendefinert alkoholprosent</Text>
+                          <TextInput
+                            style={[globalStyles.input, {height: 40}]}
+                            value={drinkForm.customAlcoholPercent}
+                            onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercent: text })}
+                            placeholder={
+                              drinkForm.category === 'vin' ? '10–20%' : '22–70%'
+                            }
+                            placeholderTextColor="#E0E0E0"
+                            keyboardType="numeric"
+                          />
+                        </View>
+                      )}
+
+                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
+                        <Text style={globalStyles.label}>Antall</Text>
+                        <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 40 }]}>
+                          <Picker
+                            style={{ width: '100%', color: theme.colors.primary }}
+                            itemStyle={{ color: theme.colors.primary }}
+                            selectedValue={drinkForm.quantity}
+                            onValueChange={(value: number | '') => setDrinkForm({ ...drinkForm, quantity: value })}
+                          >
+                            <Picker.Item label="Velg antall" value="" />
+                            {Array.from({ length: 20 }, (_, i) => i + 1).map(num => (
+                              <Picker.Item key={num} label={`${num}`} value={num} />
+                            ))}
+                          </Picker>
+                        </View>
+                      </View>
+                    </>
+                  )}
+
+                  <View style={globalStyles.buttonRow}>
+                    <TouchableOpacity
+                      style={globalStyles.cancelButton}
+                      onPress={() => setDrinkModalVisible(false)}
+                    >
+                      <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={globalStyles.saveButton}
+                      onPress={handleAddDrink}
+                    >
+                      <Text style={globalStyles.saveButtonTextAlt}>Lagre</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
