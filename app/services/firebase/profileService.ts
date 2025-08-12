@@ -103,12 +103,32 @@ export const profileService = {
   },
 
   async addDrink(userId: string, drink: DrinkEntry): Promise<void> {
-    // Placeholder: Firestore update in Step 3
+    const userRef = doc(firestore, 'users', userId);
+    await updateDoc(userRef, {drinks: arrayUnion(drink)});
     console.log('Adding drink for user', userId, drink);
   },
 
   async resetDrinks(userId: string): Promise<void> {
-    // Placeholder: Firestore update in Step 3
+    const userRef = doc(firestore, 'users', userId);
+    await updateDoc(userRef, {drinks: []});
     console.log('Resetting drinks for user', userId);
   },
+
+  calculateBAC(drinks: DrinkEntry[], weight: number, gender: 'male' | 'female', currentTime: number): number {
+    const bodyWaterPercentage = gender === 'male' ? 0.65 : 0.55;
+    const metabolismRate = 0.15;
+
+    let totalAlcoholGrams = 0;
+    drinks.forEach(drink => {
+        const alcoholGrams = drink.sizeDl * drink.alcoholPercent * 0.8 * drink.quantity
+        totalAlcoholGrams += alcoholGrams;
+    })
+
+    const hoursSinceFirstDrink = drinks.length > 0
+        ? (currentTime - Math.min(...drinks.map(d => d.timestamp))) / (1000 * 60 * 60)
+        : 0;
+
+    const BAC = (totalAlcoholGrams / weight * bodyWaterPercentage) - (metabolismRate * hoursSinceFirstDrink);
+    return Math.max(0, Number(BAC.toFixed(3)));
+  }
 };
