@@ -1,6 +1,7 @@
 import { collection, doc, query, where, getDocs, orderBy, addDoc, serverTimestamp, updateDoc, arrayUnion, getDoc, deleteDoc, arrayRemove } from 'firebase/firestore';
 import { firestore, auth } from './FirebaseConfig';
-import DefaultProfilePicture  from '../../../assets/images/default_profilepicture.png';
+
+const DefaultProfilePicture = require('../../../assets/images/default_profilepicture.png');
 
 export type Friend = { id: string; name: string; username: string; profilePicture: any };
 export type FriendRequest = {
