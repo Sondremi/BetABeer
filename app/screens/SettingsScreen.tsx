@@ -1,12 +1,16 @@
 import { useRouter } from 'expo-router';
-import { doc, getDoc, getFirestore } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { authService } from '../services/firebase/authService';
 import { settingsStyles } from '../styles/components/settingsStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import { showAlert } from '../utils/platformAlert';
+import { firestore } from '../services/firebase/FirebaseConfig';
+
+type Gender = 'male' | 'female'
 
 const SettingsScreen = () => {
   const router = useRouter();
@@ -15,8 +19,10 @@ const SettingsScreen = () => {
     id: '',
     username: '',
     name: '',
-    phone: '',
-    email: ''
+    phone: undefined as string | undefined,
+    email: '',
+    weight: undefined as number | undefined,
+    gender: undefined as Gender | undefined,
   });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -31,17 +37,18 @@ const SettingsScreen = () => {
     try {
       const currentUser = authService.getCurrentUser();
       if (currentUser) {
-        const firestore = getFirestore();
         const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();
           if (userData) {
             const userInfoData = {
               id: currentUser.uid,
-              username: userData.username,
-              name: userData.name,
+              username: userData.username || '',
+              name: userData.name || '',
               phone: userData.phone,
-              email: userData.email,
+              email: userData.email || '',
+              weight: userData.weight,
+              gender: userData.gender,
             };
             setUserInfo(userInfoData);
             setEditedInfo(userInfoData);
@@ -49,6 +56,7 @@ const SettingsScreen = () => {
         }
       }
     } catch (error) {
+      console.error(error);
       showAlert('Feil', 'Kunne ikke laste brukerdata');
     } finally {
       setIsLoading(false);
@@ -66,14 +74,14 @@ const SettingsScreen = () => {
       return false;
     }
 
-    if (!editedInfo.phone.trim()) {
-      showAlert('Feil', 'Telefonnummer er påkrevd');
-      return false;
-    }
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(editedInfo.email)) {
       showAlert('Feil', 'Ugyldig e-postadresse');
+      return false;
+    }
+
+    if (editedInfo.weight !== undefined && (isNaN(editedInfo.weight) || editedInfo.weight <= 0)) {
+      showAlert('Feil', 'Vekt må være et positivt tall');
       return false;
     }
 
@@ -90,6 +98,8 @@ const SettingsScreen = () => {
         name: editedInfo.name,
         phone: editedInfo.phone,
         email: editedInfo.email,
+        weight: editedInfo.weight,
+        gender: editedInfo.gender,
       });
       
       setUserInfo(editedInfo);
@@ -128,6 +138,7 @@ const SettingsScreen = () => {
               await authService.logoutUser();
               router.replace('/login');
             } catch (error) {
+              console.error(error);
               showAlert('Feil', 'Kunne ikke logge ut');
             }
           },
@@ -269,7 +280,7 @@ const SettingsScreen = () => {
                   style={globalStyles.input}
                   value={editedInfo.phone}
                   onChangeText={(text) => setEditedInfo({ ...editedInfo, phone: text })}
-                  placeholder="Skriv inn telefonnummer"
+                  placeholder="Skriv inn telefonnummer (valgfritt)"
                   placeholderTextColor="#888"
                   keyboardType="phone-pad"
                 />
@@ -296,6 +307,55 @@ const SettingsScreen = () => {
               ) : (
                 <View style={globalStyles.readOnlyInput}>
                   <Text style={settingsStyles.readOnlyText}>{userInfo.email}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* weight */}
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Vekt</Text>
+              {isEditing ? (
+                <TextInput
+                  style={globalStyles.input}
+                  value={editedInfo.weight ? editedInfo.weight.toString(): ''}
+                  onChangeText={(text) => {
+                    const value = text ? parseInt(text) : undefined;
+                    if (value === undefined || !isNaN(value)) {
+                      setEditedInfo({...editedInfo, weight: value});
+                    }
+                  }}
+                  placeholder="Skriv inn vekt (kg)"
+                  placeholderTextColor="#888"
+                  keyboardType="numeric"
+                />
+              ) : (
+                <View style={globalStyles.readOnlyInput}>
+                  <Text style={settingsStyles.readOnlyText}>{userInfo.weight ? `${userInfo.weight} kg` : 'Ikke satt'}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* gender */}
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Kjønn</Text>
+              {isEditing ? (
+                <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 40 }]}>
+                  <Picker
+                    style={{ width: '100%', color: theme.colors.primary }}
+                    itemStyle={{ color: theme.colors.primary }}
+                    selectedValue={editedInfo.gender || ''}
+                    onValueChange={(value: Gender | '') => setEditedInfo({ ...editedInfo, gender: value || undefined })}
+                  >
+                    <Picker.Item label="Velg kjønn" value="" />
+                    <Picker.Item label="Mann" value="male" />
+                    <Picker.Item label="Dame" value="female" />
+                  </Picker>
+                </View>
+              ) : (
+                <View style={globalStyles.readOnlyInput}>
+                  <Text style={settingsStyles.readOnlyText}>
+                    {userInfo.gender === 'male' ? 'Mann' : userInfo.gender === 'female' ? 'Kvinne' : 'Ikke satt'}
+                  </Text>
                 </View>
               )}
             </View>

@@ -1,18 +1,22 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { auth } from '../services/firebase/FirebaseConfig';
+import { firestore } from '../services/firebase/FirebaseConfig';
 import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
-import type { Bet, BettingOption, BetWager, DrinkType, Friend, Group, GroupInvitation, MeasureType, MemberDrinkStats } from '../types/bettingTypes';
+import type { Bet, BettingOption, BetWager, DrinkType, MeasureType, MemberDrinkStats } from '../types/bettingTypes';
+import { GroupInvitation, Group, Friend, sendGroupInvitation, removeFriendFromGroup, exitGroup, deleteGroup, distributeDrinks } from '../services/firebase/groupService';
+import { sendFriendRequest, getOutgoingRequest, FriendRequest } from '../services/firebase/friendService';
+import { getGroupInvitation } from '../services/firebase/profileService';
 import { showAlert } from '../utils/platformAlert';
+import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 const DeleteIcon = require('../../assets/icons/noun-delete-7938028.png');
+const PeopleIcon = require('../../assets/icons/noun-people-2196504.png');
 
 const GroupScreen: React.FC = () => {
   const params = useLocalSearchParams();
@@ -28,7 +32,7 @@ const GroupScreen: React.FC = () => {
   const [betModalVisible, setBetModalVisible] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [betTitle, setBetTitle] = useState('');
-  const [betOptions, setBetOptions] = useState<Array<{ name: string; odds: string }>>([{ name: '', odds: '' }]);
+  const [betOptions, setBetOptions] = useState<{ name: string; odds: string }[]>([{ name: '', odds: '' }]);
   const [betSaving, setBetSaving] = useState(false);
   const [bets, setBets] = useState<Bet[]>([]);
   const [placeBetModalVisible, setPlaceBetModalVisible] = useState(false);
@@ -42,7 +46,7 @@ const GroupScreen: React.FC = () => {
   const [editBetModalVisible, setEditBetModalVisible] = useState(false);
   const [editBetIdx, setEditBetIdx] = useState<number | null>(null);
   const [editBetTitle, setEditBetTitle] = useState('');
-  const [editBetOptions, setEditBetOptions] = useState<Array<{ name: string; odds: string }>>([]);
+  const [editBetOptions, setEditBetOptions] = useState<{ name: string; odds: string }[]>([]);
   const [editBetSaving, setEditBetSaving] = useState(false);
   const [leaderboardModalVisible, setLeaderboardModalVisible] = useState(false);
   const [editMenuModalVisible, setEditMenuModalVisible] = useState(false);
@@ -50,6 +54,16 @@ const GroupScreen: React.FC = () => {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [inviting, setInviting] = useState(false);
   const [leaderboardData, setLeaderboardData] = useState<MemberDrinkStats[]>([]);
+  const [membersModalVisible, setMembersModalVisible] = useState(false);
+  const [memberData, setMemberData] = useState<Friend[]>([]);
+  const [cachedUsernames, setCachedUsernames] = useState<{ [key: string]: string }>({});
+  const [leaderboardView, setLeaderboardView] = useState<'betsWon' | 'drinksWon'>('betsWon');
+  const [sendingFriendRequest, setSendingFriendRequest] = useState(false);
+  const [pendingFriendRequests, setPendingFriendRequests] = useState<FriendRequest[]>([]);
+  const [userDrinksToDistribute, setUserDrinksToDistribute] = useState<MemberDrinkStats['drinksToDistribute']>({});
+  const [distributeModalVisible, setDistributeModalVisible] = useState(false);
+  const [distributingDrinks, setDistributingDrinks] = useState(false);
+  const [distributions, setDistributions] = useState<{ userId: string; drinkType: DrinkType; measureType: MeasureType; amount: number }[]>([]);
 
   const currentGroup: Group & { image: any } = selectedGroup
     ? { ...selectedGroup, name: groupName, image: selectedGroup.image ?? ImageMissing }
@@ -62,8 +76,7 @@ const GroupScreen: React.FC = () => {
     let isMounted = true;
 
     const fetchGroupsAndInvitations = async () => {
-      const db = getFirestore();
-      const groupQuery = query(collection(db, 'groups'), where('members', 'array-contains', user.id));
+      const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
       const groupSnapshot = await getDocs(groupQuery);
       if (!isMounted) return;
       const groupList = groupSnapshot.docs.map(docSnap => ({
@@ -76,17 +89,8 @@ const GroupScreen: React.FC = () => {
       }));
       setGroups(groupList);
 
-      const invitationQuery = query(
-        collection(db, 'group_invitations'),
-        where('receiverId', '==', user.id),
-        where('status', '==', 'pending')
-      );
-      const invitationSnapshot = await getDocs(invitationQuery);
+      const invitationList = await getGroupInvitation(user.id);
       if (!isMounted) return;
-      const invitationList = invitationSnapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      })) as GroupInvitation[];
       setInvitations(invitationList);
 
       let groupFromParams = null;
@@ -122,8 +126,7 @@ const GroupScreen: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
-    const db = getFirestore();
-    const userRef = doc(db, 'users', user.id);
+    const userRef = doc(firestore, 'users', user.id);
     const unsubscribe = onSnapshot(userRef, (userDoc) => {
       if (userDoc.exists() && isMounted) {
         const data = userDoc.data();
@@ -132,7 +135,7 @@ const GroupScreen: React.FC = () => {
           const friendData = await Promise.all(
             friends.map(async (friendId: string) => {
               try {
-                const friendDoc = await getDoc(doc(db, 'users', friendId));
+                const friendDoc = await getDoc(doc(firestore, 'users', friendId));
                 if (friendDoc.exists()) {
                   const friendData = friendDoc.data();
                   return {
@@ -169,8 +172,7 @@ const GroupScreen: React.FC = () => {
     }
     let isMounted = true;
     const fetchBets = async () => {
-      const db = getFirestore();
-      const groupRef = doc(db, 'groups', selectedGroup.id);
+      const groupRef = doc(firestore, 'groups', selectedGroup.id);
       const groupSnap = await getDoc(groupRef);
       if (!isMounted) return;
       if (groupSnap.exists() && groupSnap.data().bets) {
@@ -187,66 +189,155 @@ const GroupScreen: React.FC = () => {
 
   useEffect(() => {
     if (leaderboardModalVisible) {
-      getLeaderboardData().then(setLeaderboardData);
+      getLeaderboardData(leaderboardView).then(setLeaderboardData);
     }
-  }, [leaderboardModalVisible, bets, selectedGroup]);
+  }, [leaderboardModalVisible, bets, selectedGroup, leaderboardView]);
+
+  useEffect(() => {
+    if (!selectedGroup || !selectedGroup.members) {
+      setMemberData([]);
+      return;
+    }
+    let isMounted = true;
+
+    const fetchAndSortMembers = async () => {
+      const usernames = await fetchMemberUsernames(selectedGroup.members);
+      const members = await Promise.all(
+        selectedGroup.members.map(async (memberId) => {
+          try {
+            const userDoc = await getDoc(doc(firestore, 'users', memberId));
+            return {
+              id: memberId,
+              name: userDoc.exists() ? userDoc.data().name || 'Ukjent navn' : 'Ukjent navn',
+              username: usernames[memberId] || 'ukjent',
+              profilePicture: ImageMissing,
+            };
+          } catch (error) {
+            console.error(`Error fetching member ${memberId}:`, error);
+            return {
+              id: memberId,
+              name: 'Ukjent navn',
+              username: usernames[memberId] || 'ukjent',
+              profilePicture: ImageMissing,
+            };
+          }
+        })
+      );
+      if (!isMounted) return;
+      // Sort members alphabetically by username
+      const sortedMembers = members.sort((a, b) => a.username.localeCompare(b.username));
+      setMemberData(sortedMembers);
+    };
+
+    fetchAndSortMembers();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedGroup?.members]);
+
+  useEffect(() => {
+    if (!user?.id || !membersModalVisible) return;
+    
+    const fetchPendingRequests = async () => {
+      try {
+        const requests = await getOutgoingRequest(user.id);
+        setPendingFriendRequests(requests);
+      } catch (error) {
+        console.error('Error fetching pending friend requests:', error);
+      }
+    };
+    
+    fetchPendingRequests();
+  }, [user?.id, membersModalVisible]);
+
+  useEffect(() => {
+    if (!user?.id || !leaderboardData) return;
+    const userStats = leaderboardData.find(stat => stat.userId === user.id);
+    setUserDrinksToDistribute(userStats?.drinksToDistribute || {});
+  }, [leaderboardData, user?.id]);
 
   const fetchMemberUsernames = async (memberIds: string[]): Promise<{ [key: string]: string }> => {
-    const db = getFirestore();
-    const usernames: { [key: string]: string } = {};
-    await Promise.all(
-      memberIds.map(async (memberId) => {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', memberId));
-          usernames[memberId] = userDoc.exists() ? userDoc.data().username || userDoc.data().displayName || userDoc.data().email || (user && memberId === user.id ? 'Meg' : 'Ukjent') : (user && memberId === user.id ? 'Meg' : 'Ukjent');
-        } catch (error) {
-          console.error(`Error fetching username for member ${memberId}:`, error);
-          usernames[memberId] = user && memberId === user.id ? 'Meg' : 'Ukjent';
+    const usernames: { [key: string]: string } = { ...cachedUsernames };
+    const uncachedIds = memberIds.filter(id => !usernames[id]);
+    if (uncachedIds.length > 0) {
+      await Promise.all(
+        uncachedIds.map(async (memberId) => {
+          try {
+            const userDoc = await getDoc(doc(firestore, 'users', memberId));
+            usernames[memberId] = userDoc.exists() 
+            ? userDoc.data().username || userDoc.data().displayName || userDoc.data().email || 
+            (user && memberId === user.id ? 'Meg' : 'Ukjent') 
+            : (user && memberId === user.id ? 'Meg' : 'Ukjent');
+          } catch (error) {
+            console.error(`Error fetching username for member ${memberId}:`, error);
+            usernames[memberId] = user && memberId === user.id ? 'Meg' : 'Ukjent';
+          }
         }
-      })
-    );
+      ));
+      setCachedUsernames(usernames);
+    }
     return usernames;
+  };
+
+  const handleDistributeDrinks = async () => {
+    if (!user?.id || !selectedGroup?.id) {
+      showAlert('Feil', 'Bruker eller gruppe ikke tilgjengelig');
+      return;
+    }
+    setDistributingDrinks(true);
+    try {
+      await distributeDrinks(user.id, selectedGroup.id, distributions);
+      
+      // Refresh leaderboardData
+      const updatedLeaderboard = await getLeaderboardData(leaderboardView);
+      setLeaderboardData(updatedLeaderboard);
+
+      // Clear state
+      setUserDrinksToDistribute({});
+      setDistributions([]);
+
+      showAlert('Suksess', 'Drikker fordelt!');
+      setDistributeModalVisible(false);
+    } catch (error) {
+      console.error('Error distributing drinks:', error);
+      showAlert('Feil', (error as Error).message || 'Kunne ikke fordele drikker');
+    } finally {
+      setDistributingDrinks(false);
+    }
+  };
+
+  const handleSendFriendRequest = async (member: Friend) => {
+    if (!user?.id) {
+      showAlert('Feil', 'Bruker ikke autentisert');
+      return;
+    }
+    setSendingFriendRequest(true);
+    try {
+      await sendFriendRequest(member.id);
+      const updatedRequests = await getOutgoingRequest(user.id);
+      setPendingFriendRequests(updatedRequests);
+      showAlert('Suksess', `Vennerequest sendt til ${member.name}`);
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+      showAlert('Feil', (error as Error).message || 'Kunne ikke sende vennerequest');
+    } finally {
+      setSendingFriendRequest(false);
+    }
   };
 
   const handleInviteFriend = async (friend: Friend) => {
     if (!user || !selectedGroup) {
+      console.error('=== DEBUG: Missing user or selectedGroup ===', { user, selectedGroup });
       showAlert('Feil', 'Bruker eller gruppe ikke tilgjengelig');
       return;
     }
     setInviting(true);
     try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        showAlert('Feil', 'Ingen autentisert bruker. Logg inn på nytt.');
-        return;
-      }
-      const db = getFirestore();
-      const invitationData = {
-        groupId: selectedGroup.id,
-        groupName: selectedGroup.name,
-        senderId: currentUser.uid,
-        receiverId: friend.id,
-        status: 'pending' as const,
-        createdAt: serverTimestamp(),
-      };
-
-      const existingInvitationQuery = query(
-        collection(db, 'group_invitations'),
-        where('groupId', '==', selectedGroup.id),
-        where('receiverId', '==', friend.id),
-        where('status', '==', 'pending')
-      );
-      const existingInvitationSnapshot = await getDocs(existingInvitationQuery);
-
-      if (!existingInvitationSnapshot.empty) {
-        showAlert('Feil', `Invitasjon til ${friend.name} er allerede sendt`);
-        return;
-      }
-
-      await addDoc(collection(db, 'group_invitations'), invitationData);
-    } catch (error) {
-      console.error('Error inviting friend:', error);
-      showAlert('Feil', `Kunne ikke sende gruppeinvitasjon: ${(error as Error).message}`);
+      await sendGroupInvitation(friend.id, selectedGroup);
+      showAlert('Invitasjon sendt', `Invitasjon sendt til ${friend.name}`);
+    } catch(error) {
+      console.error(error);
+      showAlert('Feil', `Kunne ikke sende invitasjon til ${friend.name}: ${(error as Error).message}`)
     } finally {
       setInviting(false);
     }
@@ -255,28 +346,47 @@ const GroupScreen: React.FC = () => {
   const handleRemoveFriendFromGroup = async (friend: Friend) => {
     if (!selectedGroup) return;
     try {
-      const db = getFirestore();
-      const groupRef = doc(db, 'groups', selectedGroup.id);
-      const groupSnap = await getDoc(groupRef);
-      if (groupSnap.exists()) {
-        const groupData = groupSnap.data();
-        const updatedMembers = (groupData.members || []).filter((id: string) => id !== friend.id);
-        await updateDoc(groupRef, { members: updatedMembers });
-        setSelectedGroup((prev) => prev ? { ...prev, members: updatedMembers } : prev);
-      }
+      await removeFriendFromGroup(friend.id, selectedGroup.id);
+      setSelectedGroup((prev) => prev ? { 
+        ...prev, members: prev.members.filter(id => id !== friend.id), 
+        memberCount: prev.memberCount - 1
+      } : prev);
+      setMemberData((prev) => prev.filter(member => member.id !== friend.id));
+      showAlert('Suksess', `${friend.name} ble fjernet fra gruppen`);
     } catch (error) {
       console.error('Error removing friend:', error);
       showAlert('Feil', 'Kunne ikke fjerne medlem fra gruppe');
     }
   };
 
-  const handleDeleteGroup = async () => {
-    const groupToDelete = currentGroup;
-    if (!groupToDelete || groupToDelete.id === 'default') return;
+  const handleExitGroup = async () => {
+    if (!selectedGroup) return;
+    showAlert(
+      'Bekreft utmeldelse',
+      `Er du sikker på at du vil forlate gruppen "${selectedGroup.name}"?`,
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: 'Forlat',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await exitGroup(selectedGroup.id);
+              router.replace('/profile');
+            } catch (error) {
+              showAlert('Feil', `Kunne ikke forlate gruppe: ${(error as Error).message}`);
+            }
+          },
+        },
+      ]
+    );
+  };
 
+  const handleDeleteGroup = async () => {
+    if (!selectedGroup) return;
     showAlert(
       'Bekreft sletting',
-      `Er du sikker på at du vil slette gruppen "${groupToDelete.name}"? Dette kan ikke angres.`,
+      `Er du sikker på at du vil slette gruppen "${selectedGroup.name}"? Dette kan ikke angres.`,
       [
         { text: 'Avbryt', style: 'cancel' },
         {
@@ -285,18 +395,7 @@ const GroupScreen: React.FC = () => {
           onPress: async () => {
             setDeleting(true);
             try {
-              const db = getFirestore();
-              await deleteDoc(doc(db, 'groups', groupToDelete.id));
-              const userId = groupToDelete.createdBy;
-              if (userId) {
-                const userRef = doc(db, 'users', userId);
-                const userSnap = await getDoc(userRef);
-                if (userSnap.exists()) {
-                  const userGroups: string[] = userSnap.data().groups || [];
-                  const updatedGroups = userGroups.filter((gid: string) => gid !== groupToDelete.id);
-                  await updateDoc(userRef, { groups: updatedGroups });
-                }
-              }
+              await deleteGroup(selectedGroup.id);
               router.replace('/profile');
             } catch (error) {
               console.error('Error deleting group:', error);
@@ -318,8 +417,7 @@ const GroupScreen: React.FC = () => {
     }
     setSaving(true);
     try {
-      const db = getFirestore();
-      await updateDoc(doc(db, 'groups', selectedGroup.id), { name: groupName });
+      await updateDoc(doc(firestore, 'groups', selectedGroup.id), { name: groupName });
       setEditingName(false);
     } catch (error) {
       console.error('Error saving group name:', error);
@@ -355,8 +453,7 @@ const GroupScreen: React.FC = () => {
     }
     setBetSaving(true);
     try {
-      const db = getFirestore();
-      const groupRef = doc(db, 'groups', selectedGroup.id);
+      const groupRef = doc(firestore, 'groups', selectedGroup.id);
       const groupSnap = await getDoc(groupRef);
       let groupBets: Bet[] = [];
       if (groupSnap.exists() && groupSnap.data().bets) {
@@ -402,8 +499,7 @@ const GroupScreen: React.FC = () => {
 
     setPlacingBet(true);
     try {
-      const db = getFirestore();
-      const groupRef = doc(db, 'groups', selectedGroup.id);
+      const groupRef = doc(firestore, 'groups', selectedGroup.id);
       const groupSnap = await getDoc(groupRef);
 
       if (groupSnap.exists()) {
@@ -581,23 +677,47 @@ const GroupScreen: React.FC = () => {
     );
   };
 
-  const getLeaderboardData = async (): Promise<MemberDrinkStats[]> => {
+  const getMeasureTypes = (measures: { [key in MeasureType]?: number } | undefined): MeasureType[] => {
+    if (!measures) return ['Slurker'];
+    const validMeasureTypes: MeasureType[] = ['Slurker', 'Shot', 'Chug'];
+    return Object.keys(measures).filter((key): key is MeasureType => validMeasureTypes.includes(key as MeasureType));
+  };
+
+  const getLeaderboardData = async (sortBy: 'betsWon' | 'drinksWon'): Promise<MemberDrinkStats[]> => {
     if (!selectedGroup || !selectedGroup.members) return [];
 
     const usernames = await fetchMemberUsernames(selectedGroup.members);
-    const finishedBets = bets.filter(bet => bet.isFinished && bet.correctOptionId);
     const memberStats: { [userId: string]: MemberDrinkStats } = {};
 
-    selectedGroup.members.forEach((userId: string) => {
-      memberStats[userId] = {
-        userId,
-        username: usernames[userId] || 'Ukjent',
-        wins: 0,
-        drinksToConsume: {},
-        drinksToDistribute: {},
-      };
-    });
+    await Promise.all(
+      selectedGroup.members.map(async (userId: string) => {
+        try {
+          const userDoc = await getDoc(doc(firestore, 'users', userId));
+          memberStats[userId] = {
+            userId,
+            username: usernames[userId] || 'Ukjent',
+            wins: 0,
+            totalDrinksWon: 0,
+            profilePicture: userDoc.exists() ? userDoc.data().profilePicture || ImageMissing : ImageMissing,
+            drinksToConsume: {},
+            drinksToDistribute: {},
+          };
+        } catch (error) {
+          console.error(`Error fetching member ${userId}:`, error);
+          memberStats[userId] = {
+            userId,
+            username: usernames[userId] || 'Ukjent',
+            wins: 0,
+            totalDrinksWon: 0,
+            profilePicture: ImageMissing,
+            drinksToConsume: {},
+            drinksToDistribute: {},
+          };
+        }
+      })
+    );
 
+    const finishedBets = bets.filter(bet => bet.isFinished && bet.correctOptionId);
     finishedBets.forEach(bet => {
       const wagers = bet.wagers || [];
       wagers.forEach(wager => {
@@ -619,13 +739,16 @@ const GroupScreen: React.FC = () => {
         if (wager.optionId === bet.correctOptionId) {
           stats.wins += 1;
           stats.drinksToDistribute[drinkType][measureType]! += calculatedAmount;
+          stats.totalDrinksWon += calculatedAmount;
         } else {
           stats.drinksToConsume[drinkType][measureType]! += calculatedAmount;
         }
       });
     });
-
-    return Object.values(memberStats).sort((a, b) => b.wins - a.wins);
+    
+    return Object.values(memberStats).sort((a, b) => 
+      sortBy === 'betsWon'? b.wins - a.wins : b.totalDrinksWon - a.totalDrinksWon
+    );
   };
 
   const formatDrinks = (drinks: { [key in DrinkType]?: { [key in MeasureType]?: number } }): string => {
@@ -641,8 +764,52 @@ const GroupScreen: React.FC = () => {
     return drinkStrings.length > 0 ? drinkStrings.join(', ') : 'Ingen';
   };
 
-  const renderFriendItem = ({ item }: { item: Friend }) => {
-    const isMember = selectedGroup?.members.includes(item.id);
+  const handleMemberTap = (userId: string) => {
+    // Find first available drink and measure type
+    const drinkTypes = Object.keys(userDrinksToDistribute) as DrinkType[];
+    if (drinkTypes.length === 0) return; // No drinks available
+    const drinkType = drinkTypes[0];
+    const measureTypes = getMeasureTypes(userDrinksToDistribute[drinkType]);
+    const measureType = measureTypes[0];
+
+    // Check if enough drinks are available
+    const availableAmount = userDrinksToDistribute[drinkType]?.[measureType] || 0;
+    if (availableAmount <= 0) return;
+
+    // Update distributions
+    setDistributions(prev => {
+      const existing = prev.find(d => d.userId === userId && d.drinkType === drinkType && d.measureType === measureType);
+      if (existing) {
+        return prev.map(d =>
+          d.userId === userId && d.drinkType === drinkType && d.measureType === measureType
+            ? { ...d, amount: d.amount + 1 }
+            : d
+        );
+      }
+      return [...prev, { userId, drinkType, measureType, amount: 1 }];
+    });
+
+    // Update local drinksToDistribute
+    setUserDrinksToDistribute(prev => {
+      const updated = { ...prev };
+      updated[drinkType] = { ...updated[drinkType], [measureType]: (updated[drinkType]?.[measureType] || 0) - 1 };
+      // Check if updated[drinkType] exists and the measureType amount is <= 0
+      if (updated[drinkType] && updated[drinkType][measureType]! <= 0) {
+        delete updated[drinkType][measureType];
+        if (Object.keys(updated[drinkType]).length === 0) {
+          delete updated[drinkType];
+        }
+      }
+      return updated;
+    });
+  };
+
+  const renderMemberItem = ({ item }: { item: Friend }) => {
+    const isCreator = selectedGroup?.createdBy === item.id;
+    const isCurrentUserCreator = user?.id === selectedGroup?.createdBy;
+    const isFriend = friends.some(f => f.id === item.id);
+    const hasPendingRequest = pendingFriendRequests.some(r => r.toUserId === item.id);
+
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
         <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 50, height: 50, marginRight: 10 }]} />
@@ -650,15 +817,36 @@ const GroupScreen: React.FC = () => {
           <Text style={[groupStyles.wagerUser, { marginBottom: 0, textAlign: 'left', lineHeight: 20 }]}>{item.name}</Text>
           <Text style={[globalStyles.secondaryText, { marginTop: 0, textAlign: 'left', lineHeight: 18 }]}>@{item.username}</Text>
         </View>
-        {isMember ? (
+        {!isCreator && isCurrentUserCreator && (
           <TouchableOpacity
             style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center', borderColor: 'red' }]}
             onPress={() => handleRemoveFriendFromGroup(item)}
-            disabled={inviting}
+            disabled={inviting || sendingFriendRequest}
           >
             <Text style={[globalStyles.outlineButtonGoldText, { color: 'red' }]}>Fjern</Text>
           </TouchableOpacity>
-        ) : (
+        )}
+        {!isFriend && !hasPendingRequest && !isCurrentUserCreator && (
+          <TouchableOpacity
+            style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center', marginLeft: 8 }]}
+            onPress={() => handleSendFriendRequest(item)}
+            disabled={inviting || sendingFriendRequest}
+          >
+            <Text style={globalStyles.outlineButtonGoldText}>Legg til</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
+  const renderFriendItem = ({ item }: { item: Friend }) => {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
+        <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 50, height: 50, marginRight: 10 }]} />
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <Text style={[groupStyles.wagerUser, { marginBottom: 0, textAlign: 'left', lineHeight: 20 }]}>{item.name}</Text>
+          <Text style={[globalStyles.secondaryText, { marginTop: 0, textAlign: 'left', lineHeight: 18 }]}>@{item.username}</Text>
+        </View>
           <TouchableOpacity
             style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center' }]}
             onPress={() => handleInviteFriend(item)}
@@ -666,7 +854,6 @@ const GroupScreen: React.FC = () => {
           >
             <Text style={globalStyles.outlineButtonGoldText}>Inviter</Text>
           </TouchableOpacity>
-        )}
       </View>
     );
   };
@@ -759,7 +946,7 @@ const GroupScreen: React.FC = () => {
                   item.isFinished && item.correctOptionId !== userWager.optionId && groupStyles.userBetSummaryTextLose,
                 ]}
               >
-                Du har satset: {userWager.amount} {userWager.measureType} {userWager.drinkType} på "{getOptionName(item, userWager.optionId)}"
+                Du har satset: {userWager.amount} {userWager.measureType} {userWager.drinkType} på {getOptionName(item, userWager.optionId)}
                 {item.isFinished && (item.correctOptionId === userWager.optionId ? ' - DU VANT! 🎉' : ' - Du tapte 😢')}
               </Text>
             </View>
@@ -782,7 +969,7 @@ const GroupScreen: React.FC = () => {
                 <View key={idx} style={globalStyles.listItemRow}>
                   <Text style={groupStyles.wagerUser}>{wager.username}</Text>
                   <Text style={groupStyles.wagerDetails}>
-                    {wager.amount} {wager.measureType} {wager.drinkType} på "{getOptionName(item, wager.optionId)}"
+                    {wager.amount} {wager.measureType} {wager.drinkType} på {getOptionName(item, wager.optionId)}
                   </Text>
                 </View>
               ))}
@@ -793,16 +980,35 @@ const GroupScreen: React.FC = () => {
     );
   };
 
-  const renderLeaderboardItem = ({ item }: { item: MemberDrinkStats }) => {
+  const renderLeaderboardItem = ({ item, index }: { item: MemberDrinkStats; index: number }) => {
+    const metric = leaderboardView === 'betsWon' ? `${item.wins} bets vunnet` : `${item.totalDrinksWon} drikker vunnet`
     return (
-      <View style={groupStyles.betContainer}>
-        <View style={globalStyles.listItemRow}>
-          <Text style={[groupStyles.wagerUser, { fontWeight: 'bold' }]}>{item.username} ({item.wins} vunnet)</Text>
+      <View style={{flexDirection: 'row', 
+      alignItems: 'center', 
+      paddingVertical: 8, 
+      borderBottomWidth: 1, 
+      borderBottomColor: theme.colors.border }}>
+          <Text style={{ 
+            width: 30, 
+            fontSize: 14, 
+            color: theme.colors.text, 
+            textAlign: 'center',
+            marginRight: 10 
+          }}>
+            {index + 4}
+          </Text>
+          <Image 
+            source={item.profilePicture || ImageMissing} 
+            style={[globalStyles.circularImage, { width: 40, height: 40, marginRight: 10 }]} 
+          />
           <View style={{ flex: 1 }}>
-            <Text style={[groupStyles.wagerDetails, { color: theme.colors.error }]}>Drikke selv: {formatDrinks(item.drinksToConsume)}</Text>
-            <Text style={[groupStyles.wagerDetails, { color: theme.colors.success, fontWeight: 'bold' }]}>Dele ut: {formatDrinks(item.drinksToDistribute)}</Text>
+            <Text style={[groupStyles.wagerUser, { fontSize: 14, color: theme.colors.text }]}>
+              {item.username}
+            </Text>
+            <Text style={[globalStyles.secondaryText, { fontSize: 12, color: theme.colors.textSecondary }]}>
+              {metric}
+            </Text>
           </View>
-        </View>
       </View>
     );
   };
@@ -857,6 +1063,11 @@ const GroupScreen: React.FC = () => {
                           <Image source={DeleteIcon} style={globalStyles.deleteIcon} />
                         </TouchableOpacity>
                       )}
+                      {selectedGroup && user && selectedGroup.createdBy !== user.id && (
+                        <TouchableOpacity onPress={handleExitGroup} disabled={deleting}>
+                          <Image source={DeleteIcon} style={globalStyles.pencilIcon} />
+                        </TouchableOpacity>
+                      )}
                     </View>
                   )}
                 </View>
@@ -866,20 +1077,28 @@ const GroupScreen: React.FC = () => {
           </View>
         </View>
 
-        <View style={groupStyles.createBetSection}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: theme.spacing.md }}>
-            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1 }]} onPress={() => setInviteModalVisible(true)} disabled={inviting}>
-              <Text style={globalStyles.outlineButtonGoldText}>Inviter venner</Text>
+        <View style={[groupStyles.createBetSection, {paddingHorizontal: theme.spacing.md}]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: theme.spacing.xs }}>
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={() => setMembersModalVisible(true)}>
+              <Image source={PeopleIcon} style={{ width: 20, height: 20, tintColor: theme.colors.primary}} />
             </TouchableOpacity>
-            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1 }]} onPress={() => setLeaderboardModalVisible(true)}>
-              <Text style={globalStyles.outlineButtonGoldText}>Vis ledertavle</Text>
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={() => setInviteModalVisible(true)} disabled={inviting}>
+              <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Inviter</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={() => setLeaderboardModalVisible(true)}>
+              <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Ledertavle</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={[globalStyles.outlineButtonGold, { marginTop: theme.spacing.md }]} onPress={openBetModal}>
-            <Text style={globalStyles.outlineButtonGoldText}>Opprett bett</Text>
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={openBetModal}>
+              <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Opprett bett</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={() => setDistributeModalVisible(true)}>
+            <Image 
+              source={PencilIcon} // Placeholder, replace with drink icon (e.g., ../../assets/icons/drink.png)
+              style={{ width: 20, height: 20, tintColor: theme.colors.primary }} 
+            />
           </TouchableOpacity>
         </View>
-
         <View style={{ paddingBottom: theme.spacing.xl }}>
           {bets.map((item, idx) => (
             <View key={item.id}>{renderBet({ item, index: idx })}</View>
@@ -887,13 +1106,117 @@ const GroupScreen: React.FC = () => {
         </View>
       </ScrollView>
 
+      <Modal visible={distributeModalVisible} animationType="slide" transparent onRequestClose={() => setDistributeModalVisible(false)}>
+        <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+          <View style={[
+            globalStyles.modalContent, 
+            { padding: theme.spacing.md, borderRadius: theme.borderRadius.lg, maxHeight: '80%', width: '90%' }
+          ]}>
+            <Text style={[
+              globalStyles.modalTitle, 
+              { marginBottom: theme.spacing.md, fontSize: 18, fontWeight: '600', color: theme.colors.text }
+            ]}>
+              Utdel drikker
+            </Text>
+            {Object.keys(userDrinksToDistribute).length > 0 ? (
+              <View>
+                <Text style={{ fontSize: 14, color: theme.colors.text, marginBottom: theme.spacing.sm }}>
+                  Tilgjengelige drikker:
+                </Text>
+                {Object.entries(userDrinksToDistribute).map(([drinkType, measures]) => (
+                  Object.entries(measures).map(([measureType, amount]) => (
+                    <Text key={`${drinkType}-${measureType}`} style={{ fontSize: 12, color: theme.colors.textSecondary, marginBottom: 4 }}>
+                      {amount} {measureType} {drinkType}
+                    </Text>
+                  ))
+                ))}
+                <Text style={{ fontSize: 14, color: theme.colors.text, marginVertical: theme.spacing.sm }}>
+                  Velg medlemmer:
+                </Text>
+                <FlatList
+                  data={memberData}
+                  renderItem={({ item }) => (
+                    <View style={{ width: '33.33%', padding: theme.spacing.sm, alignItems: 'center' }}>
+                      <TouchableOpacity
+                        onPress={() => handleMemberTap(item.id)}
+                        disabled={distributingDrinks || Object.keys(userDrinksToDistribute).length === 0}
+                      >
+                        <Image
+                          source={item.profilePicture}
+                          style={[globalStyles.circularImage, { width: 60, height: 60, marginBottom: 4 }]}
+                        />
+                        <Text style={[groupStyles.wagerUser, { fontSize: 12, color: theme.colors.text, textAlign: 'center' }]}>
+                          {item.name}
+                        </Text>
+                        <Text style={[globalStyles.secondaryText, { fontSize: 10, color: theme.colors.textSecondary, textAlign: 'center' }]}>
+                          @{item.username}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  keyExtractor={item => item.id}
+                  numColumns={3}
+                  contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
+                  scrollEnabled
+                  showsVerticalScrollIndicator={false}
+                />
+                <TouchableOpacity
+                  style={[
+                    globalStyles.outlineButtonGold,
+                    { paddingVertical: 8, justifyContent: 'center', alignItems: 'center', marginTop: theme.spacing.md }
+                  ]}
+                  onPress={handleDistributeDrinks}
+                  disabled={distributingDrinks || distributions.length === 0}
+                >
+                  <Text style={globalStyles.outlineButtonGoldText}>Send</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={[globalStyles.emptyStateText, { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginVertical: theme.spacing.md }]}>
+                Ingen drikker tilgjengelig for utdeling
+              </Text>
+            )}
+            <View style={[globalStyles.editButtonsContainer, { marginTop: theme.spacing.md }]}>
+              <TouchableOpacity onPress={() => setDistributeModalVisible(false)} disabled={distributingDrinks}>
+                <Text style={[globalStyles.cancelButtonText, { fontSize: 16, color: theme.colors.primary }]}>Lukk</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={membersModalVisible} animationType="slide" transparent onRequestClose={() => setMembersModalVisible(false)}>
+        <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+          <View style={[globalStyles.modalContent, {padding: theme.spacing.md, borderRadius: theme.borderRadius.lg,  maxHeight: '80%', width: '90%'}]}>
+            <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.md, fontSize: 18, fontWeight: '600', color: theme.colors.text}]}>Medlemmer i {currentGroup.name}</Text>
+            {memberData.length > 0 ? (
+              <FlatList
+                data={memberData}
+                renderItem={renderMemberItem}
+                keyExtractor={item => item.id}
+                contentContainerStyle={[globalStyles.listContainer, {paddingBottom: theme.spacing.md}]}
+                scrollEnabled
+                showsVerticalScrollIndicator={false}
+              />
+            ) : (
+              <Text style={[globalStyles.emptyStateText, { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginVertical: theme.spacing.md}]}>Ingen medlemmer i gruppen</Text>
+            )}
+            <View style={[globalStyles.editButtonsContainer, { marginTop: theme.spacing.md }]}>
+              <TouchableOpacity onPress={() => setMembersModalVisible(false)} disabled={inviting}>
+                <Text style={[globalStyles.cancelButtonText, { fontSize: 16, color: theme.colors.primary }]}>Lukk</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={inviteModalVisible} animationType="slide" transparent onRequestClose={() => setInviteModalVisible(false)}>
         <View style={globalStyles.modalContainer}>
           <View style={globalStyles.modalContent}>
             <Text style={globalStyles.modalTitle}>Inviter venner til {currentGroup.name}</Text>
             {friends.length > 0 ? (
               <FlatList
-                data={friends}
+                data={friends.filter(friend => !selectedGroup?.members.includes(friend.id))}
                 renderItem={renderFriendItem}
                 keyExtractor={item => item.id}
                 contentContainerStyle={globalStyles.listContainer}
@@ -1140,50 +1463,167 @@ const GroupScreen: React.FC = () => {
       </Modal>
 
       <Modal visible={leaderboardModalVisible} animationType="slide" transparent onRequestClose={() => setLeaderboardModalVisible(false)}>
-        <View style={globalStyles.modalContainer}>
-          <View style={globalStyles.modalContent}>
-            <Text style={globalStyles.modalTitle}>Ledertavle - Ferdige bets</Text>
-            {selectedGroup && selectedGroup.members && (
-              <View style={{ marginBottom: 12 }}>
-                <Text style={[globalStyles.label, { marginBottom: 4 }]}>Medlemmer:</Text>
-                <FlatList
-                  data={selectedGroup.members}
-                  keyExtractor={id => id}
-                  horizontal
-                  renderItem={({ item: memberId }) => {
-                    const friend = friends.find(f => f.id === memberId);
-                    const isMe = user && memberId === user.id;
-                    const displayName = isMe
-                      ? user.name || user.displayName || user.email || 'Meg'
-                      : friend?.name || 'Ukjent';
-                    return (
-                      <View key={memberId} style={{ alignItems: 'center', marginRight: 14 }}>
-                        <Image source={friend?.profilePicture || ImageMissing} style={[globalStyles.circularImage, { width: 36, height: 36, marginBottom: 2 }]} />
-                        <Text style={{ fontSize: 12, color: theme.colors.text, maxWidth: 70, textAlign: 'center' }} numberOfLines={1}>
-                          {displayName}
+        <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+          <View style={[globalStyles.modalContent, { padding: theme.spacing.md, borderRadius: theme.borderRadius.lg, maxHeight: '80%', width: '90%' }]}>
+            <Text style={[
+              globalStyles.modalTitle, { marginBottom: theme.spacing.sm, fontSize: 18, fontWeight: '600', color: theme.colors.text }]}>
+                Ledertavle - {leaderboardView === 'betsWon' ? 'Bets Vunnet' : 'Drikker Vunnet'}
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
+                <TouchableOpacity 
+                  style={[globalStyles.outlineButtonGold,
+                    { 
+                      flex: 1, 
+                      paddingVertical: 8, 
+                      justifyContent: 'center', 
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderRadius: theme.borderRadius.sm,
+                      backgroundColor: leaderboardView === 'betsWon' ? theme.colors.primary : 'transparent'
+                    }
+                  ]} 
+                  onPress={() => setLeaderboardView('betsWon')}
+                >
+                  <Text style={[globalStyles.outlineButtonGoldText,{ color: leaderboardView === 'betsWon' ? theme.colors.background : theme.colors.primary, fontSize: 14 }]}>Bets vunnet</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    globalStyles.outlineButtonGold,
+                    { 
+                      flex: 1, 
+                      paddingVertical: 8, 
+                      justifyContent: 'center', 
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderRadius: theme.borderRadius.sm,
+                      backgroundColor: leaderboardView === 'drinksWon' ? theme.colors.primary : 'transparent'
+                    }
+                  ]}
+                  onPress={() => setLeaderboardView('drinksWon')}
+                >
+                  <Text style={[
+                    globalStyles.outlineButtonGoldText,
+                    { color: leaderboardView === 'drinksWon' ? theme.colors.background : theme.colors.primary, fontSize: 14 }
+                  ]}>
+                    Drikker Vunnet
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {leaderboardData.length > 0 ? (
+                <View style={{ marginBottom: theme.spacing.md }}>
+                  {/* Podium layout */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', marginBottom: theme.spacing.lg}}>
+                    {/* 2nd Place (Silver) */}
+                    {leaderboardData[1] && (
+                      <View style={{ 
+                        alignItems: 'center', 
+                        width: '30%', 
+                        marginRight: 10,
+                        backgroundColor: '#C0C0C0', 
+                        borderRadius: theme.borderRadius.sm, 
+                        padding: 10,
+                        height: 140,
+                        justifyContent: 'space-between'
+                        }}>
+                        <Image 
+                          source={leaderboardData[1].profilePicture || ImageMissing} 
+                          style={[globalStyles.circularImage, { width: 50, height: 50, marginBottom: 6 }]} 
+                        />
+                        <Text style={{ fontSize: 14, color: theme.colors.text, textAlign: 'center' }} numberOfLines={1}>
+                          {leaderboardData[1].username}
+                        </Text>
+                        <Image 
+                          source={PencilIcon} // Placeholder, replace with ../../assets/icons/trophy.png
+                          style={{ width: 24, height: 24, tintColor: theme.colors.text, marginBottom: 4 }} 
+                        />
+                        <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center', paddingBottom: 8 }}>
+                          {leaderboardView === 'betsWon' ? `${leaderboardData[1].wins}` : `${leaderboardData[1].totalDrinksWon}`}
+                        </Text>
+                      </View>  
+                    )}
+                    {/* 1st Place (Gold) */}
+                    {leaderboardData[0] && (
+                      <View style={{ 
+                        alignItems: 'center', 
+                        width: '40%', 
+                        backgroundColor: '#FFD700', 
+                        borderRadius: theme.borderRadius.sm, 
+                        padding: 12,
+                        height: 170,
+                        justifyContent: 'space-between'
+                      }}>
+                        <Image 
+                          source={leaderboardData[0].profilePicture || ImageMissing} 
+                          style={[globalStyles.circularImage, { width: 60, height: 60, marginBottom: 6 }]} 
+                        />
+                        <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text, textAlign: 'center' }} numberOfLines={1}>
+                          {leaderboardData[0].username}
+                        </Text>
+                        <Image 
+                          source={PencilIcon} // Placeholder, replace with ../../assets/icons/trophy.png
+                          style={{ width: 30, height: 30, tintColor: theme.colors.text, marginBottom: 6 }} 
+                        />
+                        <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center', paddingBottom: 8 }}>
+                          {leaderboardView === 'betsWon' ? `${leaderboardData[0].wins}` : `${leaderboardData[0].totalDrinksWon}`}
                         </Text>
                       </View>
-                    );
-                  }}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingBottom: 4 }}
-                />
+                    )}
+                    {/* 3rd Place (Bronze) */}
+                    {leaderboardData[2] && (
+                      <View style={{ 
+                        alignItems: 'center', 
+                        width: '30%', 
+                        marginLeft: 10,
+                        backgroundColor: '#CD7F32', 
+                        borderRadius: theme.borderRadius.sm, 
+                        padding: 10,
+                        height: 140,
+                        justifyContent: 'space-between'
+                      }}>
+                        <Image 
+                          source={leaderboardData[2].profilePicture || ImageMissing} 
+                          style={[globalStyles.circularImage, { width: 50, height: 50, marginBottom: 6 }]} 
+                        />
+                        <Text style={{ fontSize: 14, color: theme.colors.text, textAlign: 'center' }} numberOfLines={1}>
+                          {leaderboardData[2].username}
+                        </Text>
+                        <Image 
+                          source={PencilIcon} // Placeholder, replace with ../../assets/icons/trophy.png
+                          style={{ width: 24, height: 24, tintColor: theme.colors.text, marginBottom: 4 }} 
+                        />
+                        <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center', paddingBottom: 8 }}>
+                          {leaderboardView === 'betsWon' ? `${leaderboardData[2].wins}` : `${leaderboardData[2].totalDrinksWon}`}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  {/* Remaining Members */}
+                  {leaderboardData.length > 3 && (
+                    <FlatList
+                      data={leaderboardData.slice(3)}
+                      renderItem={renderLeaderboardItem}
+                      keyExtractor={item => item.userId}
+                      contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
+                      scrollEnabled
+                      showsVerticalScrollIndicator={false}
+                    />
+                  )}
+                </View>
+              ) : (
+                <Text style={[
+                  globalStyles.emptyStateText, 
+                  { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginVertical: theme.spacing.md }
+                ]}>
+                  Ingen ferdige bets ennå
+                </Text>
+              )}
+              <View style={[globalStyles.editButtonsContainer, { marginTop: theme.spacing.md }]}>
+                <TouchableOpacity onPress={() => setLeaderboardModalVisible(false)}>
+                  <Text style={[globalStyles.cancelButtonText, { fontSize: 16, color: theme.colors.primary }]}>Lukk</Text>
+                </TouchableOpacity>
               </View>
-            )}
-            <FlatList
-              data={leaderboardData}
-              renderItem={renderLeaderboardItem}
-              keyExtractor={item => item.userId}
-              ListEmptyComponent={<Text style={globalStyles.emptyStateText}>Ingen ferdige bets ennå</Text>}
-              contentContainerStyle={globalStyles.listContainer}
-            />
-            <View style={globalStyles.editButtonsContainer}>
-              <TouchableOpacity onPress={() => setLeaderboardModalVisible(false)}>
-                <Text style={globalStyles.cancelButtonText}>Lukk</Text>
-              </TouchableOpacity>
             </View>
           </View>
-        </View>
       </Modal>
 
       <Modal visible={editMenuModalVisible} animationType="slide" transparent onRequestClose={() => setEditMenuModalVisible(false)}>
