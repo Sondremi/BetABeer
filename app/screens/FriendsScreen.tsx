@@ -134,17 +134,16 @@ const FriendsScreen = () => {
   const inviteLink = 'http://bet-a-beer.netlify.app';
 
   const handleInviteFriends = async () => {
-    try {
-      await Share.share({
-        message: `Bli med meg på BetABeer! Bruk denne linken: ${inviteLink}`,
-        url: inviteLink,
-        title: 'Inviter venner til BetABeer',
-      });
-    } catch (error) {
-      console.log(error);
-      showAlert('Feil', 'Kunne ikke dele invitasjonslenken');
-    }
-  };
+  try {
+    await Share.share({
+      message: `Bli med meg på BetABeer! Bruk denne linken: ${inviteLink}`,
+      url: inviteLink,
+      title: 'Inviter venner til BetABeer',
+    });
+  } catch (error) {
+    return
+  }
+};
 
   const handleAddFriend = async (friend: Friend) => {
     const currentUser = auth.currentUser;
