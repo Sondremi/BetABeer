@@ -15,9 +15,6 @@ import { showAlert } from '../utils/platformAlert';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
-const DeleteIcon = require('../../assets/icons/noun-delete-7938028.png');
-const PeopleIcon = require('../../assets/icons/noun-people-2196504.png');
-const BeerIcon = require('../../assets/icons/noun-beer-7644526.png');
 
 const GroupScreen: React.FC = () => {
   const params = useLocalSearchParams();
