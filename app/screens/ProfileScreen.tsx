@@ -100,7 +100,7 @@ const ProfileScreen: React.FC = () => {
   useEffect(() => {
     loadUserData();
   }, []);
-  
+
   const loadUserData = async () => {
     try {
       const currentUser = authService.getCurrentUser();
@@ -201,14 +201,14 @@ const ProfileScreen: React.FC = () => {
       showAlert('Feil', 'Velg antall');
       return;
     }
-    const alcoholPercent = 
-      drinkForm.alcoholPercent === 'custom' 
+    const alcoholPercent =
+      drinkForm.alcoholPercent === 'custom'
         ? parseFloat(drinkForm.customAlcoholPercent)
         : parseFloat(drinkForm.alcoholPercent.toString());
     const drink: DrinkEntry = {
       category: drinkForm.category,
       sizeDl: parseFloat(drinkForm.sizeDl.toString()),
-      alcoholPercent, 
+      alcoholPercent,
       quantity: parseInt(drinkForm.quantity.toString(), 10),
       timestamp: Date.now(),
     };
@@ -265,7 +265,7 @@ const ProfileScreen: React.FC = () => {
     setCreatingGroup(true);
     try {
       const newGroup = await createGroup(user.id);
-      const groupWithImage: Group = {...newGroup, image: ImageMissing}
+      const groupWithImage: Group = { ...newGroup, image: ImageMissing };
       setGroups(prev => [...prev, groupWithImage]);
       router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(groupWithImage) } });
     } catch (error) {
@@ -308,7 +308,7 @@ const ProfileScreen: React.FC = () => {
     if (!user) return;
     setHandlingInvitation(true);
     try {
-      await declineGroupInvitation(invitation.id)
+      await declineGroupInvitation(invitation.id);
       setGroupInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
     } catch (error) {
       console.error('Error declining invitation:', error);
@@ -435,50 +435,50 @@ const ProfileScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
           {userInfo.weight && userInfo.gender && userInfo.drinks && userInfo.drinks.length > 0 && (
-          <View style={globalStyles.inputGroup}>
-            <Text style={globalStyles.sectionTitle}>Promille over tid</Text>
-            <LineChart
-              data={{
-                labels: Array.from({ length: 7 }, (_, i) => `${i * 0.5}h`), // 0 to 3h, every 30min
-                datasets: [
-                  {
-                    data: Array.from({ length: 7 }, (_, i) => {
-                      const time = Math.min(...userInfo.drinks!.map(d => d.timestamp)) + i * 0.5 * 60 * 60 * 1000;
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.sectionTitle}>Promille over tid</Text>
+              <LineChart
+                data={{
+                  labels: Array.from({ length: 7 }, (_, i) => `${i * 0.5}h`), // 0 to 3h, every 30min
+                  datasets: [
+                    {
+                      data: Array.from({ length: 7 }, (_, i) => {
+                        const time = Math.min(...userInfo.drinks!.map(d => d.timestamp)) + i * 0.5 * 60 * 60 * 1000;
+                        return profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
+                      }),
+                      color: () => theme.colors.primary ?? '#FFD700', // Gold line
+                    },
+                  ],
+                }}
+                width={Dimensions.get('window').width - theme.spacing.md * 2} // Adjust for padding
+                height={220}
+                yAxisLabel=""
+                yAxisSuffix="‰"
+                chartConfig={{
+                  backgroundColor: theme.colors.background ?? '#000000',
+                  backgroundGradientFrom: theme.colors.background ?? '#000000',
+                  backgroundGradientTo: theme.colors.background ?? '#000000',
+                  decimalPlaces: 3,
+                  color: () => theme.colors.text ?? '#FFFFFF',
+                  labelColor: () => theme.colors.text ?? '#FFFFFF',
+                  style: { borderRadius: theme.borderRadius.md },
+                  propsForDots: { r: '6', strokeWidth: '2', stroke: theme.colors.primary },
+                }}
+                bezier
+                style={{ marginVertical: theme.spacing.md }}
+              />
+              <Text style={[globalStyles.label, { color: theme.colors.primary ?? '#FFD700' }]}>
+                Maks promille neste 30 min: {
+                  Math.max(
+                    ...Array.from({ length: 2 }, (_, i) => {
+                      const time = Date.now() + i * 15 * 60 * 1000; // Next 0 and 15min
                       return profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
-                    }),
-                    color: () => theme.colors.primary ?? '#FFD700', // Gold line
-                  },
-                ],
-              }}
-              width={Dimensions.get('window').width - theme.spacing.md * 2} // Adjust for padding
-              height={220}
-              yAxisLabel=""
-              yAxisSuffix="‰"
-              chartConfig={{
-                backgroundColor: theme.colors.background ?? '#000000',
-                backgroundGradientFrom: theme.colors.background ?? '#000000',
-                backgroundGradientTo: theme.colors.background ?? '#000000',
-                decimalPlaces: 3,
-                color: () => theme.colors.text ?? '#FFFFFF',
-                labelColor: () => theme.colors.text ?? '#FFFFFF',
-                style: { borderRadius: theme.borderRadius.md },
-                propsForDots: { r: '6', strokeWidth: '2', stroke: theme.colors.primary },
-              }}
-              bezier
-              style={{ marginVertical: theme.spacing.md }}
-            />
-            <Text style={[globalStyles.label, { color: theme.colors.primary ?? '#FFD700' }]}>
-              Maks promille neste 30 min: {
-                Math.max(
-                  ...Array.from({ length: 2 }, (_, i) => {
-                    const time = Date.now() + i * 15 * 60 * 1000; // Next 0 and 15min
-                    return profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
-                  })
-                ).toFixed(3)
-              }‰
-            </Text>
-          </View>
-        )}
+                    })
+                  ).toFixed(3)
+                }‰
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Group Invitations Section */}
@@ -544,10 +544,10 @@ const ProfileScreen: React.FC = () => {
 
                   <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
                     <Text style={globalStyles.label}>Kategori</Text>
-                    <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 40 }]}>
+                    <View style={globalStyles.pickerInput}>
                       <Picker
-                        style={{ width: '100%', color: theme.colors.primary}}
-                        itemStyle={{ color: theme.colors.primary }}
+                        style={globalStyles.picker}
+                        itemStyle={{ color: theme.colors.text }}
                         selectedValue={drinkForm.category}
                         onValueChange={(value: DrinkCategory | '') =>
                           setDrinkForm({ ...drinkForm, category: value, sizeDl: '', alcoholPercent: '', customAlcoholPercent: '' })
@@ -565,10 +565,10 @@ const ProfileScreen: React.FC = () => {
                     <>
                       <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
                         <Text style={globalStyles.label}>Størrelse (dl)</Text>
-                        <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 40 }]}>
+                        <View style={globalStyles.pickerInput}>
                           <Picker
-                            style={{ width: '100%', color: theme.colors.primary }}
-                            itemStyle={{ color: theme.colors.primary }}
+                            style={globalStyles.picker}
+                            itemStyle={{ color: theme.colors.text }}
                             selectedValue={drinkForm.sizeDl}
                             onValueChange={(value: number | '') => setDrinkForm({ ...drinkForm, sizeDl: value })}
                           >
@@ -582,10 +582,10 @@ const ProfileScreen: React.FC = () => {
 
                       <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
                         <Text style={globalStyles.label}>Alkoholprosent</Text>
-                        <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 40 }]}>
+                        <View style={globalStyles.pickerInput}>
                           <Picker
-                            style={{ width: '100%', color: theme.colors.primary }}
-                            itemStyle={{ color: theme.colors.primary }}
+                            style={globalStyles.picker}
+                            itemStyle={{ color: theme.colors.text }}
                             selectedValue={drinkForm.alcoholPercent}
                             onValueChange={(value: number | '' | 'custom') =>
                               setDrinkForm({ ...drinkForm, alcoholPercent: value, customAlcoholPercent: '' })
@@ -607,13 +607,13 @@ const ProfileScreen: React.FC = () => {
                         <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
                           <Text style={globalStyles.label}>Egendefinert alkoholprosent</Text>
                           <TextInput
-                            style={[globalStyles.input, {height: 40}]}
+                            style={[globalStyles.input, { height: 40 }]}
                             value={drinkForm.customAlcoholPercent}
                             onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercent: text })}
                             placeholder={
                               drinkForm.category === 'vin' ? '10–20%' : '22–70%'
                             }
-                            placeholderTextColor="#E0E0E0"
+                            placeholderTextColor={theme.colors.textMuted}
                             keyboardType="numeric"
                           />
                         </View>
@@ -621,10 +621,10 @@ const ProfileScreen: React.FC = () => {
 
                       <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
                         <Text style={globalStyles.label}>Antall</Text>
-                        <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 40 }]}>
+                        <View style={globalStyles.pickerInput}>
                           <Picker
-                            style={{ width: '100%', color: theme.colors.primary }}
-                            itemStyle={{ color: theme.colors.primary }}
+                            style={globalStyles.picker}
+                            itemStyle={{ color: theme.colors.text }}
                             selectedValue={drinkForm.quantity}
                             onValueChange={(value: number | '') => setDrinkForm({ ...drinkForm, quantity: value })}
                           >
