@@ -339,15 +339,18 @@ const SettingsScreen = () => {
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Kjønn</Text>
               {isEditing ? (
-                <Picker
-                  style={globalStyles.input}
-                  selectedValue={editedInfo.gender || ''}
-                  onValueChange={(value: Gender | '') => setEditedInfo({ ...editedInfo, gender: value || undefined })}
-                >
-                  <Picker.Item label="Velg kjønn" value=""/>
-                  <Picker.Item label="Mann" value="male"/>
-                  <Picker.Item label="Dame" value="female"/>
-                </Picker>
+                <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 120 }]}>
+                  <Picker
+                    style={{ width: '100%', color: theme.colors.primary }}
+                    itemStyle={{ color: theme.colors.primary }}
+                    selectedValue={editedInfo.gender || ''}
+                    onValueChange={(value: Gender | '') => setEditedInfo({ ...editedInfo, gender: value || undefined })}
+                  >
+                    <Picker.Item label="Velg kjønn" value="" />
+                    <Picker.Item label="Mann" value="male" />
+                    <Picker.Item label="Dame" value="female" />
+                  </Picker>
+                </View>
               ) : (
                 <View style={globalStyles.readOnlyInput}>
                   <Text style={settingsStyles.readOnlyText}>

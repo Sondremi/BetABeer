@@ -5,6 +5,9 @@ import { authService } from '../services/firebase/authService';
 import { globalStyles } from '../styles/globalStyles';
 import { loginStyles } from '../styles/components/loginStyles';
 import { showAlert } from '../utils/platformAlert';
+import { Picker } from '@react-native-picker/picker';
+
+type Gender = 'male' | 'female';
 
 const LoginScreen: React.FC = () => {
   const router = useRouter();
@@ -13,8 +16,10 @@ const LoginScreen: React.FC = () => {
     username: '',
     password: '',
     name: '',
-    phone: '',
+    phone: undefined as string | undefined,
     email: '',
+    weight: undefined as number | undefined,
+    gender: undefined as Gender | undefined,
     confirmPassword: '',
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -52,11 +57,6 @@ const LoginScreen: React.FC = () => {
       return false;
     }
 
-    if (!formData.phone.trim()) {
-      showAlert('Feil', 'Telefonnummer er påkrevd');
-      return false;
-    }
-
     if (formData.password !== formData.confirmPassword) {
       showAlert('Feil', 'Passordene stemmer ikke overens');
       return false;
@@ -73,6 +73,11 @@ const LoginScreen: React.FC = () => {
       return false;
     }
 
+    if (formData.weight !== undefined && (isNaN(formData.weight) || formData.weight <= 0)) {
+      showAlert('Feil', 'Vekt må være et positivt tall');
+      return false;
+    }
+
     try {
       const usernameExists = await authService.checkUsernameExists(formData.username);
       if (usernameExists) {
@@ -80,6 +85,7 @@ const LoginScreen: React.FC = () => {
         return false;
       }
     } catch (error) {
+      console.error(error);
       showAlert('Feil', 'Kunne ikke opprette bruker. Prøv igjen senere.');
       return false;
     }
@@ -145,6 +151,8 @@ const LoginScreen: React.FC = () => {
       name: '',
       phone: '',
       email: '',
+      weight: undefined,
+      gender: undefined,
       confirmPassword: '',
     });
   };
@@ -240,6 +248,36 @@ const LoginScreen: React.FC = () => {
                   placeholderTextColor="#E0E0E0"
                   keyboardType="phone-pad"
                 />
+              </View>
+              <View style={globalStyles.inputGroup}>
+                <Text style={globalStyles.label}>Vekt (kg)</Text>
+                <TextInput
+                  style={globalStyles.input}
+                  value={formData.weight ? formData.weight.toString() : ''}
+                  onChangeText={(text) => {
+                    const value = text ? parseInt(text) : undefined;
+                    if (value === undefined || !isNaN(value)) {
+                      setFormData({ ...formData, weight: value });
+                    }
+                  }}
+                  placeholder="Skriv inn vekt (valgfritt)"
+                  placeholderTextColor="#E0E0E0"
+                  keyboardType="numeric"
+                />
+              </View>
+              <View style={globalStyles.inputGroup}>
+                <Text style={globalStyles.label}>Kjønn</Text>
+                <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 60 }]}>
+                  <Picker
+                    style={globalStyles.input}
+                    selectedValue={formData.gender || ''}
+                    onValueChange={(value: Gender | '') => setFormData({ ...formData, gender: value || undefined })}
+                  >
+                    <Picker.Item label="Velg kjønn (valgfritt)" value="" />
+                    <Picker.Item label="Mann" value="male" />
+                    <Picker.Item label="Kvinne" value="female" />
+                  </Picker>
+                </View>
               </View>
             </>
           )}
