@@ -1,22 +1,23 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { firestore } from '../services/firebase/FirebaseConfig';
+import { FriendRequest, getOutgoingRequest, sendFriendRequest } from '../services/firebase/friendService';
+import { deleteGroup, distributeDrinks, exitGroup, Friend, Group, GroupInvitation, removeFriendFromGroup, sendGroupInvitation } from '../services/firebase/groupService';
+import { getGroupInvitation } from '../services/firebase/profileService';
 import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import type { Bet, BettingOption, BetWager, DrinkType, MeasureType, MemberDrinkStats } from '../types/bettingTypes';
-import { GroupInvitation, Group, Friend, sendGroupInvitation, removeFriendFromGroup, exitGroup, deleteGroup, distributeDrinks } from '../services/firebase/groupService';
-import { sendFriendRequest, getOutgoingRequest, FriendRequest } from '../services/firebase/friendService';
-import { getGroupInvitation } from '../services/firebase/profileService';
 import { showAlert } from '../utils/platformAlert';
-import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 const DeleteIcon = require('../../assets/icons/noun-delete-7938028.png');
 const PeopleIcon = require('../../assets/icons/noun-people-2196504.png');
+const BeerIcon = require('../../assets/icons/noun-beer-7644526.png');
 
 const GroupScreen: React.FC = () => {
   const params = useLocalSearchParams();
@@ -809,6 +810,7 @@ const GroupScreen: React.FC = () => {
     const isCurrentUserCreator = user?.id === selectedGroup?.createdBy;
     const isFriend = friends.some(f => f.id === item.id);
     const hasPendingRequest = pendingFriendRequests.some(r => r.toUserId === item.id);
+    const isCurrentUser = user?.id === item.id;
 
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
@@ -817,7 +819,7 @@ const GroupScreen: React.FC = () => {
           <Text style={[groupStyles.wagerUser, { marginBottom: 0, textAlign: 'left', lineHeight: 20 }]}>{item.name}</Text>
           <Text style={[globalStyles.secondaryText, { marginTop: 0, textAlign: 'left', lineHeight: 18 }]}>@{item.username}</Text>
         </View>
-        {!isCreator && isCurrentUserCreator && (
+        {!isCreator && isCurrentUserCreator && !isCurrentUser && (
           <TouchableOpacity
             style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center', borderColor: 'red' }]}
             onPress={() => handleRemoveFriendFromGroup(item)}
@@ -826,7 +828,7 @@ const GroupScreen: React.FC = () => {
             <Text style={[globalStyles.outlineButtonGoldText, { color: 'red' }]}>Fjern</Text>
           </TouchableOpacity>
         )}
-        {!isFriend && !hasPendingRequest && !isCurrentUserCreator && (
+        {!isFriend && !hasPendingRequest && !isCurrentUserCreator && !isCurrentUser && (
           <TouchableOpacity
             style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center', marginLeft: 8 }]}
             onPress={() => handleSendFriendRequest(item)}
@@ -840,6 +842,7 @@ const GroupScreen: React.FC = () => {
   };
 
   const renderFriendItem = ({ item }: { item: Friend }) => {
+    const invitationSent = invitations.some(inv => inv.toUserId === item.id && inv.groupId === selectedGroup?.id);
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
         <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 50, height: 50, marginRight: 10 }]} />
@@ -847,13 +850,15 @@ const GroupScreen: React.FC = () => {
           <Text style={[groupStyles.wagerUser, { marginBottom: 0, textAlign: 'left', lineHeight: 20 }]}>{item.name}</Text>
           <Text style={[globalStyles.secondaryText, { marginTop: 0, textAlign: 'left', lineHeight: 18 }]}>@{item.username}</Text>
         </View>
-          <TouchableOpacity
-            style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center' }]}
-            onPress={() => handleInviteFriend(item)}
-            disabled={inviting}
-          >
-            <Text style={globalStyles.outlineButtonGoldText}>Inviter</Text>
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={[globalStyles.outlineButtonGold, { paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'center', justifyContent: 'center', backgroundColor: invitationSent ? theme.colors.surface : undefined, borderColor: invitationSent ? theme.colors.primary : undefined }]}
+          onPress={() => !invitationSent && handleInviteFriend(item)}
+          disabled={inviting || invitationSent}
+        >
+          <Text style={[globalStyles.outlineButtonGoldText, { color: invitationSent ? theme.colors.primary : undefined }]}>
+            {invitationSent ? 'Invitert' : 'Inviter'}
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -1058,14 +1063,18 @@ const GroupScreen: React.FC = () => {
                         <TouchableOpacity
                           onPress={handleDeleteGroup}
                           disabled={deleting}
-                          style={{ marginLeft: theme.spacing.sm, opacity: deleting ? 0.5 : 1 }}
+                          style={{ marginLeft: theme.spacing.sm, opacity: deleting ? 0.5 : 1, alignSelf: 'center' }}
                         >
-                          <Image source={DeleteIcon} style={globalStyles.deleteIcon} />
+                          <Text style={{ color: theme.colors.error, fontWeight: 'bold', fontSize: 16, textAlign: 'right' }}>Slett gruppe</Text>
                         </TouchableOpacity>
                       )}
                       {selectedGroup && user && selectedGroup.createdBy !== user.id && (
-                        <TouchableOpacity onPress={handleExitGroup} disabled={deleting}>
-                          <Image source={DeleteIcon} style={globalStyles.pencilIcon} />
+                        <TouchableOpacity
+                          onPress={handleExitGroup}
+                          disabled={deleting}
+                          style={{ marginLeft: theme.spacing.sm, alignSelf: 'center' }}
+                        >
+                          <Text style={{ color: theme.colors.error, fontWeight: 'bold', fontSize: 16, textAlign: 'right' }}>Forlat gruppe</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -1080,7 +1089,7 @@ const GroupScreen: React.FC = () => {
         <View style={[groupStyles.createBetSection, {paddingHorizontal: theme.spacing.md}]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: theme.spacing.xs }}>
             <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={() => setMembersModalVisible(true)}>
-              <Image source={PeopleIcon} style={{ width: 20, height: 20, tintColor: theme.colors.primary}} />
+              <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Medlemmer</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={() => setInviteModalVisible(true)} disabled={inviting}>
               <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Inviter</Text>
@@ -1093,10 +1102,7 @@ const GroupScreen: React.FC = () => {
               <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Opprett bett</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={() => setDistributeModalVisible(true)}>
-            <Image 
-              source={PencilIcon} // Placeholder, replace with drink icon (e.g., ../../assets/icons/drink.png)
-              style={{ width: 20, height: 20, tintColor: theme.colors.primary }} 
-            />
+            <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Del ut slurker</Text>
           </TouchableOpacity>
         </View>
         <View style={{ paddingBottom: theme.spacing.xl }}>
@@ -1186,7 +1192,7 @@ const GroupScreen: React.FC = () => {
       </Modal>
 
       <Modal visible={membersModalVisible} animationType="slide" transparent onRequestClose={() => setMembersModalVisible(false)}>
-        <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+        <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}> 
           <View style={[globalStyles.modalContent, {padding: theme.spacing.md, borderRadius: theme.borderRadius.lg,  maxHeight: '80%', width: '90%'}]}>
             <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.md, fontSize: 18, fontWeight: '600', color: theme.colors.text}]}>Medlemmer i {currentGroup.name}</Text>
             {memberData.length > 0 ? (
@@ -1627,7 +1633,7 @@ const GroupScreen: React.FC = () => {
       </Modal>
 
       <Modal visible={editMenuModalVisible} animationType="slide" transparent onRequestClose={() => setEditMenuModalVisible(false)}>
-        <View style={globalStyles.modalContainer}>
+               <View style={globalStyles.modalContainer}>
           <View style={globalStyles.modalContent}>
             <Text style={globalStyles.modalTitle}>Administrer bet</Text>
             <Text style={globalStyles.modalText}>{selectedEditBet?.bet.title || 'Velg en handling for bettet'}</Text>
