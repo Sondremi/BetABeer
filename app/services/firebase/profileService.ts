@@ -1,7 +1,7 @@
 import { collection, doc, query, where, getDocs, addDoc, serverTimestamp, updateDoc, arrayUnion, getDoc, deleteDoc, arrayRemove, increment } from 'firebase/firestore';
 import { firestore, auth } from './FirebaseConfig';
 import { GroupInvitation, Group } from '../../services/firebase/groupService'
-import { MemberDrinkStats, DrinkType, MeasureType } from '../../types/bettingTypes'
+import { DrinkEntry } from '@/app/types/drinkTypes';
 
 export const getGroupInvitation = async (currentUserId: string) : Promise<GroupInvitation[]> => {
   const groupInvitationRef = collection(firestore, "group_invitations");
@@ -55,11 +55,11 @@ export const declineGroupInvitation = async (requestId: string) => {
   }
 };
 
-export const createGroup = async () => {
+export const createGroup = async (userId: string): Promise<Group> => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
         console.log("Bruker ikke autorisert");
-        return;
+        throw new Error('Faaaaah')
     }
     try {
         const groupDoc = await addDoc(collection(firestore, 'groups'), {
@@ -74,23 +74,41 @@ export const createGroup = async () => {
         const userSnap = await getDoc(userRef);
         let userGroups: string[] = userSnap.exists() && userSnap.data().groups ? userSnap.data().groups : [];
         await updateDoc(userRef, { groups: [...userGroups, groupDoc.id] });
+        return {
+            id: groupDoc.id,
+            name: 'Gruppenavn',
+            memberCount: 1,
+            image: 'image_missing', // Note: ImageMissing not available here; use string
+            createdBy: userId,
+            members: [userId],
+        };
     } catch(error) {
         console.error(error);
         throw new Error(`Kunne ikke opprette gruppe: ${(error as Error).message}`);
     }
 }
 
-export const addDrinkVolume = async () => {
+export const profileService = {
+  async getUserData(userId: string): Promise<{ weight?: number; gender?: 'male' | 'female'; drinks?: DrinkEntry[] }> {
+    const userDoc = await getDoc(doc(firestore, 'users', userId));
+    if (userDoc.exists()) {
+      const data = userDoc.data();
+      return {
+        weight: data.weight,
+        gender: data.gender,
+        drinks: data.drinks || [],
+      };
+    }
+    return {};
+  },
 
-}
+  async addDrink(userId: string, drink: DrinkEntry): Promise<void> {
+    // Placeholder: Firestore update in Step 3
+    console.log('Adding drink for user', userId, drink);
+  },
 
-export const getDrunkScore = async () => {
-
-}
-
-export const resetDrunkScore = async () => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
-    const userDocRef = doc(firestore, 'users', currentUser.uid);
-    const userDoc = getDoc(userDocRef);
-}
+  async resetDrinks(userId: string): Promise<void> {
+    // Placeholder: Firestore update in Step 3
+    console.log('Resetting drinks for user', userId);
+  },
+};
