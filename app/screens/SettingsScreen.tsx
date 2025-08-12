@@ -339,7 +339,7 @@ const SettingsScreen = () => {
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Kjønn</Text>
               {isEditing ? (
-                <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 120 }]}>
+                <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 40 }]}>
                   <Picker
                     style={{ width: '100%', color: theme.colors.primary }}
                     itemStyle={{ color: theme.colors.primary }}

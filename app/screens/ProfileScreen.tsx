@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Dimensions, FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { firestore } from '../services/firebase/FirebaseConfig';
 import { profileStyles } from '../styles/components/profileStyles';
@@ -13,6 +13,7 @@ import { acceptGroupInvitation, declineGroupInvitation, getGroupInvitation, crea
 import { DrinkEntry, DrinkCategory } from '../types/drinkTypes';
 import { authService } from '../services/firebase/authService';
 import { Picker } from '@react-native-picker/picker';
+import { LineChart } from 'react-native-chart-kit';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const ImageMissing = require('../../assets/images/image_missing.png');
@@ -200,11 +201,15 @@ const ProfileScreen: React.FC = () => {
       showAlert('Feil', 'Velg antall');
       return;
     }
+    const alcoholPercent = 
+      drinkForm.alcoholPercent === 'custom' 
+        ? parseFloat(drinkForm.customAlcoholPercent)
+        : parseFloat(drinkForm.alcoholPercent.toString());
     const drink: DrinkEntry = {
       category: drinkForm.category,
-      sizeDl: drinkForm.sizeDl,
-      alcoholPercent: drinkForm.alcoholPercent === 'custom' ? parseFloat(drinkForm.customAlcoholPercent) : drinkForm.alcoholPercent,
-      quantity: drinkForm.quantity,
+      sizeDl: parseFloat(drinkForm.sizeDl.toString()),
+      alcoholPercent, 
+      quantity: parseInt(drinkForm.quantity.toString(), 10),
       timestamp: Date.now(),
     };
     try {
@@ -429,6 +434,51 @@ const ProfileScreen: React.FC = () => {
               <Text style={globalStyles.dangerButtonText}>Nullstill drikker</Text>
             </TouchableOpacity>
           </View>
+          {userInfo.weight && userInfo.gender && userInfo.drinks && userInfo.drinks.length > 0 && (
+          <View style={globalStyles.inputGroup}>
+            <Text style={globalStyles.sectionTitle}>Promille over tid</Text>
+            <LineChart
+              data={{
+                labels: Array.from({ length: 7 }, (_, i) => `${i * 0.5}h`), // 0 to 3h, every 30min
+                datasets: [
+                  {
+                    data: Array.from({ length: 7 }, (_, i) => {
+                      const time = Math.min(...userInfo.drinks!.map(d => d.timestamp)) + i * 0.5 * 60 * 60 * 1000;
+                      return profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
+                    }),
+                    color: () => theme.colors.primary ?? '#FFD700', // Gold line
+                  },
+                ],
+              }}
+              width={Dimensions.get('window').width - theme.spacing.md * 2} // Adjust for padding
+              height={220}
+              yAxisLabel=""
+              yAxisSuffix="‰"
+              chartConfig={{
+                backgroundColor: theme.colors.background ?? '#000000',
+                backgroundGradientFrom: theme.colors.background ?? '#000000',
+                backgroundGradientTo: theme.colors.background ?? '#000000',
+                decimalPlaces: 3,
+                color: () => theme.colors.text ?? '#FFFFFF',
+                labelColor: () => theme.colors.text ?? '#FFFFFF',
+                style: { borderRadius: theme.borderRadius.md },
+                propsForDots: { r: '6', strokeWidth: '2', stroke: theme.colors.primary },
+              }}
+              bezier
+              style={{ marginVertical: theme.spacing.md }}
+            />
+            <Text style={[globalStyles.label, { color: theme.colors.primary ?? '#FFD700' }]}>
+              Maks promille neste 30 min: {
+                Math.max(
+                  ...Array.from({ length: 2 }, (_, i) => {
+                    const time = Date.now() + i * 15 * 60 * 1000; // Next 0 and 15min
+                    return profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
+                  })
+                ).toFixed(3)
+              }‰
+            </Text>
+          </View>
+        )}
         </View>
 
         {/* Group Invitations Section */}
