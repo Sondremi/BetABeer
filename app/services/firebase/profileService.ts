@@ -118,17 +118,15 @@ export const profileService = {
     const bodyWaterPercentage = gender === 'male' ? 0.65 : 0.55;
     const metabolismRate = 0.15;
 
-    let totalAlcoholGrams = 0;
+    if (drinks.length === 0) return 0;
+
+    let totalBAC = 0;
     drinks.forEach(drink => {
-        const alcoholGrams = drink.sizeDl * drink.alcoholPercent * 0.8 * drink.quantity
-        totalAlcoholGrams += alcoholGrams;
+        const alcoholGrams = drink.sizeDl * drink.alcoholPercent * 0.8 * drink.quantity;
+        const hoursSinceDrink = (currentTime - drink.timestamp) / (1000 * 60 * 60);
+        const bacContribution = (alcoholGrams / (weight * bodyWaterPercentage)) - (metabolismRate * hoursSinceDrink);
+        totalBAC += Math.max(0, bacContribution);
     })
-
-    const hoursSinceFirstDrink = drinks.length > 0
-        ? (currentTime - Math.min(...drinks.map(d => d.timestamp))) / (1000 * 60 * 60)
-        : 0;
-
-    const BAC = (totalAlcoholGrams / weight * bodyWaterPercentage) - (metabolismRate * hoursSinceFirstDrink);
-    return Math.max(0, Number(BAC.toFixed(3)));
+    return Number(totalBAC.toFixed(3));
   }
 };
