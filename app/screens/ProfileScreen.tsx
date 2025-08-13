@@ -216,7 +216,8 @@ const ProfileScreen: React.FC = () => {
       const currentUser = authService.getCurrentUser();
       if (currentUser) {
         await profileService.addDrink(currentUser.uid, drink);
-        setUserInfo(prev => ({ ...prev, drinks: [...(prev.drinks || []), drink] }));
+        const updatedUserData = await profileService.getUserData(currentUser.uid);
+        setUserInfo(updatedUserData);
         showAlert('Suksess', 'Drikke lagt til');
       }
     } catch (error) {
@@ -435,23 +436,27 @@ const ProfileScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
           {userInfo.weight && userInfo.gender && userInfo.drinks && userInfo.drinks.length > 0 && (
-          <View style={globalStyles.inputGroup}>
-            <Text style={globalStyles.sectionTitle}>Promille over tid</Text>
+          <View style={[globalStyles.inputGroup, {marginBottom: theme.spacing.sm, marginTop: theme.spacing.xl}]}>
+            <Text style={globalStyles.sectionTitle}>Anslått promille de neste 3 timene</Text>
             <LineChart
               data={{
-                labels: Array.from({ length: 7 }, (_, i) => `${i * 0.5}h`), // 0 to 3h, every 30min
+                labels: Array.from({ length: 7 }, (_, i) => {
+                  const time = Math.max(...userInfo.drinks!.map(d => d.timestamp)) + i * 0.5 * 60 * 60 * 1000;
+                  return new Date(time).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                }), // 0 to 3h, every 30min
                 datasets: [
                   {
                     data: Array.from({ length: 7 }, (_, i) => {
                       const time = Math.min(...userInfo.drinks!.map(d => d.timestamp)) + i * 0.5 * 60 * 60 * 1000;
                       return profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
                     }),
-                    color: () => theme.colors.primary ?? '#FFD700', // Gold line
+                    color: () => theme.colors.primary, // Gold line
+                    strokeWidth: 3,
                   },
                 ],
               }}
-              width={Dimensions.get('window').width - theme.spacing.md * 2} // Adjust for padding
-              height={220}
+              width={Math.min(Dimensions.get('window').width - theme.spacing.md * 2, 420)} // Adjust for padding
+              height={240}
               yAxisLabel=""
               yAxisSuffix="‰"
               chartConfig={{
@@ -463,20 +468,11 @@ const ProfileScreen: React.FC = () => {
                 labelColor: () => theme.colors.text ?? '#FFFFFF',
                 style: { borderRadius: theme.borderRadius.md },
                 propsForDots: { r: '6', strokeWidth: '2', stroke: theme.colors.primary },
+                propsForLabels: { fontSize: 12 }
               }}
               bezier
-              style={{ marginVertical: theme.spacing.md }}
+              style={{padding: theme.spacing.sm, marginTop: theme.spacing.sm }}
             />
-            <Text style={[globalStyles.label, { color: theme.colors.primary ?? '#FFD700' }]}>
-              Maks promille neste 30 min: {
-                Math.max(
-                  ...Array.from({ length: 2 }, (_, i) => {
-                    const time = Date.now() + i * 15 * 60 * 1000; // Next 0 and 15min
-                    return profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
-                  })
-                ).toFixed(3)
-              }‰
-            </Text>
           </View>
         )}
         </View>
