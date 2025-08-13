@@ -218,7 +218,6 @@ const ProfileScreen: React.FC = () => {
         await profileService.addDrink(currentUser.uid, drink);
         const updatedUserData = await profileService.getUserData(currentUser.uid);
         setUserInfo(updatedUserData);
-        showAlert('Suksess', 'Drikke lagt til');
       }
     } catch (error) {
       console.error(error);
@@ -249,7 +248,6 @@ const ProfileScreen: React.FC = () => {
               if (currentUser) {
                 await profileService.resetDrinks(currentUser.uid);
                 setUserInfo(prev => ({ ...prev, drinks: [] }));
-                showAlert('Suksess', 'Drikker nullstilt');
               }
             } catch (error) {
               console.error(error);
