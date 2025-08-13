@@ -117,14 +117,17 @@ export const profileService = {
   calculateBAC(drinks: DrinkEntry[], weight: number, gender: 'male' | 'female', currentTime: number): number {
     const bodyWaterPercentage = gender === 'male' ? 0.65 : 0.55;
     const metabolismRate = 0.15;
+    const absorptionTimeMs = 45 * 60 * 1000; // 45 minutes (average)
 
     if (drinks.length === 0) return 0;
 
     let totalBAC = 0;
     drinks.forEach(drink => {
         const alcoholGrams = drink.sizeDl * drink.alcoholPercent * 0.8 * drink.quantity;
-        const hoursSinceDrink = (currentTime - drink.timestamp) / (1000 * 60 * 60);
-        const bacContribution = (alcoholGrams / (weight * bodyWaterPercentage)) - (metabolismRate * hoursSinceDrink);
+        const timeSinceDrinkMs = currentTime - drink.timestamp;
+        const absopedGrams = Math.min(alcoholGrams, alcoholGrams * (timeSinceDrinkMs / absorptionTimeMs));
+        const hoursSinceDrink = timeSinceDrinkMs / (1000 * 60 * 60);
+        const bacContribution = (absopedGrams / (weight * bodyWaterPercentage)) - (metabolismRate * Math.max(0, hoursSinceDrink - (absorptionTimeMs / (1000 * 60 * 60))));
         totalBAC += Math.max(0, bacContribution);
     })
     return Number(totalBAC.toFixed(3));

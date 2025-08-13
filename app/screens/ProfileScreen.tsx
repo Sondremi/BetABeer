@@ -445,7 +445,7 @@ const ProfileScreen: React.FC = () => {
                 datasets: [
                   {
                     data: Array.from({ length: 7 }, (_, i) => {
-                      const time = Math.min(...userInfo.drinks!.map(d => d.timestamp)) + i * 0.5 * 60 * 60 * 1000;
+                      const time = Math.max(...userInfo.drinks!.map(d => d.timestamp)) + i * 0.5 * 60 * 60 * 1000;
                       return profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
                     }),
                     color: () => theme.colors.primary, // Gold line
@@ -471,6 +471,9 @@ const ProfileScreen: React.FC = () => {
               bezier
               style={{padding: theme.spacing.sm, marginTop: theme.spacing.sm }}
             />
+            <Text style={[globalStyles.label, {color: theme.colors.primary, marginTop: theme.spacing.md}]}>
+              Nåværende promille: {profileService.calculateBAC(userInfo.drinks, userInfo.weight, userInfo.gender, Date.now()).toFixed(3)}‰
+            </Text>
           </View>
         )}
         </View>
