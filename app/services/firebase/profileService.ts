@@ -1,4 +1,4 @@
-import { collection, doc, query, where, getDocs, addDoc, serverTimestamp, updateDoc, arrayUnion, getDoc, deleteDoc, arrayRemove, increment } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs, addDoc, serverTimestamp, updateDoc, arrayUnion, getDoc, deleteDoc } from 'firebase/firestore';
 import { firestore, auth } from './FirebaseConfig';
 import { GroupInvitation, Group } from '../../services/firebase/groupService'
 import { DrinkEntry } from '@/app/types/drinkTypes';
