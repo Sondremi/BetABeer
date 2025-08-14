@@ -14,6 +14,36 @@ import { DrinkEntry, DrinkCategory } from '../types/drinkTypes';
 import { authService } from '../services/firebase/authService';
 import { Picker } from '@react-native-picker/picker';
 import { LineChart } from 'react-native-chart-kit';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+
+
+const useAnimatedBACText = (
+  drinks: DrinkEntry[] | undefined,
+  weight: number | undefined,
+  gender: 'male' | 'female' | undefined
+) => {
+  const currentBAC = drinks && weight && gender
+    ? profileService.calculateBAC(drinks, weight, gender, Date.now())
+    : 0;
+  const color = currentBAC < 1 ? ('#4CAF50') :
+                currentBAC <= 2 ? ('#F57C00') :
+                ('#FF0000');
+  const exclamationMarks = currentBAC > 2.5 ? '!'.repeat(Math.min(3, Math.floor((currentBAC - 2.5) / 0.1))) : '';
+  const isHighBAC = currentBAC >= 3;
+  const scale = useSharedValue(isHighBAC ? 1.2 : 1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: withSpring(scale.value) }],
+  }));
+  scale.value = isHighBAC ? 1.2 : 1; // Update scale on re-render
+
+  return {
+    currentBAC: currentBAC.toFixed(3),
+    color,
+    exclamationMarks,
+    isHighBAC,
+    animatedStyle,
+  };
+};
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const ImageMissing = require('../../assets/images/image_missing.png');
@@ -28,6 +58,7 @@ const ProfileScreen: React.FC = () => {
   const [groupInvitations, setGroupInvitations] = useState<GroupInvitation[]>([]);
   const [handlingInvitation, setHandlingInvitation] = useState(false);
   const [userNames, setUserNames] = useState<{ [id: string]: string }>({});
+  // Move Hook call to top level
   const [userInfo, setUserInfo] = useState<{
     weight?: number;
     gender?: 'male' | 'female';
@@ -48,6 +79,11 @@ const ProfileScreen: React.FC = () => {
     quantity: '',
     customAlcoholPercent: '',
   });
+  const { currentBAC, color, exclamationMarks, isHighBAC, animatedStyle } = useAnimatedBACText(
+    userInfo.drinks,
+    userInfo.weight,
+    userInfo.gender
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -433,49 +469,61 @@ const ProfileScreen: React.FC = () => {
               <Text style={globalStyles.dangerButtonText}>Nullstill drikker</Text>
             </TouchableOpacity>
           </View>
-          {userInfo.weight && userInfo.gender && userInfo.drinks && userInfo.drinks.length > 0 && (
-          <View style={[globalStyles.inputGroup, {marginBottom: theme.spacing.sm, marginTop: theme.spacing.xl}]}>
-            <Text style={globalStyles.sectionTitle}>Anslått promille de neste 3 timene</Text>
-            <LineChart
-              data={{
-                labels: Array.from({ length: 7 }, (_, i) => {
-                  const time = Math.max(...userInfo.drinks!.map(d => d.timestamp)) + i * 0.5 * 60 * 60 * 1000;
-                  return new Date(time).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-                }), // 0 to 3h, every 30min
-                datasets: [
+          {userInfo.weight && userInfo.gender && userInfo.drinks && userInfo.drinks.length > 0 && (() => {
+            return (
+            <View style={[globalStyles.inputGroup, {marginBottom: theme.spacing.sm, marginTop: theme.spacing.xl}]}>
+              <Text style={globalStyles.sectionTitle}>Anslått promille de neste 3 timene</Text>
+              <LineChart
+                data={{
+                  labels: Array.from({ length: 7 }, (_, i) => {
+                    const time = Math.max(...userInfo.drinks!.map(d => d.timestamp)) + i * 0.5 * 60 * 60 * 1000;
+                    return new Date(time).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                  }), // 0 to 3h, every 30min
+                  datasets: [
+                    {
+                      data: Array.from({ length: 7 }, (_, i) => {
+                        const time = Math.max(...userInfo.drinks!.map(d => d.timestamp)) + i * 0.5 * 60 * 60 * 1000;
+                        return profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
+                      }),
+                      color: () => theme.colors.primary, // Gold line
+                      strokeWidth: 3,
+                    },
+                  ],
+                }}
+                width={Math.min(Dimensions.get('window').width - theme.spacing.md * 2, 420)} // Adjust for padding
+                height={240}
+                yAxisLabel=""
+                yAxisSuffix="‰"
+                chartConfig={{
+                  backgroundColor: theme.colors.background ?? '#000000',
+                  backgroundGradientFrom: theme.colors.background ?? '#000000',
+                  backgroundGradientTo: theme.colors.background ?? '#000000',
+                  decimalPlaces: 3,
+                  color: () => theme.colors.text ?? '#FFFFFF',
+                  labelColor: () => theme.colors.text ?? '#FFFFFF',
+                  style: { borderRadius: theme.borderRadius.md },
+                  propsForDots: { r: '6', strokeWidth: '2', stroke: theme.colors.primary },
+                  propsForLabels: { fontSize: 12 }
+                }}
+                bezier
+                style={{padding: theme.spacing.sm, marginTop: theme.spacing.sm }}
+              />
+              <Animated.Text
+                style={[
+                  globalStyles.label,
                   {
-                    data: Array.from({ length: 7 }, (_, i) => {
-                      const time = Math.max(...userInfo.drinks!.map(d => d.timestamp)) + i * 0.5 * 60 * 60 * 1000;
-                      return profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
-                    }),
-                    color: () => theme.colors.primary, // Gold line
-                    strokeWidth: 3,
+                    color,
+                    marginTop: theme.spacing.sm,
+                    fontWeight: isHighBAC ? 'bold' : 'normal',
                   },
-                ],
-              }}
-              width={Math.min(Dimensions.get('window').width - theme.spacing.md * 2, 420)} // Adjust for padding
-              height={240}
-              yAxisLabel=""
-              yAxisSuffix="‰"
-              chartConfig={{
-                backgroundColor: theme.colors.background ?? '#000000',
-                backgroundGradientFrom: theme.colors.background ?? '#000000',
-                backgroundGradientTo: theme.colors.background ?? '#000000',
-                decimalPlaces: 3,
-                color: () => theme.colors.text ?? '#FFFFFF',
-                labelColor: () => theme.colors.text ?? '#FFFFFF',
-                style: { borderRadius: theme.borderRadius.md },
-                propsForDots: { r: '6', strokeWidth: '2', stroke: theme.colors.primary },
-                propsForLabels: { fontSize: 12 }
-              }}
-              bezier
-              style={{padding: theme.spacing.sm, marginTop: theme.spacing.sm }}
-            />
-            <Text style={[globalStyles.label, {color: theme.colors.primary, marginTop: theme.spacing.md}]}>
-              Nåværende promille: {profileService.calculateBAC(userInfo.drinks, userInfo.weight, userInfo.gender, Date.now()).toFixed(3)}‰
-            </Text>
-          </View>
-        )}
+                  animatedStyle,
+                ]}
+              >        
+              Nåværende promille: {currentBAC}‰{exclamationMarks}
+              </Animated.Text>
+            </View>
+          );
+        })()}
         </View>
 
         {/* Group Invitations Section */}
