@@ -28,9 +28,12 @@ const useAnimatedBACText = (
   const color = currentBAC < 1 ? ('#4CAF50') :
                 currentBAC <= 2 ? ('#F57C00') :
                 ('#FF0000');
+  const emoji = currentBAC < 1 ? '🥂' :
+                currentBAC <= 2 ? '🍻' :
+                currentBAC < 3 ? '🥴' : '💀'
   const exclamationMarks = currentBAC > 2.5 ? '!'.repeat(Math.min(3, Math.floor((currentBAC - 2.5) / 0.1))) : '';
   const isHighBAC = currentBAC >= 3;
-  const scale = useSharedValue(isHighBAC ? 1.2 : 1);
+  const scale = useSharedValue(isHighBAC ? 1.5 : 1);
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: withSpring(scale.value) }],
   }));
@@ -39,6 +42,7 @@ const useAnimatedBACText = (
   return {
     currentBAC: currentBAC.toFixed(3),
     color,
+    emoji,
     exclamationMarks,
     isHighBAC,
     animatedStyle,
@@ -79,7 +83,7 @@ const ProfileScreen: React.FC = () => {
     quantity: '',
     customAlcoholPercent: '',
   });
-  const { currentBAC, color, exclamationMarks, isHighBAC, animatedStyle } = useAnimatedBACText(
+  const { currentBAC, color, emoji, exclamationMarks, isHighBAC, animatedStyle } = useAnimatedBACText(
     userInfo.drinks,
     userInfo.weight,
     userInfo.gender
@@ -515,11 +519,13 @@ const ProfileScreen: React.FC = () => {
                     color,
                     marginTop: theme.spacing.sm,
                     fontWeight: isHighBAC ? 'bold' : 'normal',
+                    textAlign: 'center',
+                    flexWrap: 'wrap'
                   },
                   animatedStyle,
                 ]}
               >        
-              Nåværende promille: {currentBAC}‰{exclamationMarks}
+              Nåværende promille: {currentBAC}‰{exclamationMarks} {emoji}
               </Animated.Text>
             </View>
           );
