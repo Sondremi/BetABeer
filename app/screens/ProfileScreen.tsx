@@ -33,7 +33,7 @@ const useAnimatedBACText = (
                 currentBAC < 3 ? '🥴' : '💀'
   const exclamationMarks = currentBAC > 2.5 ? '!'.repeat(Math.min(3, Math.floor((currentBAC - 2.5) / 0.1))) : '';
   const isHighBAC = currentBAC >= 3;
-  const scale = useSharedValue(isHighBAC ? 1.5 : 1);
+  const scale = useSharedValue(isHighBAC ? 1.2 : 1);
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: withSpring(scale.value) }],
   }));
@@ -520,7 +520,7 @@ const ProfileScreen: React.FC = () => {
                     marginTop: theme.spacing.sm,
                     fontWeight: isHighBAC ? 'bold' : 'normal',
                     textAlign: 'center',
-                    flexWrap: 'wrap'
+                    flexWrap: 'wrap',
                   },
                   animatedStyle,
                 ]}
