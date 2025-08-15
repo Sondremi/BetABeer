@@ -3,7 +3,7 @@ import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firesto
 import React, { useEffect, useState } from 'react';
 import { Dimensions, FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { firestore } from '../services/firebase/FirebaseConfig';
+import { auth, firestore } from '../services/firebase/FirebaseConfig';
 import { profileStyles } from '../styles/components/profileStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
@@ -53,6 +53,7 @@ const DefaultProfilePicture = require('../../assets/images/default_profilepictur
 const ImageMissing = require('../../assets/images/image_missing.png');
 const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
+const BeerIcon = require('../../assets/icons/noun-beer-7644526.png');
 
 const ProfileScreen: React.FC = () => {
   const { user, loading } = useAuth();
@@ -88,6 +89,21 @@ const ProfileScreen: React.FC = () => {
     userInfo.weight,
     userInfo.gender
   );
+
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      const currenUser = auth.currentUser
+      if (currenUser) {
+        try {
+          const userData = await profileService.getUserData(currenUser.uid);
+          setUserInfo(userData);
+        } catch (error) {
+          console.error(error)
+        }
+      }
+    }
+    fetchUserInfo();
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -357,6 +373,59 @@ const ProfileScreen: React.FC = () => {
     }
   };
 
+  const onRefresh = async () => {
+    console.log('Refresh triggered at', new Date().toISOString());
+    if (!auth.currentUser?.uid || !user) {
+      console.log('No authenticated user found');
+      showAlert('Feil', 'Ingen bruker logget inn');
+      return;
+    }
+    try {
+      console.log('Fetching user data for UID:', auth.currentUser.uid);
+      const userData = await profileService.getUserData(auth.currentUser.uid);
+      setUserInfo(userData);
+      console.log('Fetched userData:', userData);
+
+      console.log('Fetching groups and invitations for user:', user.id);
+      const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
+      const groupSnapshot = await getDocs(groupQuery);
+      const groupList: Group[] = groupSnapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        name: docSnap.data().name,
+        memberCount: docSnap.data().members.length,
+        image: ImageMissing,
+        createdBy: docSnap.data().createdBy,
+        members: docSnap.data().members,
+      }));
+      setGroups(groupList);
+      console.log('Fetched groups:', groupList);
+
+      const invitationList = await getGroupInvitation(user.id);
+      setGroupInvitations(invitationList);
+      console.log('Fetched invitations:', invitationList);
+
+      if (invitationList.length > 0) {
+        const idsToFetch = invitationList
+          .map(inv => inv.fromUserId)
+          .filter(id => !(id in userNames));
+        const newNames: { [id: string]: string } = {};
+        await Promise.all(
+          idsToFetch.map(async (id) => {
+            const userDoc = await getDoc(doc(firestore, 'users', id));
+            newNames[id] = userDoc.exists() ? userDoc.data().name || id : id;
+          })
+        );
+        if (Object.keys(newNames).length > 0) {
+          setUserNames(prev => ({ ...prev, ...newNames }));
+          console.log('Fetched user names:', newNames);
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      showAlert('Feil', 'Kunne ikke oppfriske data');
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={[globalStyles.container, globalStyles.centerContent]}>
@@ -423,6 +492,9 @@ const ProfileScreen: React.FC = () => {
         {/* Header with navigation buttons */}
         <View style={globalStyles.header}>
           <View style={profileStyles.headerButtons}>
+            <TouchableOpacity style={profileStyles.headerButton} onPress={onRefresh}>
+              <Image source={BeerIcon} style={globalStyles.settingsIcon} />
+            </TouchableOpacity>
             <TouchableOpacity style={profileStyles.headerButton} onPress={navigateToSettings}>
               <Image source={SettingsIcon} style={globalStyles.settingsIcon} />
             </TouchableOpacity>
