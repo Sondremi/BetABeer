@@ -1,19 +1,20 @@
+import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { LineChart } from 'react-native-chart-kit';
 import { useAuth } from '../context/AuthContext';
+import { authService } from '../services/firebase/authService';
 import { firestore } from '../services/firebase/FirebaseConfig';
+import { Group, GroupInvitation } from '../services/firebase/groupService';
+import { acceptGroupInvitation, createGroup, declineGroupInvitation, getGroupInvitation, profileService } from '../services/firebase/profileService';
 import { profileStyles } from '../styles/components/profileStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
+import { DrinkCategory, DrinkEntry } from '../types/drinkTypes';
+import { defaultProfileImageMap, defaultProfileImages } from '../utils/defaultProfileImages';
 import { showAlert } from '../utils/platformAlert';
-import { Group, GroupInvitation } from '../services/firebase/groupService';
-import { acceptGroupInvitation, declineGroupInvitation, getGroupInvitation, createGroup, profileService } from '../services/firebase/profileService';
-import { DrinkEntry, DrinkCategory } from '../types/drinkTypes';
-import { authService } from '../services/firebase/authService';
-import { Picker } from '@react-native-picker/picker';
-import { LineChart } from 'react-native-chart-kit';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
 const ImageMissing = require('../../assets/images/image_missing.png');
@@ -22,6 +23,24 @@ const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 
 const ProfileScreen: React.FC = () => {
   const { user, loading } = useAuth();
+  const [profileImageModalVisible, setProfileImageModalVisible] = useState(false);
+  const [selectedProfileImage, setSelectedProfileImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user && (user as any).profileImage) {
+      setSelectedProfileImage((user as any).profileImage);
+    }
+  }, [user]);
+
+  const handleProfileImageSave = async () => {
+    if (!user || !selectedProfileImage) return;
+    try {
+      await updateDoc(doc(firestore, 'users', user.id), { profileImage: selectedProfileImage });
+      setProfileImageModalVisible(false);
+    } catch (error) {
+      showAlert('Feil', 'Kunne ikke oppdatere profilbilde');
+    }
+  };
   const router = useRouter();
   const [groups, setGroups] = useState<Group[]>([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
@@ -395,20 +414,57 @@ const ProfileScreen: React.FC = () => {
           {/* Profile picture */}
           <View style={profileStyles.profileImageContainer}>
             <Image
-              source={DefaultProfilePicture}
+              source={
+                (selectedProfileImage && defaultProfileImageMap[selectedProfileImage])
+                  ? defaultProfileImageMap[selectedProfileImage]
+                  : (user && (user as any).profileImage && defaultProfileImageMap[(user as any).profileImage])
+                    ? defaultProfileImageMap[(user as any).profileImage]
+                    : DefaultProfilePicture
+              }
               style={[globalStyles.circularImage, { width: 120, height: 120 }]}
             />
             <TouchableOpacity
               style={profileStyles.editProfileImageButton}
-              onPress={() => {
-                showAlert('Hold on', 'Har ikke fiksa profilbilde enda', [
-                  { text: 'OK', style: 'default' }
-                ]);
-              }}
+              onPress={() => setProfileImageModalVisible(true)}
             >
               <Image source={PencilIcon} style={globalStyles.pencilIcon} />
             </TouchableOpacity>
           </View>
+        {/* Modal for å velge profilbilde */}
+        <Modal
+          visible={profileImageModalVisible}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setProfileImageModalVisible(false)}
+        >
+          <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0,0,0,0.5)' }]}> 
+            <View style={[globalStyles.modalContent, { padding: theme.spacing.md, borderRadius: theme.borderRadius.lg, maxHeight: 500 }]}> 
+              <Text style={globalStyles.modalTitle}>Velg profilbilde</Text>
+              <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
+                {defaultProfileImages.map((img) => (
+                  <TouchableOpacity
+                    key={img}
+                    style={{ margin: 8, borderWidth: selectedProfileImage === img ? 3 : 0, borderColor: theme.colors.primary, borderRadius: 60 }}
+                    onPress={() => setSelectedProfileImage(img)}
+                  >
+                    <Image
+                      source={defaultProfileImageMap[img]}
+                      style={{ width: 60, height: 60, borderRadius: 30 }}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <View style={globalStyles.buttonRow}>
+                <TouchableOpacity style={globalStyles.cancelButton} onPress={() => setProfileImageModalVisible(false)}>
+                  <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={globalStyles.saveButton} onPress={handleProfileImageSave}>
+                  <Text style={globalStyles.saveButtonTextAlt}>Lagre</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
           {/* Name and username */}
           <Text style={globalStyles.largeBoldText}>{user?.name || 'Navn'}</Text>
