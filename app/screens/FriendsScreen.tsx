@@ -2,7 +2,7 @@ import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, firestore } from '../services/firebase/FirebaseConfig';
-import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, Friend, FriendRequest, friendSearch, getIncomingRequest, getOutgoingRequest, removeFriend, sendFriendRequest } from '../services/firebase/friendService';
+import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, Friend, FriendRequest, friendSearch, listenToIncomingRequests, listenToOutgoingRequests, removeFriend, sendFriendRequest } from '../services/firebase/friendService';
 import { friendsStyles } from '../styles/components/friendsStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { showAlert } from '../utils/platformAlert';
@@ -32,37 +32,14 @@ const FriendsScreen = () => {
   const [friends, setFriends] = useState<FriendWithPending[]>([]);
 
   useEffect(() => {
-    const fetchRequests = async () => {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        console.log('No user authentication');
-        return;
-      }
-
-      try {
-        const incoming = await getIncomingRequest(currentUser.uid);
-        const enrichedIncoming = await Promise.all(
-          incoming.map(async (request: FriendRequest) => {
-            const userDocRef = doc(firestore, "users", request.fromUserId);
-            const userDoc = await getDoc(userDocRef);
-            return {
-              ...request,
-              name: userDoc.exists() ? userDoc.data().name || 'Ukjent' : 'Ukjent',
-              username: userDoc.exists() ? userDoc.data().username || 'ukjent' : 'ukjent',
-              profilePicture: userDoc.exists() ? userDoc.data().profilePicture || DefaultProfilePicture : DefaultProfilePicture,
-            };
-          })
-        );
-        setIncomingRequests(enrichedIncoming);
-
-        const outgoing = await getOutgoingRequest(currentUser.uid);
-        setOutgoingRequests(outgoing);
-      } catch (error) {
-        console.error(error);
-        showAlert('Feil', `Kunne ikke hente forespørsel: ${(error as Error).message}`);
-      }
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+    const unsubIncoming = listenToIncomingRequests(currentUser.uid, setIncomingRequests);
+    const unsubOutgoing = listenToOutgoingRequests(currentUser.uid, setOutgoingRequests);
+    return () => {
+      if (typeof unsubIncoming === 'function') unsubIncoming();
+      if (typeof unsubOutgoing === 'function') unsubOutgoing();
     };
-    fetchRequests();
   }, []);
 
   useEffect(() => {
