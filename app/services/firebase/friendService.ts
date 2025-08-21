@@ -1,5 +1,52 @@
-import { collection, doc, query, where, getDocs, orderBy, addDoc, serverTimestamp, updateDoc, arrayUnion, getDoc, deleteDoc, arrayRemove } from 'firebase/firestore';
-import { firestore, auth } from './FirebaseConfig';
+import { addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { auth, firestore } from './FirebaseConfig';
+export const listenToIncomingRequests = (currentUserId: string, callback: (requests: FriendRequest[]) => void) => {
+  const friendRequestRef = collection(firestore, "friendRequests");
+  const q = query(
+    friendRequestRef,
+    where("toUserId", "==", currentUserId),
+    where("status", "==", "pending")
+  );
+  return onSnapshot(q, async (snapshot) => {
+    const requests = await Promise.all(snapshot.docs.map(async (docSnap) => {
+      const data = docSnap.data();
+      const userDocRef = doc(firestore, "users", data.fromUserId);
+      const userDoc = await getDoc(userDocRef);
+      return {
+        id: docSnap.id,
+        ...data,
+        name: userDoc.exists() ? userDoc.data().name || 'Ukjent' : 'Ukjent',
+        username: userDoc.exists() ? userDoc.data().username || 'ukjent' : 'ukjent',
+        profilePicture: userDoc.exists() ? userDoc.data().profilePicture || DefaultProfilePicture : DefaultProfilePicture,
+      };
+    }));
+    callback(requests as FriendRequest[]);
+  });
+};
+
+export const listenToOutgoingRequests = (currentUserId: string, callback: (requests: FriendRequest[]) => void) => {
+  const friendRequestRef = collection(firestore, "friendRequests");
+  const q = query(
+    friendRequestRef,
+    where("fromUserId", "==", currentUserId),
+    where("status", "==", "pending")
+  );
+  return onSnapshot(q, async (snapshot) => {
+    const requests = await Promise.all(snapshot.docs.map(async (docSnap) => {
+      const data = docSnap.data();
+      const userDocRef = doc(firestore, "users", data.toUserId);
+      const userDoc = await getDoc(userDocRef);
+      return {
+        id: docSnap.id,
+        ...data,
+        name: userDoc.exists() ? userDoc.data().name || 'Ukjent' : 'Ukjent',
+        username: userDoc.exists() ? userDoc.data().username || 'ukjent' : 'ukjent',
+        profilePicture: userDoc.exists() ? userDoc.data().profilePicture || DefaultProfilePicture : DefaultProfilePicture,
+      };
+    }));
+    callback(requests as FriendRequest[]);
+  });
+};
 
 const DefaultProfilePicture = require('../../../assets/images/default_profilepicture.png');
 
