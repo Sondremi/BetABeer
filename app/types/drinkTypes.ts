@@ -59,3 +59,22 @@ export interface MemberDrinkStats {
   drinksToDistribute: { [key in DrinkType]?: { [key in MeasureType]?: number } };
   transactions: DrinkTransaction[];
 }
+
+export interface Group {
+  id: string;
+  name: string;
+  memberCount: number;
+  image: any;
+  createdBy: string;
+  members: string[];
+}
+
+export interface GroupInvitation {
+  id: string;
+  groupId: string;
+  groupName: string;
+  fromUserId: string;
+  toUserId: string;
+  status: 'accepted' | 'pending' | 'declined';
+  createdAt: any;
+}

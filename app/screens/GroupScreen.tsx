@@ -4,16 +4,20 @@ import React, { useEffect, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { firestore } from '../services/firebase/FirebaseConfig';
-import { FriendRequest, getOutgoingRequest, sendFriendRequest } from '../services/firebase/friendService';
-import { deleteGroup, distributeDrinks, exitGroup, Friend, Group, GroupInvitation, removeFriendFromGroup, sendGroupInvitation } from '../services/firebase/groupService';
-import { getGroupInvitation } from '../services/firebase/profileService';
+import { getOutgoingRequest, sendFriendRequest } from '../services/friendService';
+import { deleteGroup, distributeDrinks, exitGroup, removeFriendFromGroup, sendGroupInvitation } from '../services/groupService';
+import { getGroupInvitation } from '../services/profileService';
 import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import type { Bet, BettingOption, BetWager, DrinkTransaction, DrinkType, MeasureType, MemberDrinkStats } from '../types/drinkTypes';
+import { Group, GroupInvitation } from '../types/drinkTypes';
+import { Friend, FriendRequest } from '../types/userTypes';
+import { defaultProfileImageMap } from '../utils/defaultProfileImages';
 import { showAlert } from '../utils/platformAlert';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
+const DefaultProfilePicture = require('../../assets/images/default/default_profilepicture.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 const TrophyFirst = require('../../assets/icons/trophy_1.png');
 const TrophySecond = require('../../assets/icons/trophy_2.png');
@@ -147,7 +151,7 @@ const GroupScreen = () => {
                     id: friendDoc.id,
                     name: friendData.name || 'Ukjent navn',
                     username: friendData.username || 'ukjent',
-                    profilePicture: ImageMissing,
+                    profilePicture: friendData.profilePicture || DefaultProfilePicture,
                   };
                 }
                 return null;
@@ -211,11 +215,15 @@ const GroupScreen = () => {
         selectedGroup.members.map(async (memberId) => {
           try {
             const userDoc = await getDoc(doc(firestore, 'users', memberId));
+            const userData = userDoc.data();
+            const profileImage = userData?.profileImage;
             return {
               id: memberId,
-              name: userDoc.exists() ? userDoc.data().name || 'Ukjent navn' : 'Ukjent navn',
+              name: userData?.name || 'Ukjent navn',
               username: usernames[memberId] || 'ukjent',
-              profilePicture: ImageMissing,
+              profilePicture: profileImage ? 
+                defaultProfileImageMap[profileImage] || DefaultProfilePicture 
+                : DefaultProfilePicture,
             };
           } catch (error) {
             console.error(`Error fetching member ${memberId}:`, error);
@@ -223,7 +231,7 @@ const GroupScreen = () => {
               id: memberId,
               name: 'Ukjent navn',
               username: usernames[memberId] || 'ukjent',
-              profilePicture: ImageMissing,
+              profilePicture: DefaultProfilePicture,
             };
           }
         })
@@ -693,7 +701,9 @@ const GroupScreen = () => {
             wins: 0,
             totalDrinksReceived: 0,
             totalDrinksLost: 0,
-            profilePicture: userDoc.exists() ? userDoc.data().profilePicture || ImageMissing : ImageMissing,
+            profilePicture: userDoc.exists() && userDoc.data().profileImage ? 
+              defaultProfileImageMap[userDoc.data().profileImage] || DefaultProfilePicture 
+              : DefaultProfilePicture,
             drinksToConsume: {},
             drinksToDistribute: {},
             transactions: [],
@@ -706,7 +716,7 @@ const GroupScreen = () => {
             wins: 0,
             totalDrinksReceived: 0,
             totalDrinksLost: 0,
-            profilePicture: ImageMissing,
+            profilePicture: DefaultProfilePicture,
             drinksToConsume: {},
             drinksToDistribute: {},
             transactions: [],

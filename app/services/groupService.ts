@@ -1,32 +1,6 @@
-import { collection, doc, query, where, getDocs, addDoc, serverTimestamp, updateDoc, getDoc, deleteDoc, arrayRemove, increment } from 'firebase/firestore';
-import { firestore, auth } from './FirebaseConfig';
-import { MemberDrinkStats, DrinkType, MeasureType } from '../../types/bettingTypes'
-
-export interface GroupInvitation {
-  id: string;
-  groupId: string;
-  groupName: string;
-  fromUserId: string;
-  toUserId: string;
-  status: 'accepted' | 'pending' | 'declined';
-  createdAt: any;
-}
-
-export interface Friend {
-  id: string;
-  name: string;
-  username: string;
-  profilePicture: any;
-}
-
-export interface Group {
-  id: string;
-  name: string;
-  memberCount: number;
-  image: any;
-  createdBy: string;
-  members: string[];
-}
+import { addDoc, arrayRemove, collection, deleteDoc, doc, getDoc, getDocs, increment, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { DrinkType, Group, MeasureType, MemberDrinkStats } from '../types/drinkTypes';
+import { auth, firestore } from './firebase/FirebaseConfig';
 
 export const sendGroupInvitation = async (toUserId: string, group: Group) => {
   const currentUser = auth.currentUser;
@@ -166,20 +140,26 @@ export const distributeDrinks = async (
   const drinksToDistribute: MemberDrinkStats['drinksToDistribute'] = userData.drinksToDistribute || {};
 
   // Validate distributions
-  const totalsByDrink: { [key in DrinkType]?: { [key in MeasureType]?: number } } = {};
+  const totalsByDrink: { [key in DrinkType]: { [key in MeasureType]: number } } = {
+    'Øl': { 'Slurker': 0, 'Shot': 0, 'Chug': 0 },
+    'Cider': { 'Slurker': 0, 'Shot': 0, 'Chug': 0 },
+    'Hard selzer': { 'Slurker': 0, 'Shot': 0, 'Chug': 0 },
+    'Vin': { 'Slurker': 0, 'Shot': 0, 'Chug': 0 },
+    'Sprit': { 'Slurker': 0, 'Shot': 0, 'Chug': 0 }
+  };
+  
   distributions.forEach(({ drinkType, measureType, amount }) => {
-    if (!totalsByDrink[drinkType]) totalsByDrink[drinkType] = {};
-    if (!totalsByDrink[drinkType]![measureType]) totalsByDrink[drinkType]![measureType] = 0;
-    totalsByDrink[drinkType]![measureType]! += amount;
+    totalsByDrink[drinkType][measureType] += amount;
   });
-  for (const [drinkType, measures] of Object.entries(totalsByDrink)) {
-    for (const [measureType, total] of Object.entries(measures)) {
+
+  Object.entries(totalsByDrink).forEach(([drinkType, measures]) => {
+    Object.entries(measures).forEach(([measureType, total]) => {
       const available = drinksToDistribute[drinkType as DrinkType]?.[measureType as MeasureType] || 0;
       if (total > available) {
         throw new Error(`Ikke nok ${measureType} ${drinkType} tilgjengelig`);
       }
-    }
-  }
+    });
+  });
 
   // Update Firestore
   await Promise.all(distributions.map(async ({ userId, drinkType, measureType, amount }) => {
