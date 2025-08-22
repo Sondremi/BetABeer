@@ -151,7 +151,9 @@ const GroupScreen = () => {
                     id: friendDoc.id,
                     name: friendData.name || 'Ukjent navn',
                     username: friendData.username || 'ukjent',
-                    profilePicture: friendData.profilePicture || DefaultProfilePicture,
+                    profilePicture: friendData.profileImage ? 
+                      defaultProfileImageMap[friendData.profileImage] || DefaultProfilePicture 
+                      : DefaultProfilePicture,
                   };
                 }
                 return null;
