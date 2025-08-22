@@ -1,5 +1,10 @@
 import { addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
-import { auth, firestore } from './FirebaseConfig';
+import { Friend, FriendRequest } from '../types/userTypes';
+import { defaultProfileImageMap } from '../utils/defaultProfileImages';
+import { auth, firestore } from './firebase/FirebaseConfig';
+
+const DefaultProfilePicture = require('../../assets/images/default/default_profilepicture.png');
+
 export const listenToIncomingRequests = (currentUserId: string, callback: (requests: FriendRequest[]) => void) => {
   const friendRequestRef = collection(firestore, "friendRequests");
   const q = query(
@@ -15,9 +20,11 @@ export const listenToIncomingRequests = (currentUserId: string, callback: (reque
       return {
         id: docSnap.id,
         ...data,
-        name: userDoc.exists() ? userDoc.data().name || 'Ukjent' : 'Ukjent',
-        username: userDoc.exists() ? userDoc.data().username || 'ukjent' : 'ukjent',
-        profilePicture: userDoc.exists() ? userDoc.data().profilePicture || DefaultProfilePicture : DefaultProfilePicture,
+        name: data.fromUserName || (userDoc.exists() ? userDoc.data().name || 'Ukjent' : 'Ukjent'),
+        username: data.fromUsername || (userDoc.exists() ? userDoc.data().username || 'ukjent' : 'ukjent'),
+        profilePicture: data.fromUserProfileImage ? 
+          defaultProfileImageMap[data.fromUserProfileImage] || DefaultProfilePicture 
+          : DefaultProfilePicture,
       };
     }));
     callback(requests as FriendRequest[]);
@@ -36,31 +43,24 @@ export const listenToOutgoingRequests = (currentUserId: string, callback: (reque
       const data = docSnap.data();
       const userDocRef = doc(firestore, "users", data.toUserId);
       const userDoc = await getDoc(userDocRef);
+      const userData = userDoc.exists() ? userDoc.data() : null;
       return {
         id: docSnap.id,
         ...data,
-        name: userDoc.exists() ? userDoc.data().name || 'Ukjent' : 'Ukjent',
-        username: userDoc.exists() ? userDoc.data().username || 'ukjent' : 'ukjent',
-        profilePicture: userDoc.exists() ? userDoc.data().profilePicture || DefaultProfilePicture : DefaultProfilePicture,
+        fromUserName: userData?.name || 'Ukjent',
+        fromUsername: userData?.username || 'ukjent',
+        fromUserProfileImage: userData?.profileImage || null,
+        // For bakoverkompatibilitet
+        name: userData?.name || 'Ukjent',
+        username: userData?.username || 'ukjent',
+        profilePicture: userData?.profileImage ? 
+          defaultProfileImageMap[userData.profileImage] 
+          : DefaultProfilePicture,
       };
     }));
     callback(requests as FriendRequest[]);
   });
 };
-
-const DefaultProfilePicture = require('../../../assets/images/default_profilepicture.png');
-
-export type Friend = { id: string; name: string; username: string; profilePicture: any };
-export type FriendRequest = {
-  id: string;
-  fromUserId: string;
-  toUserId: string;
-  status: string;
-  createdAt: any;
-  name?: string;
-  username?: string;
-  profilePicture?: any; 
-}
 
 export const friendSearch = async (searchTerm: string): Promise<Friend[]> => {
   if (!searchTerm) return [];
@@ -82,7 +82,9 @@ export const friendSearch = async (searchTerm: string): Promise<Friend[]> => {
       id: doc.id,
       name: doc.data().name || 'Ukjent',
       username: doc.data().username || 'ukjent',
-      profilePicture: doc.data().profilePicture || DefaultProfilePicture,
+      profilePicture: doc.data().profileImage ? 
+        defaultProfileImageMap[doc.data().profileImage] || DefaultProfilePicture
+        : DefaultProfilePicture,
     })).filter((user) => user.id !== currentUser.uid);
     return result;
   } catch (error) {
@@ -100,11 +102,18 @@ export const sendFriendRequest = async (toUserId: string) => {
     throw new Error('Kan ikke sende venneforespørsel til deg selv')
   }
   const friendRequestRef = collection(firestore, "friendRequests");
-  const docRef =  await addDoc(friendRequestRef, {
+  // Get current user's profile data
+  const currentUserDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
+  const currentUserData = currentUserDoc.data();
+
+  const docRef = await addDoc(friendRequestRef, {
     fromUserId: currentUser.uid,
     toUserId,
     status: "pending",
     createdAt: serverTimestamp(),
+    fromUserName: currentUserData?.name || 'Ukjent',
+    fromUsername: currentUserData?.username || 'ukjent',
+    fromUserProfileImage: currentUserData?.profileImage,
   });
   console.log("Venneforespørsel opprettet", docRef.id);
   return docRef.id;
@@ -156,7 +165,10 @@ export const getOutgoingRequest = async (currentUserId: string) : Promise<Friend
         ...request,
         name: userDoc.exists() ? userDoc.data().name || 'Ukjent' : 'Ukjent',
         username: userDoc.exists() ? userDoc.data().username || 'ukjent' : 'ukjent',
-        profilePicture: userDoc.exists() ? userDoc.data().profilePicture || DefaultProfilePicture : DefaultProfilePicture,
+        profilePicture: userDoc.exists() ? 
+          userDoc.data().profileImage ? defaultProfileImageMap[userDoc.data().profileImage] || DefaultProfilePicture
+          : DefaultProfilePicture
+          : DefaultProfilePicture,
       };
     })
   );
@@ -203,4 +215,3 @@ export const removeFriend = async (currentuserId: string, friendId: string) => {
     throw new Error('Kunne ikke slette venn')
   }
 };
-
