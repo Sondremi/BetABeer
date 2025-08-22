@@ -10,7 +10,7 @@ import { getGroupInvitation } from '../services/firebase/profileService';
 import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
-import type { Bet, BettingOption, BetWager, DrinkType, MeasureType, MemberDrinkStats } from '../types/bettingTypes';
+import type { Bet, BettingOption, BetWager, DrinkType, MeasureType, MemberDrinkStats } from '../types/drinkTypes';
 import { showAlert } from '../utils/platformAlert';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
