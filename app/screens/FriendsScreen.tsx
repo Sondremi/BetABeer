@@ -5,6 +5,8 @@ import { auth, firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, Friend, FriendRequest, friendSearch, listenToIncomingRequests, listenToOutgoingRequests, removeFriend, sendFriendRequest } from '../services/firebase/friendService';
 import { friendsStyles } from '../styles/components/friendsStyles';
 import { globalStyles } from '../styles/globalStyles';
+import { debounce } from '../utils/debounce';
+import { FriendWithPending } from '../types/userTypes';
 import { showAlert } from '../utils/platformAlert';
 
 const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
@@ -13,16 +15,6 @@ const RemoveFriendIcon = require('../../assets/icons/noun-user-removed-7856287.p
 const PeopleIcon = require('../../assets/icons/noun-people-2196504.png');
 const AcceptIcon = require('../../assets/icons/noun-add-2037478.png');
 const RejectIcon = require('../../assets/icons/noun-delete-7938028.png');
-
-const debounce = (func: (...args: any[]) => void, wait: number) => {
-  let timeout: ReturnType<typeof setTimeout>;
-  return (...args: any[]) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-};
-
-type FriendWithPending = Friend & { type?: 'friend' | 'pending'; requestId?: string };
 
 const FriendsScreen = () => {
   const [searchTerm, setSearchTerm] = useState('');
