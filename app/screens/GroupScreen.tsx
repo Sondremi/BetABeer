@@ -32,7 +32,6 @@ const GroupScreen = () => {
   const [groupName, setGroupName] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [invitations, setInvitations] = useState<GroupInvitation[]>([]);
   const [betModalVisible, setBetModalVisible] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -922,7 +921,7 @@ const GroupScreen = () => {
             onPress={() => handleSendFriendRequest(item)}
             disabled={inviting || sendingFriendRequest}
           >
-            <Text style={globalStyles.outlineButtonGoldText}>Legg til</Text>
+            <Text style={globalStyles.outlineButtonGoldText}>Legg til venn</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -1197,9 +1196,6 @@ const GroupScreen = () => {
             <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={() => setMembersModalVisible(true)}>
               <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Medlemmer</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={() => setInviteModalVisible(true)} disabled={inviting}>
-              <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Inviter</Text>
-            </TouchableOpacity>
             <TouchableOpacity style={[globalStyles.outlineButtonGold, { flex: 1, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: theme.borderRadius.sm }]} onPress={() => setLeaderboardModalVisible(true)}>
               <Text style={[globalStyles.outlineButtonGoldText, {fontSize: 14}]}>Vinnere</Text>
             </TouchableOpacity>
@@ -1374,20 +1370,56 @@ const GroupScreen = () => {
 
       <Modal visible={membersModalVisible} animationType="slide" transparent onRequestClose={() => setMembersModalVisible(false)}>
         <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}> 
-          <View style={[globalStyles.modalContent, {padding: theme.spacing.md, borderRadius: theme.borderRadius.lg,  maxHeight: '80%', width: '90%'}]}>
-            <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.md, fontSize: 18, fontWeight: '600', color: theme.colors.text}]}>Medlemmer i {selectedGroup?.name}</Text>
-            {memberData.length > 0 ? (
-              <FlatList
-                data={memberData}
-                renderItem={renderMemberItem}
-                keyExtractor={item => item.id}
-                contentContainerStyle={[globalStyles.listContainer, {paddingBottom: theme.spacing.md}]}
-                scrollEnabled
-                showsVerticalScrollIndicator={false}
-              />
-            ) : (
-              <Text style={[globalStyles.emptyStateText, { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginVertical: theme.spacing.md}]}>Ingen medlemmer i gruppen</Text>
-            )}
+          <View style={[globalStyles.modalContent, {padding: theme.spacing.md, borderRadius: theme.borderRadius.lg, maxHeight: '80%', width: '90%'}]}>
+            <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.md, fontSize: 18, fontWeight: '600', color: theme.colors.text}]}>
+              Medlemmer i {selectedGroup?.name}
+            </Text>
+            
+            {/* Members section */}
+            <View style={{ marginBottom: theme.spacing.md }}>
+              <Text style={[globalStyles.sectionTitleLeft, { fontSize: 16, marginBottom: theme.spacing.sm }]}>Medlemmer</Text>
+              {memberData.length > 0 ? (
+                <FlatList
+                  data={memberData}
+                  renderItem={renderMemberItem}
+                  keyExtractor={item => item.id}
+                  contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
+                  scrollEnabled
+                  showsVerticalScrollIndicator={false}
+                />
+              ) : (
+                <Text style={[globalStyles.emptyStateText, { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginVertical: theme.spacing.md}]}>
+                  Ingen medlemmer i gruppen
+                </Text>
+              )}
+            </View>
+
+            {/* Invite friends section */}
+            <View style={{ flex: 1 }}>
+              <Text style={[globalStyles.sectionTitleLeft, { fontSize: 16, marginBottom: theme.spacing.sm }]}>Inviter venner</Text>
+              {(() => {
+                const availableFriends = friends.filter(friend => !selectedGroup?.members.includes(friend.id));
+                if (availableFriends.length === 0) {
+                  return (
+                    <Text style={[globalStyles.secondaryText, { textAlign: 'center', paddingVertical: theme.spacing.md }]}>
+                      Ingen flere å invitere
+                    </Text>
+                  );
+                }
+                
+                return (
+                  <FlatList
+                    data={availableFriends}
+                    renderItem={renderFriendItem}
+                    keyExtractor={item => item.id}
+                    contentContainerStyle={globalStyles.listContainer}
+                    scrollEnabled
+                    showsVerticalScrollIndicator={false}
+                  />
+                );
+              })()}
+            </View>
+
             <View style={[globalStyles.editButtonsContainer, { marginTop: theme.spacing.md }]}>
               <TouchableOpacity onPress={() => setMembersModalVisible(false)}>
                 <Text style={[globalStyles.cancelButtonText, { fontSize: 16, color: theme.colors.primary }]}>Lukk</Text>
@@ -1397,39 +1429,7 @@ const GroupScreen = () => {
         </View>
       </Modal>
 
-      <Modal visible={inviteModalVisible} animationType="slide" transparent onRequestClose={() => setInviteModalVisible(false)}>
-        <View style={globalStyles.modalContainer}>
-          <View style={globalStyles.modalContent}>
-            <Text style={globalStyles.modalTitle}>Inviter venner til {currentGroup.name}</Text>
-            {(() => {
-              const availableFriends = friends.filter(friend => !selectedGroup?.members.includes(friend.id));
-              if (availableFriends.length === 0) {
-                return (
-                  <Text style={[globalStyles.secondaryText, { textAlign: 'center', paddingVertical: theme.spacing.lg }]}>
-                    Ingen flere å invitere
-                  </Text>
-                );
-              }
-              
-              return (
-                <FlatList
-                  data={availableFriends}
-                  renderItem={renderFriendItem}
-                  keyExtractor={item => item.id}
-                  contentContainerStyle={globalStyles.listContainer}
-                  scrollEnabled
-                  showsVerticalScrollIndicator={false}
-                />
-              );
-            })()}
-            <View style={globalStyles.editButtonsContainer}>
-              <TouchableOpacity onPress={() => setInviteModalVisible(false)} disabled={inviting}>
-                <Text style={globalStyles.cancelButtonText}>Lukk</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+
 
       <Modal visible={betModalVisible} animationType="slide" transparent onRequestClose={() => setBetModalVisible(false)}>
         <View style={globalStyles.modalContainer}>
