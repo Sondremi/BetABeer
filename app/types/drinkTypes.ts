@@ -25,7 +25,6 @@ export interface BetWager {
 export interface BettingOption {
   id: string;
   name: string;
-  odds: number;
 }
 
 export interface Bet {
@@ -37,12 +36,26 @@ export interface Bet {
   isFinished?: boolean;
 }
 
+export interface DrinkTransaction {
+  fromUserId: string;
+  fromUsername: string;
+  toUserId: string;
+  toUsername: string;
+  drinkType: DrinkType;
+  measureType: MeasureType;
+  amount: number;
+  source: 'bet' | 'distribution';
+  timestamp: number;
+}
+
 export interface MemberDrinkStats {
   userId: string;
   username: string;
   wins: number;
-  totalDrinksWon: number;
   profilePicture: any;
+  totalDrinksReceived: number;
+  totalDrinksLost: number;
   drinksToConsume: { [key in DrinkType]?: { [key in MeasureType]?: number } };
   drinksToDistribute: { [key in DrinkType]?: { [key in MeasureType]?: number } };
+  transactions: DrinkTransaction[];
 }
