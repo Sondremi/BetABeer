@@ -1,13 +1,12 @@
+import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { authService } from '../services/firebase/authService';
-import { globalStyles } from '../styles/globalStyles';
 import { loginStyles } from '../styles/components/loginStyles';
+import { globalStyles } from '../styles/globalStyles';
 import { showAlert } from '../utils/platformAlert';
-import { Picker } from '@react-native-picker/picker';
-
-type Gender = 'male' | 'female';
+import { Gender } from '../types/userTypes';
 
 const LoginScreen: React.FC = () => {
   const router = useRouter();

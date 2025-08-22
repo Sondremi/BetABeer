@@ -1,16 +1,15 @@
+import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import { authService } from '../services/firebase/authService';
+import { firestore } from '../services/firebase/FirebaseConfig';
 import { settingsStyles } from '../styles/components/settingsStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import { showAlert } from '../utils/platformAlert';
-import { firestore } from '../services/firebase/FirebaseConfig';
-
-type Gender = 'male' | 'female';
+import { Gender } from '../types/userTypes';
 
 const SettingsScreen = () => {
   const router = useRouter();

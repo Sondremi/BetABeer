@@ -1,6 +1,8 @@
 export const theme = {
   colors: {
     primary: '#FFD700',
+    silver: '#C0C0C0',
+    bronze: '#CD7F32',
     background: '#181A20',
     surface: '#23242A',
     text: '#fff',
