@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { firestore } from '../services/firebase/FirebaseConfig';
-import { getOutgoingRequest, sendFriendRequest } from '../services/friendService';
+import { acceptFriendRequest, getIncomingRequest, getOutgoingRequest, sendFriendRequest } from '../services/friendService';
 import { deleteGroup, distributeDrinks, exitGroup, removeFriendFromGroup, sendGroupInvitation } from '../services/groupService';
 import { getGroupInvitation } from '../services/profileService';
 import { groupStyles } from '../styles/components/groupStyles';
@@ -338,13 +338,22 @@ const GroupScreen = () => {
     }
     setSendingFriendRequest(true);
     try {
-      await sendFriendRequest(member.id);
-      const updatedRequests = await getOutgoingRequest(user.id);
-      setPendingFriendRequests(updatedRequests);
-      showAlert('Suksess', `Vennerequest sendt til ${member.name}`);
+      // Check for existing incoming request from this member first
+      const incomingRequests = await getIncomingRequest(user.id);
+      const existingRequest = incomingRequests.find(request => request.fromUserId === member.id);
+
+      if (existingRequest) {
+        await acceptFriendRequest(existingRequest.id, existingRequest.fromUserId, existingRequest.toUserId);
+        showAlert('Suksess', `Du og ${member.name} er nå venner`);
+      } else {
+        await sendFriendRequest(member.id);
+        const updatedRequests = await getOutgoingRequest(user.id);
+        setPendingFriendRequests(updatedRequests);
+        showAlert('Suksess', `Vennerequest sendt til ${member.name}`);
+      }
     } catch (error) {
-      console.error('Error sending friend request:', error);
-      showAlert('Feil', (error as Error).message || 'Kunne ikke sende vennerequest');
+      console.error('Error handling friend request:', error);
+      showAlert('Feil', (error as Error).message || 'Kunne ikke håndtere vennerequest');
     } finally {
       setSendingFriendRequest(false);
     }
