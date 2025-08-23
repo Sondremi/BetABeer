@@ -9,6 +9,7 @@ import { Friend, FriendRequest, FriendWithPending } from '../types/userTypes';
 import { debounce } from '../utils/debounce';
 import { defaultProfileImageMap } from '../utils/defaultProfileImages';
 import { showAlert } from '../utils/platformAlert';
+import { theme } from '../styles/theme';
 
 const DefaultProfilePicture = require('../../assets/images/default/default_profilepicture.png');
 const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
@@ -28,7 +29,6 @@ const FriendsScreen = () => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
 
-    // Initial fetch for immediate loading
     getIncomingRequest(currentUser.uid).then(setIncomingRequests);
     getOutgoingRequest(currentUser.uid).then(setOutgoingRequests);
 
@@ -71,9 +71,7 @@ const FriendsScreen = () => {
         id: req.toUserId,
         name: req.name || 'Ukjent',
         username: req.username || 'ukjent',
-        profilePicture: req.profilePicture ? 
-          defaultProfileImageMap[req.profilePicture] || DefaultProfilePicture 
-          : DefaultProfilePicture,
+        profilePicture: req.profilePicture || DefaultProfilePicture,
         type: 'pending' as const,
         requestId: req.id,
       })).filter((pending) => !friendsData.some((f) => f.id === pending.id));
@@ -145,7 +143,7 @@ const FriendsScreen = () => {
           createdAt: serverTimestamp(),
           name: friend.name || 'Ukjent',
           username: friend.username || 'ukjent',
-          profilePicture: friend.profilePicture,  // Endret: Bruk direkte, uten remapping
+          profilePicture: friend.profilePicture || DefaultProfilePicture,
         },
       ]);
       setSearchResults([]);
@@ -219,7 +217,6 @@ const FriendsScreen = () => {
       await acceptFriendRequest(request.id, request.fromUserId, request.toUserId);
       setIncomingRequests((prev) => prev.filter((r) => r.id !== request.id));
       
-      // Hent oppdatert brukerdata
       const userDocRef = doc(firestore, 'users', request.fromUserId);
       const userDoc = await getDoc(userDocRef);
       const userData = userDoc.data();
@@ -240,8 +237,6 @@ const FriendsScreen = () => {
           },
         ].sort((a, b) => a.name.localeCompare(b.name)));
       }
-      
-      // Oppdater hele vennelisten for å sikre synkronisering
       fetchFriends();
     } catch(error) {
       console.error(error);
@@ -259,23 +254,13 @@ const FriendsScreen = () => {
     }
   };
 
-  const handleCancelRequest = async (request: FriendRequest) => {
-    try {
-      await cancelFriendRequest(request.id);
-      setOutgoingRequests((prev) => prev.filter((r) => r.id !== request.id));
-    } catch(error) {
-      console.error(error);
-      showAlert('Feil', `Kunne ikke kansellere forespørselen: ${(error as Error).message}`);
-    }
-  };
-
   const renderFriend = ({ item }: { item: FriendWithPending }) => (
     <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]}>
       <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]} />
       <View style={globalStyles.itemInfo}>
         <Text style={friendsStyles.friendName}>{item.name}</Text>
         <Text style={globalStyles.secondaryText}>@{item.username}</Text>
-        {item.type === 'pending' && <Text style={{ color: '#888' }}>Forespørsel sendt</Text>}
+        {item.type === 'pending' && <Text style={{ color: theme.colors.textMuted }}>Forespørsel sendt</Text>}
       </View>
       <TouchableOpacity style={friendsStyles.button} onPress={() => handleRemoveFriend(item)}>
         <Image source={item.type === 'pending' ? RejectIcon : RemoveFriendIcon} style={globalStyles.deleteIcon} />
@@ -377,6 +362,7 @@ const FriendsScreen = () => {
             <View style={globalStyles.emptyState}>
               <Image source={PeopleIcon} style={globalStyles.settingsIcon} />
               <Text style={globalStyles.emptyStateText}>Du har ingen venner enda</Text>
+              <Text style={globalStyles.emptyStateSubtext}>Bruk søkefeltet over for å finne venner</Text>
             </View>
           )}
         </View>

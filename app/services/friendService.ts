@@ -50,7 +50,6 @@ export const listenToOutgoingRequests = (currentUserId: string, callback: (reque
         fromUserName: userData?.name || 'Ukjent',
         fromUsername: userData?.username || 'ukjent',
         fromUserProfileImage: userData?.profileImage || null,
-        // For bakoverkompatibilitet
         name: userData?.name || 'Ukjent',
         username: userData?.username || 'ukjent',
         profilePicture: userData?.profileImage ? 

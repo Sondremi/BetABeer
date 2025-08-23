@@ -111,6 +111,12 @@ export const globalStyles = StyleSheet.create({
     marginTop: theme.spacing.lg,
     marginBottom: theme.spacing.xs,
   },
+  emptyStateSubtext: {
+    fontSize: theme.fonts.md,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: theme.spacing.xl,
+  },
 
   // Headers
   header: {
