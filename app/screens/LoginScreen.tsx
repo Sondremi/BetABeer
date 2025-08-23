@@ -5,8 +5,9 @@ import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableO
 import { authService } from '../services/firebase/authService';
 import { loginStyles } from '../styles/components/loginStyles';
 import { globalStyles } from '../styles/globalStyles';
-import { showAlert } from '../utils/platformAlert';
+import { theme } from '../styles/theme';
 import { Gender } from '../types/userTypes';
+import { showAlert } from '../utils/platformAlert';
 
 const LoginScreen: React.FC = () => {
   const router = useRouter();
@@ -194,7 +195,7 @@ const LoginScreen: React.FC = () => {
                 value={formData.email}
                 onChangeText={(text) => setFormData({ ...formData, email: text })}
                 placeholder="Skriv inn e-postadresse"
-                placeholderTextColor="#E0E0E0"
+                placeholderTextColor={theme.colors.textSecondary}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -209,7 +210,7 @@ const LoginScreen: React.FC = () => {
                   value={formData.username}
                   onChangeText={(text) => setFormData({ ...formData, username: text })}
                   placeholder="Skriv inn brukernavn"
-                  placeholderTextColor="#E0E0E0"
+                  placeholderTextColor={theme.colors.textSecondary}
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
@@ -221,7 +222,7 @@ const LoginScreen: React.FC = () => {
                   value={formData.name}
                   onChangeText={(text) => setFormData({ ...formData, name: text })}
                   placeholder="Skriv inn fullt navn"
-                  placeholderTextColor="#E0E0E0"
+                  placeholderTextColor={theme.colors.textSecondary}
                 />
               </View>
               <View style={globalStyles.inputGroup}>
@@ -231,7 +232,7 @@ const LoginScreen: React.FC = () => {
                   value={formData.email}
                   onChangeText={(text) => setFormData({ ...formData, email: text })}
                   placeholder="Skriv inn e-postadresse"
-                  placeholderTextColor="#E0E0E0"
+                  placeholderTextColor={theme.colors.textSecondary}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -244,7 +245,7 @@ const LoginScreen: React.FC = () => {
                   value={formData.phone}
                   onChangeText={(text) => setFormData({ ...formData, phone: text })}
                   placeholder="Skriv inn telefonnummer"
-                  placeholderTextColor="#E0E0E0"
+                  placeholderTextColor={theme.colors.textSecondary}
                   keyboardType="phone-pad"
                 />
               </View>
@@ -259,8 +260,8 @@ const LoginScreen: React.FC = () => {
                       setFormData({ ...formData, weight: value });
                     }
                   }}
-                  placeholder="Skriv inn vekt (valgfritt)"
-                  placeholderTextColor="#E0E0E0"
+                  placeholder="Skriv inn vekt"
+                  placeholderTextColor={theme.colors.textSecondary}
                   keyboardType="numeric"
                 />
               </View>
@@ -272,7 +273,7 @@ const LoginScreen: React.FC = () => {
                     selectedValue={formData.gender || ''}
                     onValueChange={(value: Gender | '') => setFormData({ ...formData, gender: value || undefined })}
                   >
-                    <Picker.Item label="Velg kjønn (valgfritt)" value="" />
+                    <Picker.Item label="Velg kjønn" value="" />
                     <Picker.Item label="Mann" value="male" />
                     <Picker.Item label="Kvinne" value="female" />
                   </Picker>
@@ -288,7 +289,7 @@ const LoginScreen: React.FC = () => {
               value={formData.password}
               onChangeText={(text) => setFormData({ ...formData, password: text })}
               placeholder="Skriv inn passord"
-              placeholderTextColor="#E0E0E0"
+              placeholderTextColor={theme.colors.textSecondary}
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
@@ -304,7 +305,7 @@ const LoginScreen: React.FC = () => {
                 value={formData.confirmPassword}
                 onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
                 placeholder="Bekreft passord"
-                placeholderTextColor="#E0E0E0"
+                placeholderTextColor={theme.colors.textSecondary}
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
