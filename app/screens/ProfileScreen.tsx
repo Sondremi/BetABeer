@@ -346,7 +346,7 @@ const ProfileScreen: React.FC = () => {
 
   const renderGroupItem = ({ item }: { item: Group }) => (
     <TouchableOpacity style={profileStyles.groupItem} onPress={() => navigateToGroup(item)}>
-      <Image source={item.image} style={globalStyles.coverImage} />
+      <Image source={item.image} style={globalStyles.groupHeaderImage} />
       <View style={globalStyles.overlay}>
         <Text style={profileStyles.groupName}>{item.name}</Text>
         <Text style={profileStyles.groupMembers}>{item.memberCount} medlemmer</Text>
@@ -403,7 +403,7 @@ const ProfileScreen: React.FC = () => {
         <View style={globalStyles.header}>
           <View style={profileStyles.headerButtons}>
             <TouchableOpacity style={profileStyles.headerButton} onPress={navigateToSettings}>
-              <Image source={SettingsIcon} style={globalStyles.settingsIcon} />
+              <Image source={SettingsIcon} style={globalStyles.primaryIcon} />
             </TouchableOpacity>
           </View>
         </View>
@@ -426,7 +426,7 @@ const ProfileScreen: React.FC = () => {
               style={profileStyles.editProfileImageButton}
               onPress={() => setProfileImageModalVisible(true)}
             >
-              <Image source={PencilIcon} style={globalStyles.pencilIcon} />
+              <Image source={PencilIcon} style={globalStyles.primaryIcon} />
             </TouchableOpacity>
           </View>
         {/* Modal for å velge profilbilde */}
@@ -470,7 +470,7 @@ const ProfileScreen: React.FC = () => {
           <Text style={globalStyles.secondaryText}>{user?.username || 'Brukernavn'}</Text>
         </View>
 
-        { /* Promillegreier */ }
+        { /* Body Alcohol Level */ }
         <View style={globalStyles.section}>
           <View style={globalStyles.inputGroup}>
             <Text style={globalStyles.sectionTitle}>Promillekalkulator</Text>
@@ -501,7 +501,7 @@ const ProfileScreen: React.FC = () => {
                         const time = Math.min(...userInfo.drinks!.map(d => d.timestamp)) + i * 0.5 * 60 * 60 * 1000;
                         return profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
                       }),
-                      color: () => theme.colors.primary ?? '#FFD700', // Gold line
+                      color: () => theme.colors.primary ?? theme.colors.primary, // Gold line
                     },
                   ],
                 }}
@@ -510,19 +510,19 @@ const ProfileScreen: React.FC = () => {
                 yAxisLabel=""
                 yAxisSuffix="‰"
                 chartConfig={{
-                  backgroundColor: theme.colors.background ?? '#000000',
-                  backgroundGradientFrom: theme.colors.background ?? '#000000',
-                  backgroundGradientTo: theme.colors.background ?? '#000000',
+                  backgroundColor: theme.colors.background ?? theme.colors.shadow,
+                  backgroundGradientFrom: theme.colors.background ?? theme.colors.shadow,
+                  backgroundGradientTo: theme.colors.background ?? theme.colors.shadow,
                   decimalPlaces: 3,
-                  color: () => theme.colors.text ?? '#FFFFFF',
-                  labelColor: () => theme.colors.text ?? '#FFFFFF',
+                  color: () => theme.colors.text ?? theme.colors.text,
+                  labelColor: () => theme.colors.text ?? theme.colors.text,
                   style: { borderRadius: theme.borderRadius.md },
                   propsForDots: { r: '6', strokeWidth: '2', stroke: theme.colors.primary },
                 }}
                 bezier
                 style={{ marginVertical: theme.spacing.md }}
               />
-              <Text style={[globalStyles.label, { color: theme.colors.primary ?? '#FFD700' }]}>
+              <Text style={[globalStyles.label, { color: theme.colors.primary ?? theme.colors.shadow }]}>
                 Maks promille neste 30 min: {
                   Math.max(
                     ...Array.from({ length: 2 }, (_, i) => {
@@ -570,7 +570,7 @@ const ProfileScreen: React.FC = () => {
               onPress={handleCreateGroup}
               disabled={creatingGroup}
             >
-              <Text style={globalStyles.outlineButtonText}>
+              <Text style={globalStyles.outlineButtonGoldText}>
                 {creatingGroup ? 'Oppretter...' : 'Opprett ny gruppe'}
               </Text>
             </TouchableOpacity>

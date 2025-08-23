@@ -5,11 +5,11 @@ import { auth, firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, friendSearch, getIncomingRequest, getOutgoingRequest, listenToIncomingRequests, listenToOutgoingRequests, removeFriend, sendFriendRequest } from '../services/friendService';
 import { friendsStyles } from '../styles/components/friendsStyles';
 import { globalStyles } from '../styles/globalStyles';
+import { theme } from '../styles/theme';
 import { Friend, FriendRequest, FriendWithPending } from '../types/userTypes';
 import { debounce } from '../utils/debounce';
 import { defaultProfileImageMap } from '../utils/defaultProfileImages';
 import { showAlert } from '../utils/platformAlert';
-import { theme } from '../styles/theme';
 
 const DefaultProfilePicture = require('../../assets/images/default/default_profilepicture.png');
 const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
@@ -293,7 +293,7 @@ const FriendsScreen = () => {
           <View style={{ flexDirection: 'row', marginBottom: 10 }}>
             <TextInput
               placeholder="Skriv inn brukernavn"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={theme.colors.textSecondary}
               value={searchTerm}
               onChangeText={(text) => {
                 setSearchTerm(text);
@@ -301,23 +301,23 @@ const FriendsScreen = () => {
               autoCapitalize="none"
               style={{
                 flex: 1,
-                backgroundColor: '#23242A',
+                backgroundColor: theme.colors.surface,
                 borderRadius: 8,
                 padding: 12,
-                color: '#fff',
+                color: theme.colors.text,
                 marginRight: 8
               }}
             />
             <TouchableOpacity
               onPress={() => handleSearch(searchTerm)}
               style={{
-                backgroundColor: '#FFD700',
+                backgroundColor: theme.colors.primary,
                 paddingVertical: 12,
                 paddingHorizontal: 16,
                 borderRadius: 8,
               }}
             >
-              <Text style={{ color: '#181A20', fontWeight: '600' }}>Søk</Text>
+              <Text style={globalStyles.outlineButtonText}>Søk</Text>
             </TouchableOpacity>
           </View>
           {searchResults.length > 0 && (
@@ -339,7 +339,7 @@ const FriendsScreen = () => {
                     style={friendsStyles.button}
                     onPress={() => handleAddFriend(item)}
                   >
-                    <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
+                    <Image source={AddFriendIcon} style={globalStyles.primaryIcon} />
                   </TouchableOpacity>
                 </View>
               )}
@@ -360,7 +360,7 @@ const FriendsScreen = () => {
             />
           ) : (
             <View style={globalStyles.emptyState}>
-              <Image source={PeopleIcon} style={globalStyles.settingsIcon} />
+              <Image source={PeopleIcon} style={globalStyles.primaryIcon} />
               <Text style={globalStyles.emptyStateText}>Du har ingen venner enda</Text>
               <Text style={globalStyles.emptyStateSubtext}>Bruk søkefeltet over for å finne venner</Text>
             </View>
@@ -390,7 +390,7 @@ const FriendsScreen = () => {
                       style={friendsStyles.button}
                       onPress={() => handleAcceptRequest(item)}
                     >
-                      <Image source={AcceptIcon} style={globalStyles.settingsIcon} />
+                      <Image source={AcceptIcon} style={globalStyles.primaryIcon} />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={friendsStyles.button}
@@ -404,7 +404,7 @@ const FriendsScreen = () => {
             />
           ) : (
             <View style={globalStyles.emptyState}>
-              <Image source={AddFriendIcon} style={globalStyles.settingsIcon} />
+              <Image source={AddFriendIcon} style={globalStyles.primaryIcon} />
               <Text style={globalStyles.emptyStateText}>Ingen forespørsler</Text>
             </View>
           )}

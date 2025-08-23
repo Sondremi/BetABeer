@@ -378,7 +378,7 @@ const SettingsScreen = () => {
                 </>
               ) : (
                 <TouchableOpacity style={settingsStyles.fullWidthButton} onPress={() => setIsEditing(true)}>
-                  <Text style={globalStyles.outlineButtonText}>Rediger informasjon</Text>
+                  <Text style={globalStyles.outlineButtonGoldText}>Rediger informasjon</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -388,7 +388,7 @@ const SettingsScreen = () => {
           <View style={globalStyles.inputGroup}>
             <Text style={globalStyles.sectionTitle}>Logg ut</Text>
             <TouchableOpacity style={globalStyles.outlineButton} onPress={handleLogout}>
-              <Text style={globalStyles.outlineButtonText}>Logg ut</Text>
+              <Text style={globalStyles.outlineButtonGoldText}>Logg ut</Text>
             </TouchableOpacity>
           </View>
 

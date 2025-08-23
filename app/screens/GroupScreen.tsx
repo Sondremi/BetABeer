@@ -1027,7 +1027,7 @@ const GroupScreen = () => {
               )}
             </View>
             <TouchableOpacity onPress={() => openEditBetModal(item, index)}>
-              <Image source={PencilIcon} style={globalStyles.pencilIcon} />
+              <Image source={PencilIcon} style={globalStyles.primaryIcon} />
             </TouchableOpacity>
           </View>
 
@@ -1158,7 +1158,7 @@ const GroupScreen = () => {
                       returnKeyType="done"
                     />
                     <TouchableOpacity onPress={handleSaveGroupName} disabled={saving} style={{ marginLeft: 4 }}>
-                      <Image source={PencilIcon} style={[globalStyles.pencilIcon, { width: 22, height: 22 }]} />
+                      <Image source={PencilIcon} style={[globalStyles.primaryIcon, { width: 22, height: 22 }]} />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => setEditingName(false)} disabled={saving} style={{ marginLeft: 4 }}>
                       <Text style={[globalStyles.cancelButtonText, { fontSize: 15 }]}>Avbryt</Text>
@@ -1171,7 +1171,7 @@ const GroupScreen = () => {
                   {selectedGroup && (
                     <View style={{ flexDirection: 'row' }}>
                       <TouchableOpacity onPress={() => setEditingName(true)} style={{ marginLeft: theme.spacing.sm }}>
-                        <Image source={PencilIcon} style={globalStyles.pencilIcon} />
+                        <Image source={PencilIcon} style={globalStyles.primaryIcon} />
                       </TouchableOpacity>
                       {selectedGroup.createdBy === user?.id && (
                         <TouchableOpacity

@@ -206,7 +206,7 @@ export const globalStyles = StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.md,
     backgroundColor: theme.colors.surface,
-    color: theme.colors.textAlt,
+    color: theme.colors.text,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.sm,
     fontSize: theme.fonts.md,
@@ -266,7 +266,7 @@ export const globalStyles = StyleSheet.create({
   },
   outlineButtonText: {
     fontSize: theme.fonts.md,
-    color: theme.colors.primary,
+    color: theme.colors.background,
     fontWeight: '600',
   },
   outlineButtonGold: {
@@ -433,11 +433,6 @@ export const globalStyles = StyleSheet.create({
     borderColor: theme.colors.primary,
     backgroundColor: theme.colors.surface,
   },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
   groupHeaderImage: {
     width: '100%',
     height: '100%',
@@ -448,19 +443,14 @@ export const globalStyles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     padding: theme.spacing.xl,
   },
 
   // Icons
-  pencilIcon: {
+  primaryIcon: {
     width: 18,
     height: 18,
-    tintColor: theme.colors.primary,
-  },
-  settingsIcon: {
-    width: 20,
-    height: 20,
     tintColor: theme.colors.primary,
   },
   deleteIcon: {
@@ -474,7 +464,7 @@ export const globalStyles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: theme.colors.shadow,
   },
   modalContent: {
     backgroundColor: theme.colors.background,
