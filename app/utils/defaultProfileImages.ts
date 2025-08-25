@@ -1,4 +1,3 @@
-
 export const defaultProfileImages = [
   'bear.jpeg',
   'big_bird.jpeg',
@@ -8,13 +7,12 @@ export const defaultProfileImages = [
   'dog.jpeg',
   'duck.jpeg',
   'eagle.jpeg',
-  'hiena.jpeg',
+  'hyena.jpeg',
   'monkey.jpeg',
-  'moskus.jpeg',
+  'musk.jpeg',
   'mouse.jpeg',
   'pigeon.jpeg',
   'seal.jpeg',
-  'small_bird.jpeg',
   'whale.jpeg',
   'wolf.jpeg',
 ];
@@ -28,13 +26,12 @@ export const defaultProfileImageMap: { [key: string]: any } = {
   'dog.jpeg': require('../../assets/images/default/dog.jpeg'),
   'duck.jpeg': require('../../assets/images/default/duck.jpeg'),
   'eagle.jpeg': require('../../assets/images/default/eagle.jpeg'),
-  'hiena.jpeg': require('../../assets/images/default/hiena.jpeg'),
+  'hyena.jpeg': require('../../assets/images/default/hyena.jpeg'),
   'monkey.jpeg': require('../../assets/images/default/monkey.jpeg'),
-  'moskus.jpeg': require('../../assets/images/default/moskus.jpeg'),
+  'musk.jpeg': require('../../assets/images/default/musk.jpeg'),
   'mouse.jpeg': require('../../assets/images/default/mouse.jpeg'),
   'pigeon.jpeg': require('../../assets/images/default/pigeon.jpeg'),
   'seal.jpeg': require('../../assets/images/default/seal.jpeg'),
-  'small_bird.jpeg': require('../../assets/images/default/small_bird.jpeg'),
   'whale.jpeg': require('../../assets/images/default/whale.jpeg'),
   'wolf.jpeg': require('../../assets/images/default/wolf.jpeg'),
 };
