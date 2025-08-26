@@ -48,6 +48,11 @@ export const globalStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  rowCenter: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 6 
+  },
   dangerSection: {
     marginTop: theme.spacing.xxl,
     paddingTop: theme.spacing.xl,
@@ -328,12 +333,6 @@ export const globalStyles = StyleSheet.create({
     borderColor: theme.colors.error,
   },
   dangerButtonText: {
-    fontSize: theme.fonts.md,
-    color: theme.colors.error,
-    fontWeight: '600',
-    marginLeft: theme.spacing.sm,
-  },
-  deleteButtonText: {
     fontSize: theme.fonts.md,
     color: theme.colors.error,
     fontWeight: '600',
