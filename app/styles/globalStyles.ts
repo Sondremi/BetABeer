@@ -464,7 +464,7 @@ export const globalStyles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.shadow,
+    backgroundColor: theme.colors.modalBackground,
   },
   modalContent: {
     backgroundColor: theme.colors.background,
