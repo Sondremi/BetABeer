@@ -13,6 +13,7 @@ export const theme = {
     border: '#333',
     surface: '#23242A',
     background: '#181A20',
+    modalBackground: 'rgba(0, 0, 0, 0.5)',
     shadow: '#000',
   },
   spacing: {

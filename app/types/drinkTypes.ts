@@ -12,30 +12,6 @@ export interface DrinkEntry {
   timestamp: number; // Unix timestamp
 }
 
-export interface BetWager {
-  userId: string;
-  username: string;
-  optionId: string;
-  drinkType: DrinkType;
-  measureType: MeasureType;
-  amount: number;
-  timestamp: number;
-}
-
-export interface BettingOption {
-  id: string;
-  name: string;
-}
-
-export interface Bet {
-  id: string;
-  title: string;
-  options: BettingOption[];
-  wagers?: BetWager[];
-  correctOptionId?: string;
-  isFinished?: boolean;
-}
-
 export interface DrinkTransaction {
   fromUserId: string;
   fromUsername: string;
@@ -51,13 +27,36 @@ export interface DrinkTransaction {
 export interface MemberDrinkStats {
   userId: string;
   username: string;
-  wins: number;
   profilePicture: any;
-  totalDrinksReceived: number;
-  totalDrinksLost: number;
-  drinksToConsume: { [key in DrinkType]?: { [key in MeasureType]?: number } };
-  drinksToDistribute: { [key in DrinkType]?: { [key in MeasureType]?: number } };
+  betsWon: number;
+  betsLost: number;
+  drinksToConsume: { [key in DrinkType]?: { [key in MeasureType]?: number } }; // All drinks from bets lost and received
+  drinksToDistribute: { [key in DrinkType]?: { [key in MeasureType]?: number } }; // Drinks won from bets
   transactions: DrinkTransaction[];
+}
+
+export interface Bet {
+  id: string;
+  title: string;
+  options: BettingOption[];
+  wagers?: BetWager[];
+  correctOptionId?: string;
+  isFinished?: boolean;
+}
+
+export interface BettingOption {
+  id: string;
+  name: string;
+}
+
+export interface BetWager {
+  userId: string;
+  username: string;
+  optionId: string;
+  drinkType: DrinkType;
+  measureType: MeasureType;
+  amount: number;
+  timestamp: number;
 }
 
 export interface Group {

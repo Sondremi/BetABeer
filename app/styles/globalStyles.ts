@@ -48,6 +48,11 @@ export const globalStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  rowCenter: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 6 
+  },
   dangerSection: {
     marginTop: theme.spacing.xxl,
     paddingTop: theme.spacing.xl,
@@ -331,12 +336,6 @@ export const globalStyles = StyleSheet.create({
     fontSize: theme.fonts.md,
     color: theme.colors.error,
     fontWeight: '600',
-    marginLeft: theme.spacing.sm,
-  },
-  deleteButtonText: {
-    fontSize: theme.fonts.md,
-    color: theme.colors.error,
-    fontWeight: '600',
   },
   selectionButton: {
     backgroundColor: theme.colors.background,
@@ -464,7 +463,7 @@ export const globalStyles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.shadow,
+    backgroundColor: theme.colors.modalBackground,
   },
   modalContent: {
     backgroundColor: theme.colors.background,

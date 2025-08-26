@@ -436,7 +436,7 @@ const ProfileScreen: React.FC = () => {
           transparent
           onRequestClose={() => setProfileImageModalVisible(false)}
         >
-          <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0,0,0,0.5)' }]}> 
+          <View style={globalStyles.modalContainer}> 
             <View style={[globalStyles.modalContent, { padding: theme.spacing.md, borderRadius: theme.borderRadius.lg, maxHeight: 500 }]}> 
               <Text style={globalStyles.modalTitle}>Velg profilbilde</Text>
               <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -590,7 +590,7 @@ const ProfileScreen: React.FC = () => {
             transparent
             onRequestClose={() => setDrinkModalVisible(false)}
           >
-            <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+            <View style={globalStyles.modalContainer}>
               <View style={[globalStyles.modalContent, { padding: theme.spacing.md, borderRadius: theme.borderRadius.lg }]}>
                 <ScrollView contentContainerStyle={{ paddingBottom: theme.spacing.md }} showsVerticalScrollIndicator={false}>
                   <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.md }]}>
