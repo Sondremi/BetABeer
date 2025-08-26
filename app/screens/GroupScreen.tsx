@@ -314,7 +314,7 @@ const GroupScreen = () => {
       const updatedLeaderboard = await getLeaderboardData();
       setLeaderboardData(updatedLeaderboard);
       
-      // Oppdater tilgjengelige drikker
+      // Update user's available drinks
       const userStats = updatedLeaderboard.find(stat => stat.userId === user.id);
       setUserDrinksToDistribute(userStats?.drinksToDistribute || {});
       
@@ -708,9 +708,8 @@ const GroupScreen = () => {
           memberStats[userId] = {
             userId,
             username: usernames[userId] || 'Ukjent',
-            wins: 0,
-            totalDrinksReceived: 0,
-            totalDrinksLost: 0,
+            betsWon: 0,
+            betsLost: 0,
             profilePicture: userDoc.exists() && userDoc.data().profileImage ? 
               defaultProfileImageMap[userDoc.data().profileImage] || DefaultProfilePicture 
               : DefaultProfilePicture,
@@ -723,9 +722,8 @@ const GroupScreen = () => {
           memberStats[userId] = {
             userId,
             username: usernames[userId] || 'Ukjent',
-            wins: 0,
-            totalDrinksReceived: 0,
-            totalDrinksLost: 0,
+            betsWon: 0,
+            betsLost: 0,
             profilePicture: DefaultProfilePicture,
             drinksToConsume: {},
             drinksToDistribute: {},
@@ -753,11 +751,10 @@ const GroupScreen = () => {
         if (!stats.drinksToDistribute[drinkType][measureType]) stats.drinksToDistribute[drinkType][measureType] = 0;
 
         if (wager.optionId === bet.correctOptionId) {
-          stats.wins += 1;
+          stats.betsWon += 1;
           stats.drinksToDistribute[drinkType][measureType]! += amount;
-          stats.totalDrinksReceived += amount;
 
-          // Legg til transaksjonen for vinneren
+          // Add transactions from losing wagers to this winner
           const losingWagers = wagers.filter(w => w.optionId !== bet.correctOptionId);
           losingWagers.forEach(losingWager => {
             stats.transactions.push({
@@ -773,26 +770,27 @@ const GroupScreen = () => {
             });
           });
         } else {
+          stats.betsLost += 1;
           stats.drinksToConsume[drinkType][measureType]! += amount;
-          stats.totalDrinksLost += amount;
         }
       });
     });
 
-    // Hent distribusjonshistorikk
+    // Collect distribution history
     const groupDoc = await getDoc(doc(firestore, 'groups', selectedGroup.id));
     const distributionHistory = groupDoc.data()?.distributionHistory || [];
     
     distributionHistory.forEach((dist: DrinkTransaction) => {
       const receiverStats = memberStats[dist.toUserId];
       if (receiverStats) {
-        receiverStats.totalDrinksReceived += dist.amount;
+  const drinkTypeObj = receiverStats.drinksToConsume[dist.drinkType] ?? (receiverStats.drinksToConsume[dist.drinkType] = {});
+  drinkTypeObj[dist.measureType] = (drinkTypeObj[dist.measureType] ?? 0) + dist.amount;
         receiverStats.transactions.push(dist);
       }
     });
     
-    // Sorter etter totalt mottatte drikker (både fra veddemål og distribusjoner)
-    return Object.values(memberStats).sort((a, b) => b.totalDrinksReceived - a.totalDrinksReceived);
+    // Sort by bets won descending
+    return Object.values(memberStats).sort((a, b) => b.betsWon - a.betsWon);
   };
 
   const handleMemberTap = (userId: string) => {
@@ -815,7 +813,6 @@ const GroupScreen = () => {
 
     const { drinkType, measureType, amount } = selectedDistribution;
     
-    // Beregn hvor mange drikker som allerede er allokert
     const alreadyDistributed = distributions.reduce((sum, dist) => {
       if (dist.drinkType === drinkType && dist.measureType === measureType) {
         return sum + dist.amount;
@@ -835,16 +832,15 @@ const GroupScreen = () => {
       currentDistribution: selectedDistribution
     });
 
-    // Sjekk om vi har nok drikker tilgjengelig
+    // Check if enough drinks are available
     if (remainingAvailable < amount) {
       showAlert('Feil', `Du har kun ${remainingAvailable} ${measureType} ${drinkType} tilgjengelig`);
       return;
     }
 
-    // Legg til i distributions
     setDistributions(prev => [...prev, { userId: selectedMember, drinkType, measureType, amount }]);
 
-    // Fjern fra tilgjengelige
+    // Remove distributed drinks from available pool
     setUserDrinksToDistribute(prev => {
       const newAmount = (prev[drinkType]?.[measureType] || 0) - amount;
       if (newAmount <= 0) {
@@ -866,7 +862,6 @@ const GroupScreen = () => {
       };
     });
 
-    // Nullstill valg etter utdeling
     setSelectedMember(null);
     setSelectedDistribution(null);
   };
@@ -1091,43 +1086,52 @@ const GroupScreen = () => {
       </Text>
       <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
         {item.amount} {item.measureType} {item.drinkType}
-        {item.source === 'bet' ? ' (fra veddemål)' : ' (direkte utdeling)'}
+        {item.source === 'bet' ? ' (fra bets)' : ' (direkte utdeling)'}
       </Text>
     </View>
   );
 
   const renderLeaderboardItem = ({ item, index }: { item: MemberDrinkStats; index: number }) => {
-    const totalDrinks = item.totalDrinksReceived;
+    const totalReceived = Object.values(item.drinksToConsume).reduce((sum, drinkTypeObj) => {
+      return sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0);
+    }, 0);
+    const totalDistributed = Object.values(item.drinksToDistribute).reduce((sum, drinkTypeObj) => {
+      return sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0);
+    }, 0);
+
     return (
       <View style={{flexDirection: 'row', 
-      alignItems: 'center', 
-      paddingVertical: 8, 
-      borderBottomWidth: 1, 
-      borderBottomColor: theme.colors.border }}>
-          <Text style={{ 
-            width: 30, 
-            fontSize: 14, 
-            color: theme.colors.text, 
-            textAlign: 'center',
-            marginRight: 10 
-          }}>
-            {index + 4}
+        alignItems: 'center', 
+        paddingVertical: 8, 
+        borderBottomWidth: 1, 
+        borderBottomColor: theme.colors.border }}>
+        <Text style={{ 
+          width: 30, 
+          fontSize: 14, 
+          color: theme.colors.text, 
+          textAlign: 'center',
+          marginRight: 10 
+        }}>
+          {index + 4}
+        </Text>
+        <Image 
+          source={item.profilePicture || DefaultProfilePicture} 
+          style={[globalStyles.circularImage, { width: 40, height: 40, marginRight: 10 }]} 
+        />
+        <View style={{ flex: 1 }}>
+          <Text style={[groupStyles.wagerUser, { fontSize: 14, color: theme.colors.text }]}> 
+            {item.username}
           </Text>
-          <Image 
-            source={item.profilePicture || ImageMissing} 
-            style={[globalStyles.circularImage, { width: 40, height: 40, marginRight: 10 }]} 
-          />
-          <View style={{ flex: 1 }}>
-            <Text style={[groupStyles.wagerUser, { fontSize: 14, color: theme.colors.text }]}>
-              {item.username}
+          {leaderboardView === 'betsWon' ? (
+            <Text style={[globalStyles.secondaryText, { fontSize: 11, color: theme.colors.textSecondary }]}> 
+              {item.betsWon} seiere, {item.betsLost} bets tapt
             </Text>
-            <Text style={[globalStyles.secondaryText, { fontSize: 12, color: theme.colors.textSecondary }]}>
-              {totalDrinks} drikker mottatt totalt
+          ) : (
+            <Text style={[globalStyles.secondaryText, { fontSize: 11, color: theme.colors.textSecondary }]}> 
+              {totalReceived} mottatt, {totalDistributed} delt ut
             </Text>
-            <Text style={[globalStyles.secondaryText, { fontSize: 11, color: theme.colors.textSecondary }]}>
-              {item.totalDrinksLost} tapt, {item.wins} veddemål vunnet
-            </Text>
-          </View>
+          )}
+        </View>
       </View>
     );
   };
@@ -1138,14 +1142,14 @@ const GroupScreen = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={globalStyles.fullWidthScrollContent} keyboardShouldPersistTaps="handled">
-        <View style={[globalStyles.headerContainer, { height: 220 }]}> 
+        <View style={globalStyles.headerContainer}> 
           <Image source={currentGroup.image} style={globalStyles.groupHeaderImage} />
           <View style={globalStyles.overlay}>
             <View style={globalStyles.headerInfo}>
               {editingName ? (
                 <View style={globalStyles.inputGroup}>
                   <Text style={globalStyles.label}>Gruppenavn</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={globalStyles.rowCenter}>
                     <TextInput
                       value={groupName}
                       onChangeText={setGroupName}
@@ -1158,10 +1162,10 @@ const GroupScreen = () => {
                       returnKeyType="done"
                     />
                     <TouchableOpacity onPress={handleSaveGroupName} disabled={saving} style={{ marginLeft: 4 }}>
-                      <Image source={PencilIcon} style={[globalStyles.primaryIcon, { width: 22, height: 22 }]} />
+                      <Image source={PencilIcon} style={globalStyles.primaryIcon} />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => setEditingName(false)} disabled={saving} style={{ marginLeft: 4 }}>
-                      <Text style={[globalStyles.cancelButtonText, { fontSize: 15 }]}>Avbryt</Text>
+                      <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1179,7 +1183,7 @@ const GroupScreen = () => {
                           disabled={deleting}
                           style={{ marginLeft: theme.spacing.sm, opacity: deleting ? 0.5 : 1, alignSelf: 'center' }}
                         >
-                          <Text style={{ color: theme.colors.error, fontWeight: 'bold', fontSize: 16, textAlign: 'right' }}>Slett gruppe</Text>
+                          <Text style={globalStyles.dangerButtonText}>Slett gruppe</Text>
                         </TouchableOpacity>
                       )}
                       {selectedGroup && user && selectedGroup.createdBy !== user.id && (
@@ -1188,7 +1192,7 @@ const GroupScreen = () => {
                           disabled={deleting}
                           style={{ marginLeft: theme.spacing.sm, alignSelf: 'center' }}
                         >
-                          <Text style={{ color: theme.colors.error, fontWeight: 'bold', fontSize: 16, textAlign: 'right' }}>Forlat gruppe</Text>
+                          <Text style={globalStyles.dangerButtonText}>Forlat gruppe</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -1224,7 +1228,7 @@ const GroupScreen = () => {
       </ScrollView>
 
       <Modal visible={distributeModalVisible} animationType="slide" transparent onRequestClose={() => setDistributeModalVisible(false)}>
-        <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+        <View style={globalStyles.modalContainer}>
           <View style={[
             globalStyles.modalContent, 
             { padding: theme.spacing.md, borderRadius: theme.borderRadius.lg, maxHeight: '80%', width: '90%' }
@@ -1378,7 +1382,7 @@ const GroupScreen = () => {
       </Modal>
 
       <Modal visible={membersModalVisible} animationType="slide" transparent onRequestClose={() => setMembersModalVisible(false)}>
-        <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}> 
+        <View style={globalStyles.modalContainer}> 
           <View style={[globalStyles.modalContent, {padding: theme.spacing.md, borderRadius: theme.borderRadius.lg, maxHeight: '80%', width: '90%'}]}>
             <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.md, fontSize: 18, fontWeight: '600', color: theme.colors.text}]}>
               Medlemmer i {selectedGroup?.name}
@@ -1645,7 +1649,7 @@ const GroupScreen = () => {
       </Modal>
 
       <Modal visible={leaderboardModalVisible} animationType="slide" transparent onRequestClose={() => setLeaderboardModalVisible(false)}>
-        <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+        <View style={globalStyles.modalContainer}>
           <View style={[globalStyles.modalContent, { 
             borderRadius: theme.borderRadius.lg, 
             maxHeight: '85%', 
@@ -1701,7 +1705,7 @@ const GroupScreen = () => {
                 <View style={{ marginBottom: theme.spacing.md }}>
                   {leaderboardView === 'drinkStats' && (
                     <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginBottom: theme.spacing.md, textAlign: 'center' }}>
-                      Oversikt over drikker mottatt fra veddemål og utdelinger
+                      Oversikt over drikker mottatt fra bets og utdelinger
                     </Text>
                   )}
                   {/* Podium layout */}
@@ -1740,9 +1744,20 @@ const GroupScreen = () => {
                             style={{ width: 24, height: 24 }} 
                           />
                         </View>
-                        <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
-                          {leaderboardView === 'betsWon' ? `${leaderboardData[1].wins} vunnet` : `${leaderboardData[1].totalDrinksReceived} mottatt`}
-                        </Text>
+                        {leaderboardView === 'betsWon' ? (
+                          <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
+                            {leaderboardData[1].betsWon} seiere
+                          </Text>
+                        ) : (
+                          <>
+                            <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
+                              {Object.values(leaderboardData[1].drinksToDistribute).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} delt ut
+                            </Text>
+                            <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
+                              {Object.values(leaderboardData[1].drinksToConsume).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} mottatt
+                            </Text>
+                          </>
+                        )}
                       </View>  
                     )}
                     {/* 1st Place (Gold) */}
@@ -1778,9 +1793,20 @@ const GroupScreen = () => {
                             style={{ width: 30, height: 30 }} 
                           />
                         </View>
-                        <Text style={{ fontSize: 13, color: theme.colors.background, textAlign: 'center', fontWeight: '500' }}>
-                          {leaderboardView === 'betsWon' ? `${leaderboardData[0].wins} vunnet` : `${leaderboardData[0].totalDrinksReceived} mottatt`}
-                        </Text>
+                        {leaderboardView === 'betsWon' ? (
+                          <Text style={{ fontSize: 13, color: theme.colors.background, textAlign: 'center', fontWeight: '500' }}>
+                            {leaderboardData[0].betsWon} seiere
+                          </Text>
+                        ) : (
+                          <>
+                            <Text style={{ fontSize: 13, color: theme.colors.background, textAlign: 'center', fontWeight: '500' }}>
+                              {Object.values(leaderboardData[0].drinksToDistribute).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} delt ut
+                            </Text>
+                            <Text style={{ fontSize: 13, color: theme.colors.background, textAlign: 'center', fontWeight: '500' }}>
+                              {Object.values(leaderboardData[0].drinksToConsume).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} mottatt
+                            </Text>
+                          </>
+                        )}
                       </View>
                     )}
                     {/* 3rd Place (Bronze) */}
@@ -1817,9 +1843,20 @@ const GroupScreen = () => {
                             style={{ width: 24, height: 24 }} 
                           />
                         </View>
-                        <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
-                          {leaderboardView === 'betsWon' ? `${leaderboardData[2].wins} vunnet` : `${leaderboardData[2].totalDrinksReceived} mottatt`}
-                        </Text>
+                        {leaderboardView === 'betsWon' ? (
+                          <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
+                            {leaderboardData[2].betsWon} seiere
+                          </Text>
+                        ) : (
+                          <>
+                            <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
+                              {Object.values(leaderboardData[2].drinksToDistribute).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} delt ut
+                            </Text>
+                            <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
+                              {Object.values(leaderboardData[2].drinksToConsume).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} mottatt
+                            </Text>
+                          </>
+                        )}
                       </View>
                     )}
                   </View>
