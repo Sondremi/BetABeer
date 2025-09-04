@@ -88,6 +88,23 @@ export const createGroup = async (userId: string): Promise<Group> => {
     }
 }
 
+export const updateGroupName = async(groupId: string, newName: string): Promise<void> => {
+    try {
+        const groupRef = doc(firestore, 'groups', groupId)
+        await updateDoc(groupRef, {name: newName})
+        const inviteQuery = query(collection(firestore, 'group_invitations'), where('groupId', '==', groupId))
+        const inviteSnapshot = await getDocs(inviteQuery)
+        const updatePromises = inviteSnapshot.docs.map(async (invDoc) => {
+            console.log(`Attempting to update invitation ${invDoc.id} with groupName: ${newName}`);
+            return updateDoc(doc(firestore, 'group_invitations', invDoc.id), {groupName: newName})
+        })
+        await Promise.all(updatePromises)
+    } catch (error) {
+        console.error(error)
+        throw new Error(`${(error as Error).message}`)
+    }
+}
+
 export const profileService = {
   async getUserData(userId: string): Promise<{ weight?: number; gender?: 'male' | 'female'; drinks?: DrinkEntry[] }> {
     const userDoc = await getDoc(doc(firestore, 'users', userId));
