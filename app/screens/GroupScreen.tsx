@@ -9,7 +9,7 @@ import { theme } from '../styles/theme';
 import type { Bet, BettingOption, BetWager, DrinkType, MeasureType, MemberDrinkStats } from '../types/bettingTypes';
 import { GroupInvitation, Group, Friend, sendGroupInvitation, removeFriendFromGroup, exitGroup, deleteGroup, distributeDrinks } from '../services/firebase/groupService';
 import { sendFriendRequest, getOutgoingRequest, FriendRequest } from '../services/firebase/friendService';
-import { getGroupInvitation } from '../services/firebase/profileService';
+import { getGroupInvitation, profileService, updateGroupName } from '../services/firebase/profileService';
 import { showAlert } from '../utils/platformAlert';
 import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 
@@ -417,11 +417,11 @@ const GroupScreen: React.FC = () => {
     }
     setSaving(true);
     try {
-      await updateDoc(doc(firestore, 'groups', selectedGroup.id), { name: groupName });
+      await updateGroupName(selectedGroup.id, groupName.trim())
       setEditingName(false);
     } catch (error) {
       console.error('Error saving group name:', error);
-      showAlert('Feil', 'Kunne ikke oppdatere gruppenavn');
+      showAlert('Feil', `Kunne ikke oppdatere gruppenavn: ${(error as Error).message}`);
     } finally {
       setSaving(false);
     }
