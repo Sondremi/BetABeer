@@ -391,59 +391,6 @@ const ProfileScreen: React.FC = () => {
     }
   };
 
-  const onRefresh = async () => {
-    console.log('Refresh triggered at', new Date().toISOString());
-    if (!auth.currentUser?.uid || !user) {
-      console.log('No authenticated user found');
-      showAlert('Feil', 'Ingen bruker logget inn');
-      return;
-    }
-    try {
-      console.log('Fetching user data for UID:', auth.currentUser.uid);
-      const userData = await profileService.getUserData(auth.currentUser.uid);
-      setUserInfo(userData);
-      console.log('Fetched userData:', userData);
-
-      console.log('Fetching groups and invitations for user:', user.id);
-      const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
-      const groupSnapshot = await getDocs(groupQuery);
-      const groupList: Group[] = groupSnapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        name: docSnap.data().name,
-        memberCount: docSnap.data().members.length,
-        image: ImageMissing,
-        createdBy: docSnap.data().createdBy,
-        members: docSnap.data().members,
-      }));
-      setGroups(groupList);
-      console.log('Fetched groups:', groupList);
-
-      const invitationList = await getGroupInvitation(user.id);
-      setGroupInvitations(invitationList);
-      console.log('Fetched invitations:', invitationList);
-
-      if (invitationList.length > 0) {
-        const idsToFetch = invitationList
-          .map(inv => inv.fromUserId)
-          .filter(id => !(id in userNames));
-        const newNames: { [id: string]: string } = {};
-        await Promise.all(
-          idsToFetch.map(async (id) => {
-            const userDoc = await getDoc(doc(firestore, 'users', id));
-            newNames[id] = userDoc.exists() ? userDoc.data().name || id : id;
-          })
-        );
-        if (Object.keys(newNames).length > 0) {
-          setUserNames(prev => ({ ...prev, ...newNames }));
-          console.log('Fetched user names:', newNames);
-        }
-      }
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-      showAlert('Feil', 'Kunne ikke oppfriske data');
-    }
-  };
-
   if (isLoading) {
     return (
       <View style={[globalStyles.container, globalStyles.centerContent]}>
@@ -510,9 +457,6 @@ const ProfileScreen: React.FC = () => {
         {/* Header with navigation buttons */}
         <View style={globalStyles.header}>
           <View style={profileStyles.headerButtons}>
-            <TouchableOpacity style={profileStyles.headerButton} onPress={onRefresh}>
-              <Image source={BeerIcon} style={globalStyles.outlineButtonGold} />
-            </TouchableOpacity>
             <TouchableOpacity style={profileStyles.headerButton} onPress={navigateToSettings}>
               <Image source={SettingsIcon} style={globalStyles.primaryIcon} />
             </TouchableOpacity>
@@ -540,7 +484,7 @@ const ProfileScreen: React.FC = () => {
               <Image source={PencilIcon} style={globalStyles.primaryIcon} />
             </TouchableOpacity>
           </View>
-        {/* Modal for å velge profilbilde */}
+        {/* Modal to change profilepicture */}
         <Modal
           visible={profileImageModalVisible}
           animationType="slide"
