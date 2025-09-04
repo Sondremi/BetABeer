@@ -30,6 +30,7 @@ export const AuthProvider = ({ children }) => {
               name: userData.name,
               email: userData.email,
               phone: userData.phone,
+              profileImage: userData.profileImage || null,
             });
           }
           else {
@@ -65,6 +66,7 @@ export const AuthProvider = ({ children }) => {
               name: userData.name,
               email: userData.email,
               phone: userData.phone,
+              profileImage: userData.profileImage || null,
             } : null);
           } else {
             setUser(null);

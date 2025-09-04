@@ -48,6 +48,11 @@ export const globalStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  rowCenter: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 6 
+  },
   dangerSection: {
     marginTop: theme.spacing.xxl,
     paddingTop: theme.spacing.xl,
@@ -110,6 +115,12 @@ export const globalStyles = StyleSheet.create({
     color: theme.colors.primary,
     marginTop: theme.spacing.lg,
     marginBottom: theme.spacing.xs,
+  },
+  emptyStateSubtext: {
+    fontSize: theme.fonts.md,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: theme.spacing.xl,
   },
 
   // Headers
@@ -180,19 +191,38 @@ export const globalStyles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: theme.colors.primary,
-    borderRadius: theme.spacing.md,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
     padding: theme.spacing.lg,
     fontSize: theme.fonts.md,
+    backgroundColor: 'transparent',
+    color: theme.colors.text,
+  },
+  pickerInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    justifyContent: 'center',
+    backgroundColor: theme.colors.background,
+    color: theme.colors.primary,
+  },
+  picker: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
     backgroundColor: theme.colors.surface,
     color: theme.colors.text,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    fontSize: theme.fonts.md,
+    justifyContent: 'center',
   },
   readOnlyInput: {
     borderWidth: 1,
-    borderColor: theme.colors.surface,
+    borderColor: theme.colors.border,
     borderRadius: theme.spacing.sm,
     padding: theme.spacing.md,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: 'transparent',
   },
   modalInput: {
     backgroundColor: theme.colors.background,
@@ -241,7 +271,7 @@ export const globalStyles = StyleSheet.create({
   },
   outlineButtonText: {
     fontSize: theme.fonts.md,
-    color: theme.colors.primary,
+    color: theme.colors.background,
     fontWeight: '600',
   },
   outlineButtonGold: {
@@ -303,12 +333,6 @@ export const globalStyles = StyleSheet.create({
     borderColor: theme.colors.error,
   },
   dangerButtonText: {
-    fontSize: theme.fonts.md,
-    color: theme.colors.error,
-    fontWeight: '600',
-    marginLeft: theme.spacing.sm,
-  },
-  deleteButtonText: {
     fontSize: theme.fonts.md,
     color: theme.colors.error,
     fontWeight: '600',
@@ -408,11 +432,6 @@ export const globalStyles = StyleSheet.create({
     borderColor: theme.colors.primary,
     backgroundColor: theme.colors.surface,
   },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
   groupHeaderImage: {
     width: '100%',
     height: '100%',
@@ -423,19 +442,14 @@ export const globalStyles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     padding: theme.spacing.xl,
   },
 
   // Icons
-  pencilIcon: {
+  primaryIcon: {
     width: 18,
     height: 18,
-    tintColor: theme.colors.primary,
-  },
-  settingsIcon: {
-    width: 20,
-    height: 20,
     tintColor: theme.colors.primary,
   },
   deleteIcon: {
@@ -449,7 +463,7 @@ export const globalStyles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: theme.colors.modalBackground,
   },
   modalContent: {
     backgroundColor: theme.colors.background,

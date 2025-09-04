@@ -1,16 +1,15 @@
+import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import { authService } from '../services/firebase/authService';
+import { firestore } from '../services/firebase/FirebaseConfig';
 import { settingsStyles } from '../styles/components/settingsStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import { showAlert } from '../utils/platformAlert';
-import { firestore } from '../services/firebase/FirebaseConfig';
-
-type Gender = 'male' | 'female'
+import { Gender } from '../types/userTypes';
 
 const SettingsScreen = () => {
   const router = useRouter();
@@ -93,7 +92,7 @@ const SettingsScreen = () => {
 
     try {
       setIsLoading(true);
-      
+
       await authService.updateUser(userInfo.id, {
         name: editedInfo.name,
         phone: editedInfo.phone,
@@ -101,7 +100,7 @@ const SettingsScreen = () => {
         weight: editedInfo.weight,
         gender: editedInfo.gender,
       });
-      
+
       setUserInfo(editedInfo);
       setIsEditing(false);
     } catch (error) {
@@ -176,7 +175,7 @@ const SettingsScreen = () => {
                       setIsLoading(true);
                       await authService.deleteUser(userInfo.id);
                       showAlert(
-                        'Bruker slettet', 
+                        'Bruker slettet',
                         'Brukeren din er permanent slettet',
                         [
                           {
@@ -190,7 +189,7 @@ const SettingsScreen = () => {
                     } catch (error) {
                       setIsLoading(false);
                       let errorMessage = 'Kunne ikke slette brukeren';
-                      
+
                       if (error instanceof Error) {
                         if (error.message.includes('requires-recent-login')) {
                           errorMessage = 'Du må logge inn på nytt før du kan slette brukeren din';
@@ -198,7 +197,7 @@ const SettingsScreen = () => {
                           errorMessage = error.message;
                         }
                       }
-                      
+
                       showAlert('Feil', errorMessage);
                     }
                   },
@@ -232,19 +231,19 @@ const SettingsScreen = () => {
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
-        {<View style={[globalStyles.header, globalStyles.rowSpread]}>
+        <View style={[globalStyles.header, globalStyles.rowSpread]}>
           <TouchableOpacity style={settingsStyles.backButton} onPress={handleBack}>
             <Text style={settingsStyles.backButtonText}>←</Text>
           </TouchableOpacity>
           <Text style={globalStyles.headerTitleMedium}>Innstillinger</Text>
           <View style={settingsStyles.headerPlaceholder} />
-        </View>}
+        </View>
 
         <View style={globalStyles.section}>
           {/* User Information Section */}
           <View style={globalStyles.inputGroup}>
             <Text style={globalStyles.sectionTitle}>Brukerinformasjon</Text>
-            
+
             {/* Username - not editable */}
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Brukernavn</Text>
@@ -259,11 +258,11 @@ const SettingsScreen = () => {
               <Text style={globalStyles.label}>Navn</Text>
               {isEditing ? (
                 <TextInput
-                  style={globalStyles.input}
+                  style={[globalStyles.input, { height: 40 }]}
                   value={editedInfo.name}
                   onChangeText={(text) => setEditedInfo({ ...editedInfo, name: text })}
                   placeholder="Skriv inn navn"
-                  placeholderTextColor="#888"
+                  placeholderTextColor={theme.colors.textMuted}
                 />
               ) : (
                 <View style={globalStyles.readOnlyInput}>
@@ -277,11 +276,11 @@ const SettingsScreen = () => {
               <Text style={globalStyles.label}>Telefonnummer</Text>
               {isEditing ? (
                 <TextInput
-                  style={globalStyles.input}
+                  style={[globalStyles.input, { height: 40 }]}
                   value={editedInfo.phone}
                   onChangeText={(text) => setEditedInfo({ ...editedInfo, phone: text })}
-                  placeholder="Skriv inn telefonnummer (valgfritt)"
-                  placeholderTextColor="#888"
+                  placeholder="Skriv inn telefonnummer"
+                  placeholderTextColor={theme.colors.textMuted}
                   keyboardType="phone-pad"
                 />
               ) : (
@@ -296,11 +295,11 @@ const SettingsScreen = () => {
               <Text style={globalStyles.label}>E-postadresse</Text>
               {isEditing ? (
                 <TextInput
-                  style={globalStyles.input}
+                  style={[globalStyles.input, { height: 40 }]}
                   value={editedInfo.email}
                   onChangeText={(text) => setEditedInfo({ ...editedInfo, email: text })}
                   placeholder="Skriv inn e-postadresse"
-                  placeholderTextColor="#888"
+                  placeholderTextColor={theme.colors.textMuted}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -311,21 +310,21 @@ const SettingsScreen = () => {
               )}
             </View>
 
-            {/* weight */}
+            {/* Weight */}
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Vekt</Text>
               {isEditing ? (
                 <TextInput
-                  style={globalStyles.input}
-                  value={editedInfo.weight ? editedInfo.weight.toString(): ''}
+                  style={[globalStyles.input, { height: 40 }]}
+                  value={editedInfo.weight ? editedInfo.weight.toString() : ''}
                   onChangeText={(text) => {
                     const value = text ? parseInt(text) : undefined;
                     if (value === undefined || !isNaN(value)) {
-                      setEditedInfo({...editedInfo, weight: value});
+                      setEditedInfo({ ...editedInfo, weight: value });
                     }
                   }}
                   placeholder="Skriv inn vekt (kg)"
-                  placeholderTextColor="#888"
+                  placeholderTextColor={theme.colors.textMuted}
                   keyboardType="numeric"
                 />
               ) : (
@@ -335,14 +334,14 @@ const SettingsScreen = () => {
               )}
             </View>
 
-            {/* gender */}
+            {/* Gender */}
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Kjønn</Text>
               {isEditing ? (
-                <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 40 }]}>
+                <View style={globalStyles.pickerInput}>
                   <Picker
-                    style={{ width: '100%', color: theme.colors.primary }}
-                    itemStyle={{ color: theme.colors.primary }}
+                    style={globalStyles.picker}
+                    itemStyle={{ color: theme.colors.text }}
                     selectedValue={editedInfo.gender || ''}
                     onValueChange={(value: Gender | '') => setEditedInfo({ ...editedInfo, gender: value || undefined })}
                   >
@@ -367,8 +366,8 @@ const SettingsScreen = () => {
                   <TouchableOpacity style={[settingsStyles.halfWidthCancelButton, isLoading && globalStyles.disabledButton]} onPress={handleCancel} disabled={isLoading}>
                     <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[settingsStyles.halfWidthSaveButton, isLoading && globalStyles.disabledButton]} 
+                  <TouchableOpacity
+                    style={[settingsStyles.halfWidthSaveButton, isLoading && globalStyles.disabledButton]}
                     onPress={handleSave}
                     disabled={isLoading}
                   >
@@ -379,7 +378,7 @@ const SettingsScreen = () => {
                 </>
               ) : (
                 <TouchableOpacity style={settingsStyles.fullWidthButton} onPress={() => setIsEditing(true)}>
-                  <Text style={globalStyles.outlineButtonText}>Rediger informasjon</Text>
+                  <Text style={globalStyles.outlineButtonGoldText}>Rediger informasjon</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -389,7 +388,7 @@ const SettingsScreen = () => {
           <View style={globalStyles.inputGroup}>
             <Text style={globalStyles.sectionTitle}>Logg ut</Text>
             <TouchableOpacity style={globalStyles.outlineButton} onPress={handleLogout}>
-              <Text style={globalStyles.outlineButtonText}>Logg ut</Text>
+              <Text style={globalStyles.outlineButtonGoldText}>Logg ut</Text>
             </TouchableOpacity>
           </View>
 
@@ -400,8 +399,8 @@ const SettingsScreen = () => {
               Sletting av bruker vil permanent fjerne all data knyttet til brukeren din. {"\n"}
               Dette kan ikke angres.
             </Text>
-            <TouchableOpacity 
-              style={[globalStyles.dangerButton, isLoading && globalStyles.disabledButton]} 
+            <TouchableOpacity
+              style={[globalStyles.dangerButton, isLoading && globalStyles.disabledButton]}
               onPress={handleDeleteUser}
               disabled={isLoading}
             >

@@ -8,7 +8,7 @@ export const loginStyles = StyleSheet.create({
   },
   welcomeText: {
     fontSize: theme.fonts.lg,
-    color: theme.colors.textAlt,
+    color: theme.colors.text,
     textAlign: 'center',
   },
   toggleContainer: {
@@ -17,7 +17,7 @@ export const loginStyles = StyleSheet.create({
   },
   toggleText: {
     fontSize: theme.fonts.sm,
-    color: theme.colors.textAlt,
+    color: theme.colors.text,
     marginBottom: theme.spacing.xs,
   },
   toggleLink: {

@@ -4,8 +4,7 @@
     "slug": "BetABeer",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.png",
-    "scheme": "betabeer",
+    "icon": "./assets/images/logo/Logo.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -21,7 +20,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/logo.png"
+      "favicon": "./assets/images/logo/Logo.png"
     },
     "plugins": [
       "expo-router",

@@ -1,7 +1,7 @@
-import { collection, doc, query, where, getDocs, addDoc, serverTimestamp, updateDoc, arrayUnion, getDoc, deleteDoc } from 'firebase/firestore';
-import { firestore, auth } from './FirebaseConfig';
-import { GroupInvitation, Group } from '../../services/firebase/groupService'
 import { DrinkEntry } from '@/app/types/drinkTypes';
+import { addDoc, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { Group, GroupInvitation } from '../types/drinkTypes';
+import { auth, firestore } from './firebase/FirebaseConfig';
 
 export const getGroupInvitation = async (currentUserId: string) : Promise<GroupInvitation[]> => {
   const groupInvitationRef = collection(firestore, "group_invitations");
