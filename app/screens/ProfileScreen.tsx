@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
@@ -7,15 +7,14 @@ import { auth, firestore } from '../services/firebase/FirebaseConfig';
 import { profileStyles } from '../styles/components/profileStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
+import { DrinkCategory, DrinkEntry, Group, GroupInvitation } from '../types/drinkTypes';
+import { defaultProfileImageMap, defaultProfileImages } from '../utils/defaultProfileImages';
 import { showAlert } from '../utils/platformAlert';
-import { Group, GroupInvitation } from '../services/firebase/groupService';
-import { acceptGroupInvitation, declineGroupInvitation, getGroupInvitation, createGroup, profileService } from '../services/firebase/profileService';
-import { DrinkEntry, DrinkCategory } from '../types/drinkTypes';
+import { acceptGroupInvitation, declineGroupInvitation, getGroupInvitation, createGroup, profileService } from '../services/profileService';
 import { authService } from '../services/firebase/authService';
 import { Picker } from '@react-native-picker/picker';
 import { LineChart } from 'react-native-chart-kit';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-
 
 const useAnimatedBACText = (
   drinks: DrinkEntry[] | undefined,
@@ -49,7 +48,7 @@ const useAnimatedBACText = (
   };
 };
 
-const DefaultProfilePicture = require('../../assets/images/default_profilepicture.png');
+const DefaultProfilePicture = require('../../assets/images/default/default_profilepicture.png');
 const ImageMissing = require('../../assets/images/image_missing.png');
 const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
@@ -57,6 +56,25 @@ const BeerIcon = require('../../assets/icons/noun-beer-7644526.png');
 
 const ProfileScreen: React.FC = () => {
   const { user, loading } = useAuth();
+  const [profileImageModalVisible, setProfileImageModalVisible] = useState(false);
+  const [selectedProfileImage, setSelectedProfileImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user && (user as any).profileImage) {
+      setSelectedProfileImage((user as any).profileImage);
+    }
+  }, [user]);
+
+  const handleProfileImageSave = async () => {
+    if (!user || !selectedProfileImage) return;
+    try {
+      await updateDoc(doc(firestore, 'users', user.id), { profileImage: selectedProfileImage });
+      setProfileImageModalVisible(false);
+    } catch (error) {
+      console.error(error)
+      showAlert('Feil', 'Kunne ikke oppdatere profilbilde');
+    }
+  };
   const router = useRouter();
   const [groups, setGroups] = useState<Group[]>([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
@@ -156,7 +174,7 @@ const ProfileScreen: React.FC = () => {
   useEffect(() => {
     loadUserData();
   }, []);
-  
+
   const loadUserData = async () => {
     try {
       const currentUser = authService.getCurrentUser();
@@ -257,14 +275,14 @@ const ProfileScreen: React.FC = () => {
       showAlert('Feil', 'Velg antall');
       return;
     }
-    const alcoholPercent = 
-      drinkForm.alcoholPercent === 'custom' 
+    const alcoholPercent =
+      drinkForm.alcoholPercent === 'custom'
         ? parseFloat(drinkForm.customAlcoholPercent)
         : parseFloat(drinkForm.alcoholPercent.toString());
     const drink: DrinkEntry = {
       category: drinkForm.category,
       sizeDl: parseFloat(drinkForm.sizeDl.toString()),
-      alcoholPercent, 
+      alcoholPercent,
       quantity: parseInt(drinkForm.quantity.toString(), 10),
       timestamp: Date.now(),
     };
@@ -320,7 +338,7 @@ const ProfileScreen: React.FC = () => {
     setCreatingGroup(true);
     try {
       const newGroup = await createGroup(user.id);
-      const groupWithImage: Group = {...newGroup, image: ImageMissing}
+      const groupWithImage: Group = { ...newGroup, image: ImageMissing };
       setGroups(prev => [...prev, groupWithImage]);
       router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(groupWithImage) } });
     } catch (error) {
@@ -363,7 +381,7 @@ const ProfileScreen: React.FC = () => {
     if (!user) return;
     setHandlingInvitation(true);
     try {
-      await declineGroupInvitation(invitation.id)
+      await declineGroupInvitation(invitation.id);
       setGroupInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
     } catch (error) {
       console.error('Error declining invitation:', error);
@@ -436,7 +454,7 @@ const ProfileScreen: React.FC = () => {
 
   const renderGroupItem = ({ item }: { item: Group }) => (
     <TouchableOpacity style={profileStyles.groupItem} onPress={() => navigateToGroup(item)}>
-      <Image source={item.image} style={globalStyles.coverImage} />
+      <Image source={item.image} style={globalStyles.groupHeaderImage} />
       <View style={globalStyles.overlay}>
         <Text style={profileStyles.groupName}>{item.name}</Text>
         <Text style={profileStyles.groupMembers}>{item.memberCount} medlemmer</Text>
@@ -493,10 +511,10 @@ const ProfileScreen: React.FC = () => {
         <View style={globalStyles.header}>
           <View style={profileStyles.headerButtons}>
             <TouchableOpacity style={profileStyles.headerButton} onPress={onRefresh}>
-              <Image source={BeerIcon} style={globalStyles.settingsIcon} />
+              <Image source={BeerIcon} style={globalStyles.outlineButtonGold} />
             </TouchableOpacity>
             <TouchableOpacity style={profileStyles.headerButton} onPress={navigateToSettings}>
-              <Image source={SettingsIcon} style={globalStyles.settingsIcon} />
+              <Image source={SettingsIcon} style={globalStyles.primaryIcon} />
             </TouchableOpacity>
           </View>
         </View>
@@ -506,27 +524,64 @@ const ProfileScreen: React.FC = () => {
           {/* Profile picture */}
           <View style={profileStyles.profileImageContainer}>
             <Image
-              source={DefaultProfilePicture}
+              source={
+                (selectedProfileImage && defaultProfileImageMap[selectedProfileImage])
+                  ? defaultProfileImageMap[selectedProfileImage]
+                  : (user && (user as any).profileImage && defaultProfileImageMap[(user as any).profileImage])
+                    ? defaultProfileImageMap[(user as any).profileImage]
+                    : DefaultProfilePicture
+              }
               style={[globalStyles.circularImage, { width: 120, height: 120 }]}
             />
             <TouchableOpacity
               style={profileStyles.editProfileImageButton}
-              onPress={() => {
-                showAlert('Hold on', 'Har ikke fiksa profilbilde enda', [
-                  { text: 'OK', style: 'default' }
-                ]);
-              }}
+              onPress={() => setProfileImageModalVisible(true)}
             >
-              <Image source={PencilIcon} style={globalStyles.pencilIcon} />
+              <Image source={PencilIcon} style={globalStyles.primaryIcon} />
             </TouchableOpacity>
           </View>
+        {/* Modal for å velge profilbilde */}
+        <Modal
+          visible={profileImageModalVisible}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setProfileImageModalVisible(false)}
+        >
+          <View style={globalStyles.modalContainer}> 
+            <View style={[globalStyles.modalContent, { padding: theme.spacing.md, borderRadius: theme.borderRadius.lg, maxHeight: 500 }]}> 
+              <Text style={globalStyles.modalTitle}>Velg profilbilde</Text>
+              <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
+                {defaultProfileImages.map((img) => (
+                  <TouchableOpacity
+                    key={img}
+                    style={{ margin: 8, borderWidth: selectedProfileImage === img ? 3 : 0, borderColor: theme.colors.primary, borderRadius: 60 }}
+                    onPress={() => setSelectedProfileImage(img)}
+                  >
+                    <Image
+                      source={defaultProfileImageMap[img]}
+                      style={{ width: 60, height: 60, borderRadius: 30 }}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <View style={globalStyles.buttonRow}>
+                <TouchableOpacity style={globalStyles.cancelButton} onPress={() => setProfileImageModalVisible(false)}>
+                  <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={globalStyles.saveButton} onPress={handleProfileImageSave}>
+                  <Text style={globalStyles.saveButtonTextAlt}>Lagre</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
           {/* Name and username */}
           <Text style={globalStyles.largeBoldText}>{user?.name || 'Navn'}</Text>
           <Text style={globalStyles.secondaryText}>{user?.username || 'Brukernavn'}</Text>
         </View>
 
-        { /* Promillegreier */ }
+        { /* Body Alcohol Level */ }
         <View style={globalStyles.section}>
           <View style={globalStyles.inputGroup}>
             <Text style={globalStyles.sectionTitle}>Promillekalkulator</Text>
@@ -638,7 +693,7 @@ const ProfileScreen: React.FC = () => {
               onPress={handleCreateGroup}
               disabled={creatingGroup}
             >
-              <Text style={globalStyles.outlineButtonText}>
+              <Text style={globalStyles.outlineButtonGoldText}>
                 {creatingGroup ? 'Oppretter...' : 'Opprett ny gruppe'}
               </Text>
             </TouchableOpacity>
@@ -658,7 +713,7 @@ const ProfileScreen: React.FC = () => {
             transparent
             onRequestClose={() => setDrinkModalVisible(false)}
           >
-            <View style={[globalStyles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+            <View style={globalStyles.modalContainer}>
               <View style={[globalStyles.modalContent, { padding: theme.spacing.md, borderRadius: theme.borderRadius.lg }]}>
                 <ScrollView contentContainerStyle={{ paddingBottom: theme.spacing.md }} showsVerticalScrollIndicator={false}>
                   <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.md }]}>
@@ -667,10 +722,10 @@ const ProfileScreen: React.FC = () => {
 
                   <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
                     <Text style={globalStyles.label}>Kategori</Text>
-                    <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 40 }]}>
+                    <View style={globalStyles.pickerInput}>
                       <Picker
-                        style={{ width: '100%', color: theme.colors.primary}}
-                        itemStyle={{ color: theme.colors.primary }}
+                        style={globalStyles.picker}
+                        itemStyle={{ color: theme.colors.text }}
                         selectedValue={drinkForm.category}
                         onValueChange={(value: DrinkCategory | '') =>
                           setDrinkForm({ ...drinkForm, category: value, sizeDl: '', alcoholPercent: '', customAlcoholPercent: '' })
@@ -688,10 +743,10 @@ const ProfileScreen: React.FC = () => {
                     <>
                       <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
                         <Text style={globalStyles.label}>Størrelse (dl)</Text>
-                        <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 40 }]}>
+                        <View style={globalStyles.pickerInput}>
                           <Picker
-                            style={{ width: '100%', color: theme.colors.primary }}
-                            itemStyle={{ color: theme.colors.primary }}
+                            style={globalStyles.picker}
+                            itemStyle={{ color: theme.colors.text }}
                             selectedValue={drinkForm.sizeDl}
                             onValueChange={(value: number | '') => setDrinkForm({ ...drinkForm, sizeDl: value })}
                           >
@@ -705,10 +760,10 @@ const ProfileScreen: React.FC = () => {
 
                       <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
                         <Text style={globalStyles.label}>Alkoholprosent</Text>
-                        <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 40 }]}>
+                        <View style={globalStyles.pickerInput}>
                           <Picker
-                            style={{ width: '100%', color: theme.colors.primary }}
-                            itemStyle={{ color: theme.colors.primary }}
+                            style={globalStyles.picker}
+                            itemStyle={{ color: theme.colors.text }}
                             selectedValue={drinkForm.alcoholPercent}
                             onValueChange={(value: number | '' | 'custom') =>
                               setDrinkForm({ ...drinkForm, alcoholPercent: value, customAlcoholPercent: '' })
@@ -730,13 +785,13 @@ const ProfileScreen: React.FC = () => {
                         <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
                           <Text style={globalStyles.label}>Egendefinert alkoholprosent</Text>
                           <TextInput
-                            style={[globalStyles.input, {height: 40}]}
+                            style={[globalStyles.input, { height: 40 }]}
                             value={drinkForm.customAlcoholPercent}
                             onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercent: text })}
                             placeholder={
                               drinkForm.category === 'vin' ? '10–20%' : '22–70%'
                             }
-                            placeholderTextColor="#E0E0E0"
+                            placeholderTextColor={theme.colors.textMuted}
                             keyboardType="numeric"
                           />
                         </View>
@@ -744,10 +799,10 @@ const ProfileScreen: React.FC = () => {
 
                       <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
                         <Text style={globalStyles.label}>Antall</Text>
-                        <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 40 }]}>
+                        <View style={globalStyles.pickerInput}>
                           <Picker
-                            style={{ width: '100%', color: theme.colors.primary }}
-                            itemStyle={{ color: theme.colors.primary }}
+                            style={globalStyles.picker}
+                            itemStyle={{ color: theme.colors.text }}
                             selectedValue={drinkForm.quantity}
                             onValueChange={(value: number | '') => setDrinkForm({ ...drinkForm, quantity: value })}
                           >
