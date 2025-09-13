@@ -88,6 +88,23 @@ export const createGroup = async (userId: string): Promise<Group> => {
     }
 }
 
+export const updateGroupName = async(groupId: string, newName: string): Promise<void> => {
+    try {
+        const groupRef = doc(firestore, 'groups', groupId)
+        await updateDoc(groupRef, {name: newName})
+        const inviteQuery = query(collection(firestore, 'group_invitations'), where('groupId', '==', groupId))
+        const inviteSnapshot = await getDocs(inviteQuery)
+        const updatePromises = inviteSnapshot.docs.map(async (invDoc) => {
+            console.log(`Attempting to update invitation ${invDoc.id} with groupName: ${newName}`);
+            return updateDoc(doc(firestore, 'group_invitations', invDoc.id), {groupName: newName})
+        })
+        await Promise.all(updatePromises)
+    } catch (error) {
+        console.error(error)
+        throw new Error(`${(error as Error).message}`)
+    }
+}
+
 export const profileService = {
   async getUserData(userId: string): Promise<{ weight?: number; gender?: 'male' | 'female'; drinks?: DrinkEntry[] }> {
     const userDoc = await getDoc(doc(firestore, 'users', userId));
@@ -117,18 +134,19 @@ export const profileService = {
   calculateBAC(drinks: DrinkEntry[], weight: number, gender: 'male' | 'female', currentTime: number): number {
     const bodyWaterPercentage = gender === 'male' ? 0.65 : 0.55;
     const metabolismRate = 0.15;
+    const absorptionTimeMs = 45 * 60 * 1000; // 45 minutes (average)
 
-    let totalAlcoholGrams = 0;
+    if (drinks.length === 0) return 0;
+
+    let totalBAC = 0;
     drinks.forEach(drink => {
-        const alcoholGrams = drink.sizeDl * drink.alcoholPercent * 0.8 * drink.quantity
-        totalAlcoholGrams += alcoholGrams;
+        const alcoholGrams = drink.sizeDl * drink.alcoholPercent * 0.8 * drink.quantity;
+        const timeSinceDrinkMs = currentTime - drink.timestamp;
+        const absopedGrams = Math.min(alcoholGrams, alcoholGrams * (timeSinceDrinkMs / absorptionTimeMs));
+        const hoursSinceDrink = timeSinceDrinkMs / (1000 * 60 * 60);
+        const bacContribution = (absopedGrams / (weight * bodyWaterPercentage)) - (metabolismRate * Math.max(0, hoursSinceDrink - (absorptionTimeMs / (1000 * 60 * 60))));
+        totalBAC += Math.max(0, bacContribution);
     })
-
-    const hoursSinceFirstDrink = drinks.length > 0
-        ? (currentTime - Math.min(...drinks.map(d => d.timestamp))) / (1000 * 60 * 60)
-        : 0;
-
-    const BAC = (totalAlcoholGrams / weight * bodyWaterPercentage) - (metabolismRate * hoursSinceFirstDrink);
-    return Math.max(0, Number(BAC.toFixed(3)));
+    return Number(totalBAC.toFixed(3));
   }
 };
