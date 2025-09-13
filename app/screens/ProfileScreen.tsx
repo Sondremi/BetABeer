@@ -569,7 +569,7 @@ const ProfileScreen: React.FC = () => {
                         const time = Math.max(...userInfo.drinks!.map(d => d.timestamp)) + i * 0.5 * 60 * 60 * 1000;
                         return profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
                       }),
-                      color: () => theme.colors.primary, // Gold line
+                      color: () => theme.colors.primary,
                       strokeWidth: 3,
                     },
                   ],

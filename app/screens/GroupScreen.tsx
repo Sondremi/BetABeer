@@ -1194,6 +1194,104 @@ const GroupScreen = () => {
     </View>
   );
 
+  const renderDetailedDrinkOverview = ({ item }: { item: MemberDrinkStats }) => {
+    const totalToConsume = Object.values(item.drinksToConsume).reduce((sum, drinkTypeObj) => {
+      return sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0);
+    }, 0);
+    const totalToDistribute = Object.values(item.drinksToDistribute).reduce((sum, drinkTypeObj) => {
+      return sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0);
+    }, 0);
+
+    // Create a detailed breakdown of drinks to consume
+    const drinkBreakdown: { [key: string]: { [key: string]: number } } = {};
+    
+    Object.entries(item.drinksToConsume).forEach(([drinkType, measures]) => {
+      Object.entries(measures || {}).forEach(([measureType, amount]) => {
+        if (!drinkBreakdown[drinkType]) drinkBreakdown[drinkType] = {};
+        drinkBreakdown[drinkType][measureType] = (drinkBreakdown[drinkType][measureType] || 0) + (amount || 0);
+      });
+    });
+
+    return (
+      <View style={{
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.borderRadius.md,
+        padding: theme.spacing.md,
+        marginBottom: theme.spacing.md,
+        borderLeftWidth: 4,
+        borderLeftColor: totalToConsume > 0 ? theme.colors.error : theme.colors.success
+      }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.sm }}>
+          <Image 
+            source={item.profilePicture || DefaultProfilePicture} 
+            style={[globalStyles.circularImage, { width: 40, height: 40, marginRight: 12 }]} 
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text }}>
+              {item.username}
+            </Text>
+            <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+              {item.betsWon} seiere • {item.betsLost} tap
+            </Text>
+          </View>
+          {totalToDistribute > 0 && (
+            <View style={{
+              backgroundColor: theme.colors.primary + '20',
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 12
+            }}>
+              <Text style={{ fontSize: 11, color: theme.colors.primary, fontWeight: '600' }}>
+                {totalToDistribute} å dele ut
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {totalToConsume > 0 ? (
+          <View>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text, marginBottom: theme.spacing.sm }}>
+              🍺 Skal drikke totalt:
+            </Text>
+            {Object.entries(drinkBreakdown).map(([drinkType, measures]) => (
+              <View key={drinkType} style={{ marginBottom: theme.spacing.xs }}>
+                {Object.entries(measures).map(([measureType, amount]) => (
+                  <View key={`${drinkType}-${measureType}`} style={{ 
+                    flexDirection: 'row', 
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingVertical: 4,
+                    paddingHorizontal: theme.spacing.sm,
+                    backgroundColor: theme.colors.error + '10',
+                    borderRadius: 6,
+                    marginBottom: 2
+                  }}>
+                    <Text style={{ color: theme.colors.text, fontSize: 13 }}>
+                      {drinkType} - {measureType}
+                    </Text>
+                    <Text style={{ color: theme.colors.error, fontSize: 13, fontWeight: '600' }}>
+                      {amount}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={{ alignItems: 'center', paddingVertical: theme.spacing.md }}>
+            <Text style={{ fontSize: 24, marginBottom: 4 }}>🎉</Text>
+            <Text style={{ fontSize: 14, color: theme.colors.success, fontWeight: '600' }}>
+              Ingen drikker å konsumere!
+            </Text>
+            <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+              Enten ingen tapte bets eller alt er drukket
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
   const renderLeaderboardItem = ({ item, index }: { item: MemberDrinkStats; index: number }) => {
     const totalReceived = Object.values(item.drinksToConsume).reduce((sum, drinkTypeObj) => {
       return sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0);
@@ -1245,7 +1343,7 @@ const GroupScreen = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {!selectedGroup ? (
-        // Vis melding når ingen gruppe er valgt
+        // Show message when no group is selected
         <View style={[globalStyles.container, { justifyContent: 'center', alignItems: 'center', padding: theme.spacing.xl }]}>
           <Text style={[globalStyles.titleText, { textAlign: 'center', marginBottom: theme.spacing.lg }]}>
             Ingen gruppe valgt
@@ -1944,196 +2042,183 @@ const GroupScreen = () => {
               </View>
               {leaderboardData.length > 0 ? (
                 <View style={{ marginBottom: theme.spacing.md }}>
-                  {leaderboardView === 'drinkStats' && (
-                    <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginBottom: theme.spacing.md, textAlign: 'center' }}>
-                      Oversikt over drikker mottatt fra bets og utdelinger
-                    </Text>
-                  )}
-                  {/* Podium layout */}
-                  <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', marginBottom: theme.spacing.lg}}>
-                    {/* 2nd Place (Silver) */}
-                    {leaderboardData[1] && (
-                      <View style={{ 
-                        alignItems: 'center', 
-                        width: '30%', 
-                        marginRight: 8,
-                        backgroundColor: theme.colors.silver, 
-                        borderRadius: theme.borderRadius.lg, 
-                        padding: 16,
-                        height: 170,
-                        justifyContent: 'space-between'
-                        }}>
-                        <Image 
-                          source={leaderboardData[1].profilePicture || ImageMissing} 
-                          style={[globalStyles.circularImage, { width: 50, height: 50 }]} 
-                        />
-                        <View style={{ paddingHorizontal: 4, width: '100%' }}>
-                          <Text style={{ fontSize: 13, color: theme.colors.text, textAlign: 'center', fontWeight: '500' }} numberOfLines={2}>
-                            {leaderboardData[1].username}
-                          </Text>
-                        </View>
-                        <View style={{
-                          width: 40,
-                          height: 40,
-                          backgroundColor: theme.colors.background,
-                          borderRadius: 20,
-                          justifyContent: 'center',
-                          alignItems: 'center'
-                        }}>
-                          <Image 
-                            source={TrophySecond}
-                            style={{ width: 24, height: 24 }} 
-                          />
-                        </View>
-                        {leaderboardView === 'betsWon' ? (
-                          <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
-                            {leaderboardData[1].betsWon} seiere
-                          </Text>
-                        ) : (
-                          <>
-                            <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
-                              {Object.values(leaderboardData[1].drinksToDistribute).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} tilgjengelig
-                            </Text>
-                            <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
-                              {Object.values(leaderboardData[1].drinksToConsume).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} mottatt
-                            </Text>
-                          </>
-                        )}
-                      </View>  
-                    )}
-                    {/* 1st Place (Gold) */}
-                    {leaderboardData[0] && (
-                      <View style={{ 
-                        alignItems: 'center', 
-                        width: '34%', 
-                        backgroundColor: theme.colors.primary, 
-                        borderRadius: theme.borderRadius.lg, 
-                        padding: 16,
-                        height: 200,
-                        justifyContent: 'space-between'
-                      }}>
-                        <Image 
-                          source={leaderboardData[0].profilePicture || ImageMissing} 
-                          style={[globalStyles.circularImage, { width: 60, height: 60 }]} 
-                        />
-                        <View style={{ paddingHorizontal: 4, width: '100%' }}>
-                          <Text style={{ fontSize: 15, fontWeight: '600', color: theme.colors.text, textAlign: 'center' }} numberOfLines={2}>
-                            {leaderboardData[0].username}
-                          </Text>
-                        </View>
-                        <View style={{
-                          width: 48,
-                          height: 48,
-                          backgroundColor: theme.colors.background,
-                          borderRadius: 24,
-                          justifyContent: 'center',
-                          alignItems: 'center'
-                        }}>
-                          <Image 
-                            source={TrophyFirst}
-                            style={{ width: 30, height: 30 }} 
-                          />
-                        </View>
-                        {leaderboardView === 'betsWon' ? (
-                          <Text style={{ fontSize: 13, color: theme.colors.background, textAlign: 'center', fontWeight: '500' }}>
-                            {leaderboardData[0].betsWon} seiere
-                          </Text>
-                        ) : (
-                          <>
-                            <Text style={{ fontSize: 13, color: theme.colors.background, textAlign: 'center', fontWeight: '500' }}>
-                              {Object.values(leaderboardData[0].drinksToDistribute).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} tilgjengelig
-                            </Text>
-                            <Text style={{ fontSize: 13, color: theme.colors.background, textAlign: 'center', fontWeight: '500' }}>
-                              {Object.values(leaderboardData[0].drinksToConsume).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} mottatt
-                            </Text>
-                          </>
-                        )}
-                      </View>
-                    )}
-                    {/* 3rd Place (Bronze) */}
-                    {leaderboardData[2] && (
-                      <View style={{ 
-                        alignItems: 'center', 
-                        width: '30%', 
-                        marginLeft: 8,
-                        backgroundColor: theme.colors.bronze, 
-                        borderRadius: theme.borderRadius.lg, 
-                        padding: 16,
-                        height: 170,
-                        justifyContent: 'space-between'
-                      }}>
-                        <Image 
-                          source={leaderboardData[2].profilePicture || ImageMissing} 
-                          style={[globalStyles.circularImage, { width: 50, height: 50 }]} 
-                        />
-                        <View style={{ paddingHorizontal: 4, width: '100%' }}>
-                          <Text style={{ fontSize: 13, color: theme.colors.text, textAlign: 'center', fontWeight: '500' }} numberOfLines={2}>
-                            {leaderboardData[2].username}
-                          </Text>
-                        </View>
-                        <View style={{
-                          width: 40,
-                          height: 40,
-                          backgroundColor: theme.colors.background,
-                          borderRadius: 20,
-                          justifyContent: 'center',
-                          alignItems: 'center'
-                        }}>
-                          <Image 
-                            source={TrophyThird}
-                            style={{ width: 24, height: 24 }} 
-                          />
-                        </View>
-                        {leaderboardView === 'betsWon' ? (
-                          <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
-                            {leaderboardData[2].betsWon} seiere
-                          </Text>
-                        ) : (
-                          <>
-                            <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
-                              {Object.values(leaderboardData[2].drinksToDistribute).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} tilgjengelig
-                            </Text>
-                            <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
-                              {Object.values(leaderboardData[2].drinksToConsume).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} mottatt
-                            </Text>
-                          </>
-                        )}
-                      </View>
-                    )}
-                  </View>
-                  {/* Remaining Members */}
-                  {leaderboardData.length > 3 && (
-                    <FlatList
-                      data={leaderboardData.slice(3)}
-                      renderItem={renderLeaderboardItem}
-                      keyExtractor={item => item.userId}
-                      contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
-                      scrollEnabled={false}
-                      showsVerticalScrollIndicator={false}
-                    />
-                  )}
-                  
-                  {/* Transaksjonshistorikk */}
-                  {leaderboardView === 'drinkStats' && (
-                    <View style={{ marginTop: theme.spacing.lg }}>
-                      <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text, marginBottom: theme.spacing.md }}>
-                        Siste overføringer
+                  {leaderboardView === 'drinkStats' ? (
+                    <View>
+                      <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginBottom: theme.spacing.md, textAlign: 'center' }}>
+                        Detaljert oversikt over hva hver person må drikke
                       </Text>
-                      <FlatList
-                        data={leaderboardData.flatMap(member => member.transactions)
-                          .sort((a, b) => b.timestamp - a.timestamp)
-                          .slice(0, 10)}
-                        renderItem={renderTransactionItem}
-                        keyExtractor={(item, index) => `${item.fromUserId}-${item.toUserId}-${index}`}
-                        contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
-                        scrollEnabled
-                        showsVerticalScrollIndicator={false}
-                        ListEmptyComponent={() => (
-                          <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center' }}>
-                            Ingen overføringer ennå
-                          </Text>
+                      
+                      {/* Detaljert medlemsoversikt */}
+                      <View style={{ marginBottom: theme.spacing.lg }}>
+                        <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text, marginBottom: theme.spacing.md }}>
+                          📊 Medlemmer og deres drikke-status:
+                        </Text>
+                        <FlatList
+                          data={leaderboardData}
+                          renderItem={renderDetailedDrinkOverview}
+                          keyExtractor={item => item.userId}
+                          scrollEnabled={false}
+                          showsVerticalScrollIndicator={false}
+                        />
+                      </View>
+                      
+                      {/* Transaksjonshistorikk */}
+                      <View style={{ marginTop: theme.spacing.lg }}>
+                        <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text, marginBottom: theme.spacing.md }}>
+                          📝 Siste overføringer
+                        </Text>
+                        <FlatList
+                          data={leaderboardData.flatMap(member => member.transactions)
+                            .sort((a, b) => b.timestamp - a.timestamp)
+                            .slice(0, 10)}
+                          renderItem={renderTransactionItem}
+                          keyExtractor={(item, index) => `${item.fromUserId}-${item.toUserId}-${index}`}
+                          contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
+                          scrollEnabled={false}
+                          showsVerticalScrollIndicator={false}
+                          ListEmptyComponent={() => (
+                            <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center' }}>
+                              Ingen overføringer ennå
+                            </Text>
+                          )}
+                        />
+                      </View>
+                    </View>
+                  ) : (
+                    <View>
+                      <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginBottom: theme.spacing.md, textAlign: 'center' }}>
+                        Oversikt over hvem som har vunnet flest bets
+                      </Text>
+                      {/* Podium layout */}
+                      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', marginBottom: theme.spacing.lg}}>
+                        {/* 2nd Place (Silver) */}
+                        {leaderboardData[1] && (
+                          <View style={{ 
+                            alignItems: 'center', 
+                            width: '30%', 
+                            marginRight: 8,
+                            backgroundColor: theme.colors.silver, 
+                            borderRadius: theme.borderRadius.lg, 
+                            padding: 16,
+                            height: 170,
+                            justifyContent: 'space-between'
+                            }}>
+                            <Image 
+                              source={leaderboardData[1].profilePicture || ImageMissing} 
+                              style={[globalStyles.circularImage, { width: 50, height: 50 }]} 
+                            />
+                            <View style={{ paddingHorizontal: 4, width: '100%' }}>
+                              <Text style={{ fontSize: 13, color: theme.colors.text, textAlign: 'center', fontWeight: '500' }} numberOfLines={2}>
+                                {leaderboardData[1].username}
+                              </Text>
+                            </View>
+                            <View style={{
+                              width: 40,
+                              height: 40,
+                              backgroundColor: theme.colors.background,
+                              borderRadius: 20,
+                              justifyContent: 'center',
+                              alignItems: 'center'
+                            }}>
+                              <Image 
+                                source={TrophySecond}
+                                style={{ width: 24, height: 24 }} 
+                              />
+                            </View>
+                            <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
+                              {leaderboardData[1].betsWon} seiere
+                            </Text>
+                          </View>  
                         )}
-                      />
+                        {/* 1st Place (Gold) */}
+                        {leaderboardData[0] && (
+                          <View style={{ 
+                            alignItems: 'center', 
+                            width: '34%', 
+                            backgroundColor: theme.colors.primary, 
+                            borderRadius: theme.borderRadius.lg, 
+                            padding: 16,
+                            height: 200,
+                            justifyContent: 'space-between'
+                          }}>
+                            <Image 
+                              source={leaderboardData[0].profilePicture || ImageMissing} 
+                              style={[globalStyles.circularImage, { width: 60, height: 60 }]} 
+                            />
+                            <View style={{ paddingHorizontal: 4, width: '100%' }}>
+                              <Text style={{ fontSize: 15, fontWeight: '600', color: theme.colors.text, textAlign: 'center' }} numberOfLines={2}>
+                                {leaderboardData[0].username}
+                              </Text>
+                            </View>
+                            <View style={{
+                              width: 48,
+                              height: 48,
+                              backgroundColor: theme.colors.background,
+                              borderRadius: 24,
+                              justifyContent: 'center',
+                              alignItems: 'center'
+                            }}>
+                              <Image 
+                                source={TrophyFirst}
+                                style={{ width: 30, height: 30 }} 
+                              />
+                            </View>
+                            <Text style={{ fontSize: 13, color: theme.colors.background, textAlign: 'center', fontWeight: '500' }}>
+                              {leaderboardData[0].betsWon} seiere
+                            </Text>
+                          </View>
+                        )}
+                        {/* 3rd Place (Bronze) */}
+                        {leaderboardData[2] && (
+                          <View style={{ 
+                            alignItems: 'center', 
+                            width: '30%', 
+                            marginLeft: 8,
+                            backgroundColor: theme.colors.bronze, 
+                            borderRadius: theme.borderRadius.lg, 
+                            padding: 16,
+                            height: 170,
+                            justifyContent: 'space-between'
+                          }}>
+                            <Image 
+                              source={leaderboardData[2].profilePicture || ImageMissing} 
+                              style={[globalStyles.circularImage, { width: 50, height: 50 }]} 
+                            />
+                            <View style={{ paddingHorizontal: 4, width: '100%' }}>
+                              <Text style={{ fontSize: 13, color: theme.colors.text, textAlign: 'center', fontWeight: '500' }} numberOfLines={2}>
+                                {leaderboardData[2].username}
+                              </Text>
+                            </View>
+                            <View style={{
+                              width: 40,
+                              height: 40,
+                              backgroundColor: theme.colors.background,
+                              borderRadius: 20,
+                              justifyContent: 'center',
+                              alignItems: 'center'
+                            }}>
+                              <Image 
+                                source={TrophyThird}
+                                style={{ width: 24, height: 24 }} 
+                              />
+                            </View>
+                            <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
+                              {leaderboardData[2].betsWon} seiere
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      {/* Remaining Members */}
+                      {leaderboardData.length > 3 && (
+                        <FlatList
+                          data={leaderboardData.slice(3)}
+                          renderItem={renderLeaderboardItem}
+                          keyExtractor={item => item.userId}
+                          contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
+                          scrollEnabled={false}
+                          showsVerticalScrollIndicator={false}
+                        />
+                      )}
                     </View>
                   )}
                 </View>

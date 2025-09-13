@@ -78,7 +78,7 @@ export const createGroup = async (userId: string): Promise<Group> => {
             id: groupDoc.id,
             name: 'Gruppenavn',
             memberCount: 1,
-            image: 'image_missing', // Note: ImageMissing not available here; use string
+            image: 'image_missing',
             createdBy: userId,
             members: [userId],
         };
