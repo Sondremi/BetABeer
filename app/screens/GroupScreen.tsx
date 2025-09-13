@@ -2,11 +2,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, getIncomingRequest, getOutgoingRequest, sendFriendRequest } from '../services/friendService';
 import { deleteGroup, distributeDrinks, exitGroup, removeFriendFromGroup, sendGroupInvitation } from '../services/groupService';
-import { getGroupInvitation, updateGroupName } from '../services/profileService';
+import { getGroupInvitation, updateGroupName, createGroup } from '../services/profileService';
 import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
@@ -72,6 +73,8 @@ const GroupScreen = () => {
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
   const [selectedDistribution, setSelectedDistribution] = useState<{ drinkType: DrinkType; measureType: MeasureType; amount: number } | null>(null);
   const [distributions, setDistributions] = useState<{ userId: string; drinkType: DrinkType; measureType: MeasureType; amount: number }[]>([]);
+  const [createGroupModalVisible, setCreateGroupModalVisible] = useState(false);
+  const [creatingGroup, setCreatingGroup] = useState(false);
 
   const currentGroup: Group & { image: any } = selectedGroup
     ? { ...selectedGroup, name: groupName, image: selectedGroup.image ?? ImageMissing }
@@ -117,6 +120,13 @@ const GroupScreen = () => {
         : groupList.length > 0
         ? groupList[0]
         : null;
+      
+      if (groupFromParams && !foundGroup) {
+        AsyncStorage.removeItem('lastSelectedGroup').catch(error => {
+          console.error('Error removing invalid group from storage:', error);
+        });
+      }
+      
       setSelectedGroup(foundGroup ?? null);
     };
     fetchGroupsAndInvitations();
@@ -130,6 +140,23 @@ const GroupScreen = () => {
       setGroupName(selectedGroup.name);
     }
   }, [selectedGroup]);
+
+  useEffect(() => {
+    if (selectedGroup) {
+      AsyncStorage.setItem('lastSelectedGroup', JSON.stringify(selectedGroup)).catch(error => {
+        console.error('Error saving last selected group:', error);
+      });
+    }
+  }, [selectedGroup]);
+
+  useEffect(() => {
+    if (user && groups.length === 0 && !selectedGroup && invitations.length === 0) {
+      const timer = setTimeout(() => {
+        setCreateGroupModalVisible(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [user, groups, selectedGroup, invitations]);
 
   useEffect(() => {
     if (!user) return;
@@ -441,6 +468,27 @@ const GroupScreen = () => {
         },
       ]
     );
+  };
+
+  const handleCreateGroup = async () => {
+    if (!user) return;
+    setCreatingGroup(true);
+    try {
+      const newGroup = await createGroup(user.id);
+      const groupWithImage: Group = { ...newGroup, image: ImageMissing };
+      setGroups(prev => [...prev, groupWithImage]);
+      setSelectedGroup(groupWithImage);
+      setCreateGroupModalVisible(false);
+      
+      await AsyncStorage.setItem('lastSelectedGroup', JSON.stringify(groupWithImage));
+      
+      showAlert('Suksess', 'Gruppe opprettet!');
+    } catch (error) {
+      console.error('Error creating group:', error);
+      showAlert('Feil', 'Kunne ikke opprette gruppe');
+    } finally {
+      setCreatingGroup(false);
+    }
   };
 
   const handleSaveGroupName = async () => {
@@ -1141,7 +1189,24 @@ const GroupScreen = () => {
       style={[Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container, { padding: 0 }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={globalStyles.fullWidthScrollContent} keyboardShouldPersistTaps="handled">
+      {!selectedGroup ? (
+        // Vis melding når ingen gruppe er valgt
+        <View style={[globalStyles.container, { justifyContent: 'center', alignItems: 'center', padding: theme.spacing.xl }]}>
+          <Text style={[globalStyles.titleText, { textAlign: 'center', marginBottom: theme.spacing.lg }]}>
+            Ingen gruppe valgt
+          </Text>
+          <Text style={[globalStyles.secondaryText, { textAlign: 'center', marginBottom: theme.spacing.lg, color: theme.colors.textSecondary }]}>
+            Du har ikke valgt noen gruppe eller ikke noen grupper ennå.
+          </Text>
+          <TouchableOpacity
+            style={[globalStyles.primaryButton, { paddingHorizontal: theme.spacing.xl }]}
+            onPress={() => setCreateGroupModalVisible(true)}
+          >
+            <Text style={globalStyles.primaryButtonText}>Opprett gruppe</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={globalStyles.fullWidthScrollContent} keyboardShouldPersistTaps="handled">
         <View style={globalStyles.headerContainer}> 
           <Image source={currentGroup.image} style={globalStyles.groupHeaderImage} />
           <View style={globalStyles.overlay}>
@@ -1226,6 +1291,7 @@ const GroupScreen = () => {
           ))}
         </View>
       </ScrollView>
+      )}
 
       <Modal visible={distributeModalVisible} animationType="slide" transparent onRequestClose={() => setDistributeModalVisible(false)}>
         <View style={globalStyles.modalContainer}>
@@ -1978,6 +2044,32 @@ const GroupScreen = () => {
             </TouchableOpacity>
             <View style={globalStyles.editButtonsContainer}>
               <TouchableOpacity onPress={() => setEditMenuModalVisible(false)}>
+                <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Create Group Modal */}
+      <Modal visible={createGroupModalVisible} animationType="slide" transparent onRequestClose={() => setCreateGroupModalVisible(false)}>
+        <View style={globalStyles.modalContainer}>
+          <View style={globalStyles.modalContent}>
+            <Text style={globalStyles.modalTitle}>Opprett første gruppe</Text>
+            <Text style={globalStyles.modalText}>
+              Du har ikke noen grupper ennå. Vil du opprette din første gruppe nå?
+            </Text>
+            <TouchableOpacity
+              style={[globalStyles.selectionButton, { marginBottom: theme.spacing.sm }]}
+              onPress={handleCreateGroup}
+              disabled={creatingGroup}
+            >
+              <Text style={globalStyles.selectionButtonText}>
+                {creatingGroup ? 'Oppretter...' : 'Opprett gruppe'}
+              </Text>
+            </TouchableOpacity>
+            <View style={globalStyles.editButtonsContainer}>
+              <TouchableOpacity onPress={() => setCreateGroupModalVisible(false)}>
                 <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
               </TouchableOpacity>
             </View>
