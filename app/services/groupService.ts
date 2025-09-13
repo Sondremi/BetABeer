@@ -130,7 +130,7 @@ export const distributeDrinks = async (
     throw new Error('Bruker eller gruppe ikke tilgjengelig');
   }
 
-  // Fetch user's drinksToDistribute from Firestore
+  // Fetch user's drinksToDistribute and username from Firestore
   const fromUserRef = doc(firestore, 'users', fromUserId);
   const fromUserDoc = await getDoc(fromUserRef);
   if (!fromUserDoc.exists()) {
@@ -138,6 +138,7 @@ export const distributeDrinks = async (
   }
   const userData = fromUserDoc.data();
   const drinksToDistribute: MemberDrinkStats['drinksToDistribute'] = userData.drinksToDistribute || {};
+  const fromUsername = userData.username || userData.displayName || 'Ukjent';
 
   // Validate distributions
   const totalsByDrink: { [key in DrinkType]: { [key in MeasureType]: number } } = {
@@ -161,7 +162,7 @@ export const distributeDrinks = async (
     });
   });
 
-  // Update Firestore
+  // Update Firestore and record transactions
   await Promise.all(distributions.map(async ({ userId, drinkType, measureType, amount }) => {
     // Verify toUserId is a group member
     const groupRef = doc(firestore, 'groups', groupId);
@@ -170,19 +171,29 @@ export const distributeDrinks = async (
       throw new Error('Mottaker er ikke medlem av gruppen');
     }
 
-    // Create distribution record
-    const distributionRef = collection(firestore, `groups/${groupId}/drink_distributions`);
-    await addDoc(distributionRef, {
+    // Get recipient's username
+    const toUserRef = doc(firestore, 'users', userId);
+    const toUserDoc = await getDoc(toUserRef);
+    const toUsername = toUserDoc.exists() ? 
+      (toUserDoc.data().username || toUserDoc.data().displayName || 'Ukjent') : 
+      'Ukjent';
+
+    // Create transaction record in group's transactions collection
+    const transactionRef = collection(firestore, `groups/${groupId}/transactions`);
+    await addDoc(transactionRef, {
       fromUserId,
+      fromUsername,
       toUserId: userId,
+      toUsername,
       drinkType,
       measureType,
       amount,
+      source: 'distribution',
+      timestamp: Date.now(),
       createdAt: serverTimestamp(),
     });
 
     // Update recipient's drinksToConsume
-    const toUserRef = doc(firestore, 'users', userId);
     await updateDoc(toUserRef, {
       [`drinksToConsume.${drinkType}.${measureType}`]: increment(amount)
     });
