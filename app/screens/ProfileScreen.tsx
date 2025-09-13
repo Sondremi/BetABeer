@@ -1,20 +1,21 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { LineChart } from 'react-native-chart-kit';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useAuth } from '../context/AuthContext';
+import { authService } from '../services/firebase/authService';
 import { auth, firestore } from '../services/firebase/FirebaseConfig';
+import { acceptGroupInvitation, createGroup, declineGroupInvitation, getGroupInvitation, profileService } from '../services/profileService';
 import { profileStyles } from '../styles/components/profileStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import { DrinkCategory, DrinkEntry, Group, GroupInvitation } from '../types/drinkTypes';
 import { defaultProfileImageMap, defaultProfileImages } from '../utils/defaultProfileImages';
 import { showAlert } from '../utils/platformAlert';
-import { acceptGroupInvitation, declineGroupInvitation, getGroupInvitation, createGroup, profileService } from '../services/profileService';
-import { authService } from '../services/firebase/authService';
-import { Picker } from '@react-native-picker/picker';
-import { LineChart } from 'react-native-chart-kit';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 const useAnimatedBACText = (
   drinks: DrinkEntry[] | undefined,
@@ -251,7 +252,12 @@ const ProfileScreen: React.FC = () => {
     router.push('/settings');
   };
 
-  const navigateToGroup = (group: Group) => {
+  const navigateToGroup = async (group: Group) => {
+    try {
+      await AsyncStorage.setItem('lastSelectedGroup', JSON.stringify(group));
+    } catch (error) {
+      console.error('Error saving selected group:', error);
+    }
     router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(group) } });
   };
 
@@ -340,6 +346,9 @@ const ProfileScreen: React.FC = () => {
       const newGroup = await createGroup(user.id);
       const groupWithImage: Group = { ...newGroup, image: ImageMissing };
       setGroups(prev => [...prev, groupWithImage]);
+      
+      await AsyncStorage.setItem('lastSelectedGroup', JSON.stringify(groupWithImage));
+      
       router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(groupWithImage) } });
     } catch (error) {
       console.error('Error creating group:', error);

@@ -1,5 +1,6 @@
 import { Tabs, useRouter, usePathname } from 'expo-router';
 import { Platform, Image, View, TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { globalStyles } from '../styles/globalStyles';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
@@ -20,6 +21,21 @@ export default function TabLayout() {
   const pathname = usePathname();
 
   const CustomTabBar = ({ navigation, state }: BottomTabBarProps) => {
+    const handleGroupsNavigation = async () => {
+      try {
+        const lastSelectedGroup = await AsyncStorage.getItem('lastSelectedGroup');
+        if (lastSelectedGroup) {
+          const groupData = JSON.parse(lastSelectedGroup);
+          router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(groupData) } });
+        } else {
+          router.push('/groups');
+        }
+      } catch (error) {
+        console.error('Error getting last selected group:', error);
+        router.push('/groups');
+      }
+    };
+
     return (
       <View style={Platform.OS === 'web' ? globalStyles.tabBarWeb : globalStyles.tabBar}>
         {routes.map((route, index) => {
@@ -38,7 +54,11 @@ export default function TabLayout() {
                 });
 
                 if (!event.defaultPrevented) {
-                  router.push(`/${route.name}` as `/${RouteName}`);
+                  if (route.name === 'groups') {
+                    handleGroupsNavigation();
+                  } else {
+                    router.push(`/${route.name}` as `/${RouteName}`);
+                  }
                 }
               }}
             >
