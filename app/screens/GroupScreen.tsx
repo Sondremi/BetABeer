@@ -1,13 +1,13 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, getIncomingRequest, getOutgoingRequest, sendFriendRequest } from '../services/friendService';
 import { deleteGroup, distributeDrinks, exitGroup, removeFriendFromGroup, sendGroupInvitation } from '../services/groupService';
-import { getGroupInvitation, updateGroupName, createGroup } from '../services/profileService';
+import { createGroup, getGroupInvitation, updateGroupName } from '../services/profileService';
 import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';

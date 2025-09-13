@@ -1,8 +1,8 @@
-import { Tabs, useRouter, usePathname } from 'expo-router';
-import { Platform, Image, View, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { globalStyles } from '../styles/globalStyles';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { Tabs, usePathname, useRouter } from 'expo-router';
+import { Image, Platform, TouchableOpacity, View } from 'react-native';
+import { globalStyles } from '../styles/globalStyles';
 
 const BeerIcon = require('../../assets/icons/noun-beer-7644526.png');
 const ProfileIcon = require('../../assets/icons/noun-profile-4808974.png');
