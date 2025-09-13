@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, getIncomingRequest, getOutgoingRequest, sendFriendRequest } from '../services/friendService';
 import { deleteGroup, distributeDrinks, exitGroup, removeFriendFromGroup, sendGroupInvitation } from '../services/groupService';
-import { getGroupInvitation } from '../services/profileService';
+import { getGroupInvitation, updateGroupName } from '../services/profileService';
 import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
@@ -451,11 +451,11 @@ const GroupScreen = () => {
     }
     setSaving(true);
     try {
-      await updateDoc(doc(firestore, 'groups', selectedGroup.id), { name: groupName });
+      await updateGroupName(selectedGroup.id, groupName.trim())
       setEditingName(false);
     } catch (error) {
       console.error('Error saving group name:', error);
-      showAlert('Feil', 'Kunne ikke oppdatere gruppenavn');
+      showAlert('Feil', `Kunne ikke oppdatere gruppenavn: ${(error as Error).message}`);
     } finally {
       setSaving(false);
     }
