@@ -32,6 +32,14 @@ service cloud.firestore {
               resource.data.groups.hasAll(request.resource.data.groups)
             )
           )
+        ) || (
+          // Allow updating drinksToDistribute and drinksToConsume fields by any authenticated user
+          request.auth != null &&
+          (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['drinksToDistribute']) ||
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['drinksToConsume']) ||
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['drinksToDistribute', 'drinksToConsume'])
+          )
         )
       );
       allow create: if request.auth != null && request.auth.uid == userId;
@@ -95,6 +103,18 @@ service cloud.firestore {
           request.resource.data.members.hasAny([request.auth.uid])
         )
       );
+      
+      // Transactions subcollection
+      match /transactions/{transactionId} {
+        // Allow members of the group to create and read transactions
+        allow create: if request.auth != null && 
+          get(/databases/$(database)/documents/groups/$(groupId)).data.members.hasAny([request.auth.uid]) &&
+          request.resource.data.fromUserId == request.auth.uid;
+        allow read: if request.auth != null && 
+          get(/databases/$(database)/documents/groups/$(groupId)).data.members.hasAny([request.auth.uid]);
+        allow list: if request.auth != null && 
+          get(/databases/$(database)/documents/groups/$(groupId)).data.members.hasAny([request.auth.uid]);
+      }
     }
 
     // Group Invitations Collection
@@ -102,7 +122,7 @@ service cloud.firestore {
       allow read: if true;
       allow create: if true;
       allow update: if true;
-      allow remove: if true;
+      allow delete: if true;
     }
   }
 }

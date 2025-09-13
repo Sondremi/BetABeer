@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, getFirestore, increment, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
@@ -657,10 +657,36 @@ const GroupScreen = () => {
         } else {
           newBets[selectCorrectBetIdx].correctOptionId = optionId;
           newBets[selectCorrectBetIdx].isFinished = true;
+          
+          // Calculate and update rewards for each wager
+          const finishedBet = newBets[selectCorrectBetIdx];
+          const wagers = finishedBet.wagers || [];
+          
+          // Process each wager individually
+          await Promise.all(wagers.map(async (wager: BetWager) => {
+            const userRef = doc(db, 'users', wager.userId);
+            
+            if (wager.optionId === optionId) {
+              // Winner: gets their own bet amount as distributable drinks
+              await updateDoc(userRef, {
+                [`drinksToDistribute.${wager.drinkType}.${wager.measureType}`]: increment(wager.amount)
+              });
+            } else {
+              // Loser: gets their own bet amount as drinks to consume
+              await updateDoc(userRef, {
+                [`drinksToConsume.${wager.drinkType}.${wager.measureType}`]: increment(wager.amount)
+              });
+            }
+          }));
         }
 
         await updateDoc(groupRef, { bets: newBets });
         setBets(newBets);
+        
+        // Refresh leaderboard data to show updated drink distributions
+        const updatedLeaderboard = await getLeaderboardData();
+        setLeaderboardData(updatedLeaderboard);
+        
         setSelectCorrectModalVisible(false);
       }
     } catch (error) {
@@ -753,16 +779,18 @@ const GroupScreen = () => {
       selectedGroup.members.map(async (userId: string) => {
         try {
           const userDoc = await getDoc(doc(firestore, 'users', userId));
+          const userData = userDoc.exists() ? userDoc.data() : {};
+          
           memberStats[userId] = {
             userId,
             username: usernames[userId] || 'Ukjent',
             betsWon: 0,
             betsLost: 0,
-            profilePicture: userDoc.exists() && userDoc.data().profileImage ? 
-              defaultProfileImageMap[userDoc.data().profileImage] || DefaultProfilePicture 
+            profilePicture: userData.profileImage ? 
+              defaultProfileImageMap[userData.profileImage] || DefaultProfilePicture 
               : DefaultProfilePicture,
-            drinksToConsume: {},
-            drinksToDistribute: {},
+            drinksToConsume: userData.drinksToConsume || {},
+            drinksToDistribute: userData.drinksToDistribute || {},
             transactions: [],
           };
         } catch (error) {
@@ -784,49 +812,40 @@ const GroupScreen = () => {
     const finishedBets = bets.filter(bet => bet.isFinished && bet.correctOptionId);
     finishedBets.forEach(bet => {
       const wagers = bet.wagers || [];
+      
+      // Only count wins and losses, don't modify drink amounts since they're already in Firestore
       wagers.forEach(wager => {
         const stats = memberStats[wager.userId];
         if (!stats) return;
 
         stats.username = usernames[wager.userId] || wager.username || 'Ukjent';
-        const drinkType = wager.drinkType;
-        const measureType = wager.measureType;
-        const amount = wager.amount;
-
-        if (!stats.drinksToConsume[drinkType]) stats.drinksToConsume[drinkType] = {};
-        if (!stats.drinksToDistribute[drinkType]) stats.drinksToDistribute[drinkType] = {};
-        if (!stats.drinksToConsume[drinkType][measureType]) stats.drinksToConsume[drinkType][measureType] = 0;
-        if (!stats.drinksToDistribute[drinkType][measureType]) stats.drinksToDistribute[drinkType][measureType] = 0;
-
+        
         if (wager.optionId === bet.correctOptionId) {
           stats.betsWon += 1;
-          stats.drinksToDistribute[drinkType][measureType]! += amount;
-
-          // Add transactions from losing wagers to this winner
-          const losingWagers = wagers.filter(w => w.optionId !== bet.correctOptionId);
-          losingWagers.forEach(losingWager => {
-            stats.transactions.push({
-              fromUserId: losingWager.userId,
-              fromUsername: usernames[losingWager.userId] || losingWager.username || 'Ukjent',
-              toUserId: wager.userId,
-              toUsername: stats.username,
-              drinkType,
-              measureType,
-              amount: losingWager.amount,
-              source: 'bet',
-              timestamp: wager.timestamp,
-            });
-          });
         } else {
           stats.betsLost += 1;
-          stats.drinksToConsume[drinkType][measureType]! += amount;
         }
       });
     });
 
-    // Collect distribution history
-    const groupDoc = await getDoc(doc(firestore, 'groups', selectedGroup.id));
-    const distributionHistory = groupDoc.data()?.distributionHistory || [];
+    // Collect distribution transactions from Firestore
+    const transactionsRef = collection(firestore, `groups/${selectedGroup.id}/transactions`);
+    const transactionsSnapshot = await getDocs(transactionsRef);
+    const distributionHistory: DrinkTransaction[] = transactionsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        fromUserId: data.fromUserId,
+        fromUsername: data.fromUsername,
+        toUserId: data.toUserId,
+        toUsername: data.toUsername,
+        drinkType: data.drinkType,
+        measureType: data.measureType,
+        amount: data.amount,
+        source: data.source,
+        timestamp: data.timestamp,
+      } as DrinkTransaction;
+    });
     
     distributionHistory.forEach((dist: DrinkTransaction) => {
       const receiverStats = memberStats[dist.toUserId];
@@ -916,25 +935,62 @@ const GroupScreen = () => {
 
   // Used in drink distribution UI to show member cards for selection
   const renderMemberCard = ({ item }: { item: Friend }) => (
-    <View style={{ width: '33.33%', padding: theme.spacing.sm, alignItems: 'center' }}>
+    <View style={{ width: '33.33%', padding: 4, alignItems: 'center' }}>
       <TouchableOpacity
         onPress={() => handleMemberTap(item.id)}
         disabled={distributingDrinks || Object.keys(userDrinksToDistribute).length === 0}
         style={[
-          { borderRadius: 8, padding: 4 },
-          selectedMember === item.id && { backgroundColor: theme.colors.primary + '20' }
+          { 
+            borderRadius: 12, 
+            padding: 8,
+            alignItems: 'center',
+            borderWidth: 2,
+            borderColor: selectedMember === item.id ? theme.colors.primary : theme.colors.border,
+            backgroundColor: selectedMember === item.id ? theme.colors.primary + '15' : theme.colors.surface,
+            minHeight: 90
+          },
+          (distributingDrinks || Object.keys(userDrinksToDistribute).length === 0) && {
+            opacity: 0.5
+          }
         ]}
       >
         <Image
           source={item.profilePicture}
-          style={[globalStyles.circularImage, { width: 60, height: 60, marginBottom: 4 }]}
+          style={[
+            globalStyles.circularImage, 
+            { 
+              width: 48, 
+              height: 48, 
+              marginBottom: 4,
+              borderWidth: 2,
+              borderColor: selectedMember === item.id ? theme.colors.primary : 'transparent'
+            }
+          ]}
         />
-        <Text style={[groupStyles.wagerUser, { fontSize: 12, color: theme.colors.text, textAlign: 'center' }]}>
+        <Text 
+          style={[
+            groupStyles.wagerUser, 
+            { 
+              fontSize: 11, 
+              color: selectedMember === item.id ? theme.colors.primary : theme.colors.text, 
+              textAlign: 'center',
+              fontWeight: selectedMember === item.id ? '600' : '500'
+            }
+          ]}
+          numberOfLines={1}
+        >
           {item.name}
         </Text>
-        <Text style={[globalStyles.secondaryText, { fontSize: 10, color: theme.colors.textSecondary, textAlign: 'center' }]}>
-          @{item.username}
-        </Text>
+        {selectedMember === item.id && (
+          <Text style={{ 
+            fontSize: 10, 
+            color: theme.colors.primary, 
+            fontWeight: '600',
+            marginTop: 2
+          }}>
+            ✓ Valgt
+          </Text>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -1134,7 +1190,6 @@ const GroupScreen = () => {
       </Text>
       <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
         {item.amount} {item.measureType} {item.drinkType}
-        {item.source === 'bet' ? ' (fra bets)' : ' (direkte utdeling)'}
       </Text>
     </View>
   );
@@ -1176,7 +1231,7 @@ const GroupScreen = () => {
             </Text>
           ) : (
             <Text style={[globalStyles.secondaryText, { fontSize: 11, color: theme.colors.textSecondary }]}> 
-              {totalReceived} mottatt, {totalDistributed} delt ut
+              {totalReceived} mottatt, {totalDistributed} tilgjengelig
             </Text>
           )}
         </View>
@@ -1297,108 +1352,179 @@ const GroupScreen = () => {
         <View style={globalStyles.modalContainer}>
           <View style={[
             globalStyles.modalContent, 
-            { padding: theme.spacing.md, borderRadius: theme.borderRadius.lg, maxHeight: '80%', width: '90%' }
+            { padding: theme.spacing.md, borderRadius: theme.borderRadius.lg, maxHeight: '85%', width: '95%' }
           ]}>
             <Text style={[
               globalStyles.modalTitle, 
-              { marginBottom: theme.spacing.md, fontSize: 18, fontWeight: '600', color: theme.colors.text }
+              { marginBottom: theme.spacing.md, fontSize: 20, fontWeight: '700', color: theme.colors.text, textAlign: 'center' }
             ]}>
-              Utdel drikker
+              🍻 Del ut drikker
             </Text>
             {Object.keys(userDrinksToDistribute).length > 0 ? (
-              <View>
-                <Text style={{ fontSize: 14, color: theme.colors.text, marginBottom: theme.spacing.sm }}>
-                  Tilgjengelige drikker:
-                </Text>
-                {Object.entries(userDrinksToDistribute).map(([drinkType, measures]) => (
-                  Object.entries(measures).map(([measureType, amount]) => (
-                    <Text key={`${drinkType}-${measureType}`} style={{ fontSize: 12, color: theme.colors.textSecondary, marginBottom: 4 }}>
-                      {amount} {measureType} {drinkType}
-                    </Text>
-                  ))
-                ))}
-                <Text style={{ fontSize: 14, color: theme.colors.text, marginVertical: theme.spacing.sm }}>
-                  Velg medlemmer:
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={{ 
+                  backgroundColor: theme.colors.surface, 
+                  padding: theme.spacing.sm, 
+                  borderRadius: theme.borderRadius.md,
+                  marginBottom: theme.spacing.md
+                }}>
+                  <Text style={{ fontSize: 16, color: theme.colors.text, marginBottom: theme.spacing.sm, fontWeight: '600' }}>
+                    🏆 Dine tilgjengelige drikker:
+                  </Text>
+                  {Object.entries(userDrinksToDistribute).map(([drinkType, measures]) => (
+                    Object.entries(measures).map(([measureType, amount]) => (
+                      <View key={`${drinkType}-${measureType}`} style={{ 
+                        flexDirection: 'row', 
+                        alignItems: 'center',
+                        backgroundColor: theme.colors.primary + '10',
+                        padding: 8,
+                        borderRadius: 6,
+                        marginBottom: 4 
+                      }}>
+                        <Text style={{ fontSize: 14, color: theme.colors.text, fontWeight: '500' }}>
+                          {amount} {measureType} {drinkType}
+                        </Text>
+                      </View>
+                    ))
+                  ))}
+                </View>
+
+                <Text style={{ fontSize: 16, color: theme.colors.text, marginBottom: theme.spacing.sm, fontWeight: '600' }}>
+                  👥 Velg mottaker:
                 </Text>
                 <FlatList
                   data={memberData}
                   renderItem={renderMemberCard}
                   keyExtractor={item => item.id}
                   numColumns={3}
-                  contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
-                  scrollEnabled
-                  showsVerticalScrollIndicator={false}
+                  scrollEnabled={false}
+                  style={{ marginBottom: theme.spacing.md }}
                 />
+
                 {selectedMember && (
-                  <View style={{ marginTop: theme.spacing.md }}>
-                    <Text style={{ fontSize: 14, color: theme.colors.text, marginBottom: theme.spacing.sm }}>
-                      Velg drikke å dele ut:
+                  <View style={{ 
+                    backgroundColor: theme.colors.surface, 
+                    padding: theme.spacing.md, 
+                    borderRadius: theme.borderRadius.md,
+                    marginBottom: theme.spacing.md 
+                  }}>
+                    <Text style={{ fontSize: 16, color: theme.colors.text, marginBottom: theme.spacing.sm, fontWeight: '600' }}>
+                      🍺 Velg drikke:
                     </Text>
                     {Object.entries(userDrinksToDistribute).map(([drinkType, measures]) => (
-                      <View key={drinkType}>
+                      <View key={drinkType} style={{ marginBottom: theme.spacing.sm }}>
                         {Object.entries(measures).map(([measureType, amount]) => (
                           <TouchableOpacity
                             key={`${drinkType}-${measureType}`}
                             onPress={() => handleDistributionSelect(drinkType as DrinkType, measureType as MeasureType)}
                             style={[
-                              { padding: 8, borderRadius: 8, marginBottom: 4, borderWidth: 1, borderColor: theme.colors.border },
+                              { 
+                                padding: 12, 
+                                borderRadius: 8, 
+                                marginBottom: 6, 
+                                borderWidth: 2, 
+                                borderColor: theme.colors.border,
+                                flexDirection: 'row',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                              },
                               selectedDistribution?.drinkType === drinkType && 
                               selectedDistribution?.measureType === measureType && 
-                              { backgroundColor: theme.colors.primary + '20' }
+                              { 
+                                backgroundColor: theme.colors.primary + '20',
+                                borderColor: theme.colors.primary
+                              }
                             ]}
                           >
-                            <Text style={{ color: theme.colors.text }}>
-                              {amount} {measureType} {drinkType}
+                            <Text style={{ 
+                              color: selectedDistribution?.drinkType === drinkType && 
+                                     selectedDistribution?.measureType === measureType ? 
+                                     theme.colors.primary : theme.colors.text,
+                              fontSize: 14,
+                              fontWeight: '500'
+                            }}>
+                              {measureType} {drinkType}
                             </Text>
+                            <View style={{
+                              backgroundColor: selectedDistribution?.drinkType === drinkType && 
+                                             selectedDistribution?.measureType === measureType ? 
+                                             theme.colors.primary : theme.colors.textSecondary,
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                              borderRadius: 12,
+                              minWidth: 24
+                            }}>
+                              <Text style={{ 
+                                color: theme.colors.background, 
+                                fontSize: 12, 
+                                fontWeight: '600',
+                                textAlign: 'center'
+                              }}>
+                                {amount}
+                              </Text>
+                            </View>
                           </TouchableOpacity>
                         ))}
                       </View>
                     ))}
+
                     {selectedDistribution && (
                       <View style={{ marginTop: theme.spacing.md }}>
-                        <Text style={{ fontSize: 14, color: theme.colors.text, marginBottom: theme.spacing.sm }}>
-                          Velg antall å dele ut av {selectedDistribution.measureType} {selectedDistribution.drinkType}:
+                        <Text style={{ fontSize: 14, color: theme.colors.text, marginBottom: theme.spacing.sm, fontWeight: '600' }}>
+                          📊 Antall å dele ut:
                         </Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: theme.spacing.md }}>
-                          {[1, 2, 3, 4, 5].map(num => (
-                            <TouchableOpacity
-                              key={num}
-                              onPress={() => handleDistributionAmountChange(num)}
-                              style={[
-                                { 
-                                  padding: 12,
-                                  borderRadius: 8,
-                                  minWidth: 44,
-                                  alignItems: 'center',
-                                  borderWidth: 1,
-                                  borderColor: theme.colors.border
-                                },
-                                selectedDistribution.amount === num && {
-                                  backgroundColor: theme.colors.primary + '20',
-                                  borderColor: theme.colors.primary
-                                }
-                              ]}
-                            >
-                              <Text style={{ 
-                                color: selectedDistribution.amount === num ? theme.colors.primary : theme.colors.text,
-                                fontSize: 16,
-                                fontWeight: selectedDistribution.amount === num ? '600' : '400'
-                              }}>
-                                {num}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
+                          {[1, 2, 3, 4, 5, 10].map(num => {
+                            const maxAvailable = userDrinksToDistribute[selectedDistribution.drinkType]?.[selectedDistribution.measureType] || 0;
+                            const isDisabled = num > maxAvailable;
+                            return (
+                              <TouchableOpacity
+                                key={num}
+                                onPress={() => !isDisabled && handleDistributionAmountChange(num)}
+                                disabled={isDisabled}
+                                style={[
+                                  { 
+                                    padding: 12,
+                                    borderRadius: 8,
+                                    minWidth: 44,
+                                    alignItems: 'center',
+                                    borderWidth: 2,
+                                    borderColor: isDisabled ? theme.colors.border + '50' : theme.colors.border,
+                                    backgroundColor: isDisabled ? theme.colors.surface + '50' : 'transparent'
+                                  },
+                                  selectedDistribution.amount === num && !isDisabled && {
+                                    backgroundColor: theme.colors.primary + '20',
+                                    borderColor: theme.colors.primary
+                                  }
+                                ]}
+                              >
+                                <Text style={{ 
+                                  color: isDisabled ? theme.colors.textSecondary + '50' :
+                                         selectedDistribution.amount === num ? theme.colors.primary : theme.colors.text,
+                                  fontSize: 16,
+                                  fontWeight: selectedDistribution.amount === num ? '700' : '500'
+                                }}>
+                                  {num}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
                         </View>
                         {selectedDistribution.amount > 0 && (
                           <TouchableOpacity
                             style={[
                               globalStyles.outlineButtonGold,
-                              { paddingVertical: 12, justifyContent: 'center', alignItems: 'center' }
+                              { 
+                                paddingVertical: 16, 
+                                justifyContent: 'center', 
+                                alignItems: 'center',
+                                borderRadius: 12
+                              }
                             ]}
                             onPress={handleConfirmDistribution}
                             disabled={distributingDrinks}
                           >
-                            <Text style={[globalStyles.outlineButtonGoldText, { fontSize: 16 }]}>
+                            <Text style={[globalStyles.outlineButtonGoldText, { fontSize: 16, fontWeight: '600' }]}>
                               Del ut {selectedDistribution.amount} {selectedDistribution.measureType} {selectedDistribution.drinkType}
                             </Text>
                           </TouchableOpacity>
@@ -1407,40 +1533,89 @@ const GroupScreen = () => {
                     )}
                   </View>
                 )}
+
                 {distributions.length > 0 && (
-                  <View style={{ marginTop: theme.spacing.lg }}>
-                    <Text style={{ fontSize: 14, color: theme.colors.text, marginBottom: theme.spacing.sm }}>
-                      Planlagte utdelinger:
+                  <View style={{ 
+                    backgroundColor: theme.colors.surface, 
+                    padding: theme.spacing.md, 
+                    borderRadius: theme.borderRadius.md,
+                    marginBottom: theme.spacing.md 
+                  }}>
+                    <Text style={{ fontSize: 16, color: theme.colors.text, marginBottom: theme.spacing.sm, fontWeight: '600' }}>
+                      📋 Planlagte utdelinger:
                     </Text>
                     {distributions.map((dist, idx) => {
                       const member = memberData.find(m => m.id === dist.userId);
                       return (
-                        <Text key={idx} style={{ color: theme.colors.textSecondary, marginBottom: 4 }}>
-                          {member?.name}: {dist.amount} {dist.measureType} {dist.drinkType}
-                        </Text>
+                        <View key={idx} style={{ 
+                          flexDirection: 'row', 
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          backgroundColor: theme.colors.primary + '10',
+                          padding: 10,
+                          borderRadius: 8,
+                          marginBottom: 6
+                        }}>
+                          <Text style={{ color: theme.colors.text, fontSize: 14, fontWeight: '500' }}>
+                            {member?.name}
+                          </Text>
+                          <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>
+                            {dist.amount} {dist.measureType} {dist.drinkType}
+                          </Text>
+                        </View>
                       );
                     })}
                     <TouchableOpacity
                       style={[
-                        globalStyles.outlineButtonGold,
-                        { paddingVertical: 8, justifyContent: 'center', alignItems: 'center', marginTop: theme.spacing.md }
+                        globalStyles.primaryButton,
+                        { 
+                          paddingVertical: 16, 
+                          justifyContent: 'center', 
+                          alignItems: 'center', 
+                          marginTop: theme.spacing.md,
+                          borderRadius: 12
+                        }
                       ]}
                       onPress={handleDistributeDrinks}
                       disabled={distributingDrinks}
                     >
-                      <Text style={globalStyles.outlineButtonGoldText}>Send alle</Text>
+                      <Text style={[globalStyles.primaryButtonText, { fontSize: 16, fontWeight: '600' }]}>
+                        🚀 Send alle ({distributions.length})
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 )}
-              </View>
+              </ScrollView>
             ) : (
-              <Text style={[globalStyles.emptyStateText, { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginVertical: theme.spacing.md }]}>
-                Ingen drikker tilgjengelig for utdeling
-              </Text>
+              <View style={{ 
+                alignItems: 'center', 
+                paddingVertical: theme.spacing.xl,
+                backgroundColor: theme.colors.surface,
+                borderRadius: theme.borderRadius.md,
+                marginVertical: theme.spacing.md
+              }}>
+                <Text style={{ fontSize: 48, marginBottom: theme.spacing.md }}>🏆</Text>
+                <Text style={[globalStyles.emptyStateText, { fontSize: 16, color: theme.colors.textSecondary, textAlign: 'center' }]}>
+                  Ingen drikker tilgjengelig for utdeling
+                </Text>
+                <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginTop: theme.spacing.sm }}>
+                  Vinn noen bets først! 🎯
+                </Text>
+              </View>
             )}
             <View style={[globalStyles.editButtonsContainer, { marginTop: theme.spacing.md }]}>
-              <TouchableOpacity onPress={() => setDistributeModalVisible(false)} disabled={distributingDrinks}>
-                <Text style={[globalStyles.cancelButtonText, { fontSize: 16, color: theme.colors.primary }]}>Lukk</Text>
+              <TouchableOpacity 
+                onPress={() => setDistributeModalVisible(false)} 
+                disabled={distributingDrinks}
+                style={{
+                  paddingVertical: 12,
+                  paddingHorizontal: 24,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border
+                }}
+              >
+                <Text style={[globalStyles.cancelButtonText, { fontSize: 16, color: theme.colors.text }]}>Lukk</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1817,7 +1992,7 @@ const GroupScreen = () => {
                         ) : (
                           <>
                             <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
-                              {Object.values(leaderboardData[1].drinksToDistribute).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} delt ut
+                              {Object.values(leaderboardData[1].drinksToDistribute).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} tilgjengelig
                             </Text>
                             <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
                               {Object.values(leaderboardData[1].drinksToConsume).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} mottatt
@@ -1866,7 +2041,7 @@ const GroupScreen = () => {
                         ) : (
                           <>
                             <Text style={{ fontSize: 13, color: theme.colors.background, textAlign: 'center', fontWeight: '500' }}>
-                              {Object.values(leaderboardData[0].drinksToDistribute).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} delt ut
+                              {Object.values(leaderboardData[0].drinksToDistribute).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} tilgjengelig
                             </Text>
                             <Text style={{ fontSize: 13, color: theme.colors.background, textAlign: 'center', fontWeight: '500' }}>
                               {Object.values(leaderboardData[0].drinksToConsume).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} mottatt
@@ -1916,7 +2091,7 @@ const GroupScreen = () => {
                         ) : (
                           <>
                             <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
-                              {Object.values(leaderboardData[2].drinksToDistribute).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} delt ut
+                              {Object.values(leaderboardData[2].drinksToDistribute).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} tilgjengelig
                             </Text>
                             <Text style={{ fontSize: 12, color: theme.colors.background, textAlign: 'center' }}>
                               {Object.values(leaderboardData[2].drinksToConsume).reduce((sum, drinkTypeObj) => sum + Object.values(drinkTypeObj || {}).reduce((s, v) => s + (v || 0), 0), 0)} mottatt
