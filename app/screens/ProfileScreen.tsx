@@ -534,7 +534,7 @@ const ProfileScreen: React.FC = () => {
           <Text style={globalStyles.secondaryText}>{user?.username || 'Brukernavn'}</Text>
         </View>
 
-        { /* Body Alcohol Level */ }
+        { /* Blood Alcohol Level */ }
         <View style={globalStyles.section}>
           <View style={globalStyles.inputGroup}>
             <Text style={globalStyles.sectionTitle}>Promillekalkulator</Text>
