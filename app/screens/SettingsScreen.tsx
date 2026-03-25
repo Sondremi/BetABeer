@@ -18,7 +18,6 @@ const SettingsScreen = () => {
     id: '',
     username: '',
     name: '',
-    phone: undefined as string | undefined,
     email: '',
     weight: undefined as number | undefined,
     gender: undefined as Gender | undefined,
@@ -44,7 +43,6 @@ const SettingsScreen = () => {
               id: currentUser.uid,
               username: userData.username || '',
               name: userData.name || '',
-              phone: userData.phone,
               email: userData.email || '',
               weight: userData.weight,
               gender: userData.gender,
@@ -95,7 +93,6 @@ const SettingsScreen = () => {
 
       await authService.updateUser(userInfo.id, {
         name: editedInfo.name,
-        phone: editedInfo.phone,
         email: editedInfo.email,
         weight: editedInfo.weight,
         gender: editedInfo.gender,
@@ -267,25 +264,6 @@ const SettingsScreen = () => {
               ) : (
                 <View style={globalStyles.readOnlyInput}>
                   <Text style={settingsStyles.readOnlyText}>{userInfo.name}</Text>
-                </View>
-              )}
-            </View>
-
-            {/* Phone */}
-            <View style={globalStyles.inputGroup}>
-              <Text style={globalStyles.label}>Telefonnummer</Text>
-              {isEditing ? (
-                <TextInput
-                  style={[globalStyles.input, { height: 40 }]}
-                  value={editedInfo.phone}
-                  onChangeText={(text) => setEditedInfo({ ...editedInfo, phone: text })}
-                  placeholder="Skriv inn telefonnummer"
-                  placeholderTextColor={theme.colors.textMuted}
-                  keyboardType="phone-pad"
-                />
-              ) : (
-                <View style={globalStyles.readOnlyInput}>
-                  <Text style={settingsStyles.readOnlyText}>{userInfo.phone}</Text>
                 </View>
               )}
             </View>

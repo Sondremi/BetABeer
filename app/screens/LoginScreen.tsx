@@ -1,4 +1,3 @@
-import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -6,7 +5,6 @@ import { authService } from '../services/firebase/authService';
 import { loginStyles } from '../styles/components/loginStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
-import { Gender } from '../types/userTypes';
 import { showAlert } from '../utils/platformAlert';
 
 const LoginScreen: React.FC = () => {
@@ -16,10 +14,7 @@ const LoginScreen: React.FC = () => {
     username: '',
     password: '',
     name: '',
-    phone: undefined as string | undefined,
     email: '',
-    weight: undefined as number | undefined,
-    gender: undefined as Gender | undefined,
     confirmPassword: '',
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -73,11 +68,6 @@ const LoginScreen: React.FC = () => {
       return false;
     }
 
-    if (formData.weight !== undefined && (isNaN(formData.weight) || formData.weight <= 0)) {
-      showAlert('Feil', 'Vekt må være et positivt tall');
-      return false;
-    }
-
     try {
       const usernameExists = await authService.checkUsernameExists(formData.username);
       if (usernameExists) {
@@ -107,7 +97,7 @@ const LoginScreen: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const user = await authService.loginUser(formData.email, formData.password);
+      await authService.loginUser(formData.email, formData.password);
       setIsLoading(false);
       router.replace('/(tabs)/profile');
     } catch (error) {
@@ -123,7 +113,7 @@ const LoginScreen: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const user = await authService.createUser(formData);
+      await authService.createUser(formData);
       setIsLoading(false);
       router.replace('/(tabs)/profile');
     } catch (error) {
@@ -149,10 +139,7 @@ const LoginScreen: React.FC = () => {
       username: '',
       password: '',
       name: '',
-      phone: '',
       email: '',
-      weight: undefined,
-      gender: undefined,
       confirmPassword: '',
     });
   };
@@ -237,47 +224,6 @@ const LoginScreen: React.FC = () => {
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
-              </View>
-              <View style={globalStyles.inputGroup}>
-                <Text style={globalStyles.label}>Telefonnummer</Text>
-                <TextInput
-                  style={globalStyles.input}
-                  value={formData.phone}
-                  onChangeText={(text) => setFormData({ ...formData, phone: text })}
-                  placeholder="Skriv inn telefonnummer"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  keyboardType="phone-pad"
-                />
-              </View>
-              <View style={globalStyles.inputGroup}>
-                <Text style={globalStyles.label}>Vekt (kg)</Text>
-                <TextInput
-                  style={globalStyles.input}
-                  value={formData.weight ? formData.weight.toString() : ''}
-                  onChangeText={(text) => {
-                    const value = text ? parseInt(text) : undefined;
-                    if (value === undefined || !isNaN(value)) {
-                      setFormData({ ...formData, weight: value });
-                    }
-                  }}
-                  placeholder="Skriv inn vekt"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  keyboardType="numeric"
-                />
-              </View>
-              <View style={globalStyles.inputGroup}>
-                <Text style={globalStyles.label}>Kjønn</Text>
-                <View style={[globalStyles.input, { paddingVertical: 0, justifyContent: 'center', height: 60 }]}>
-                  <Picker
-                    style={globalStyles.input}
-                    selectedValue={formData.gender || ''}
-                    onValueChange={(value: Gender | '') => setFormData({ ...formData, gender: value || undefined })}
-                  >
-                    <Picker.Item label="Velg kjønn" value="" />
-                    <Picker.Item label="Mann" value="male" />
-                    <Picker.Item label="Kvinne" value="female" />
-                  </Picker>
-                </View>
               </View>
             </>
           )}
