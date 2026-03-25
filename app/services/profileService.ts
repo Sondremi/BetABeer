@@ -1,6 +1,5 @@
-import { DrinkEntry } from '@/app/types/drinkTypes';
 import { addDoc, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
-import { Group, GroupInvitation } from '../types/drinkTypes';
+import { DrinkEntry, Group, GroupInvitation } from '../types/drinkTypes';
 import { auth, firestore } from './firebase/FirebaseConfig';
 
 export const getGroupInvitation = async (currentUserId: string) : Promise<GroupInvitation[]> => {
@@ -107,13 +106,27 @@ export const updateGroupName = async(groupId: string, newName: string): Promise<
 
 export const profileService = {
   async getUserData(userId: string): Promise<{ weight?: number; gender?: 'male' | 'female'; drinks?: DrinkEntry[] }> {
-    const userDoc = await getDoc(doc(firestore, 'users', userId));
+    const userRef = doc(firestore, 'users', userId);
+    const userDoc = await getDoc(userRef);
     if (userDoc.exists()) {
       const data = userDoc.data();
+      const drinks = (data.drinks || []) as DrinkEntry[];
+      const latestDrinkTimestamp = drinks.length > 0 ? Math.max(...drinks.map(drink => drink.timestamp)) : null;
+      const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+
+      if (latestDrinkTimestamp && Date.now() - latestDrinkTimestamp >= twentyFourHoursMs) {
+        await updateDoc(userRef, { drinks: [] });
+        return {
+          weight: data.weight,
+          gender: data.gender,
+          drinks: [],
+        };
+      }
+
       return {
         weight: data.weight,
         gender: data.gender,
-        drinks: data.drinks || [],
+        drinks,
       };
     }
     return {};
