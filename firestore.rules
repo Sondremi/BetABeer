@@ -43,7 +43,7 @@ service cloud.firestore {
         )
       );
       allow create: if request.auth != null && request.auth.uid == userId;
-      allow delete: if false;
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // Friend Requests Collection

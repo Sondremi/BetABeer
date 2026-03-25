@@ -93,13 +93,26 @@ export const authService = {
 
   deleteUser: async (userId) => {
     try {
-      await deleteDoc(doc(firestore, 'users', userId));
       const currentUser = auth.currentUser;
-      if (currentUser && currentUser.uid === userId) {
-        await currentUser.delete();
+      if (!currentUser || currentUser.uid !== userId) {
+        throw new Error('unauthorized-delete-attempt');
       }
+
+      await deleteDoc(doc(firestore, 'users', userId));
+      await currentUser.delete();
     } catch (error) {
       console.error('Delete user error:', error);
+      if (error && typeof error === 'object' && 'code' in error) {
+        const errorCode = String(error.code);
+        if (errorCode === 'auth/requires-recent-login') {
+          throw new Error('requires-recent-login');
+        }
+      }
+
+      if (error instanceof Error && error.message === 'unauthorized-delete-attempt') {
+        throw new Error('Du kan bare slette din egen bruker');
+      }
+
       throw new Error('Kunne ikke slette bruker');
     }
   },
