@@ -1,8 +1,21 @@
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  ActivityIndicator,
+  Animated,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { authService } from '../services/firebase/authService';
-import { loginStyles } from '../styles/components/loginStyles';
+import { loginStyles } from '@/app/styles/components/loginStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import { showAlert } from '../utils/platformAlert';
@@ -18,6 +31,44 @@ const LoginScreen: React.FC = () => {
     confirmPassword: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [activeField, setActiveField] = useState<string | null>(null);
+  const [modeSwitchWidth, setModeSwitchWidth] = useState(0);
+  const shineAnim = useRef(new Animated.Value(-1)).current;
+  const modeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shineAnim, {
+          toValue: 1.2,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+        Animated.delay(2100),
+        Animated.timing(shineAnim, {
+          toValue: -1,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    loop.start();
+
+    return () => {
+      loop.stop();
+    };
+  }, [shineAnim]);
+
+  useEffect(() => {
+    Animated.timing(modeAnim, {
+      toValue: isLoginMode ? 0 : 1,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  }, [isLoginMode, modeAnim]);
 
   const validateForm = async () => {
     if (isLoginMode) {
@@ -142,6 +193,8 @@ const LoginScreen: React.FC = () => {
       email: '',
       confirmPassword: '',
     });
+    setShowPassword(false);
+    setShowConfirmPassword(false);
   };
 
   const toggleMode = () => {
@@ -153,6 +206,7 @@ const LoginScreen: React.FC = () => {
     <KeyboardAvoidingView
       style={[
         Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container,
+        loginStyles.darkContainer,
         { padding: 0 }
       ]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -160,135 +214,277 @@ const LoginScreen: React.FC = () => {
       <ScrollView
         contentContainerStyle={[
           globalStyles.scrollContent,
-          !isLoginMode && { paddingTop: 80 }
+          loginStyles.screenContent,
+          !isLoginMode && loginStyles.screenContentRegister,
         ]}
+        showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Logo/Header */}
-        <View style={globalStyles.headerCentered}>
+        <View style={loginStyles.backgroundLayer} pointerEvents="none">
+          <LinearGradient
+            colors={['#0B0F1A', '#02040A']}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={loginStyles.backgroundGradient}
+          />
+        </View>
+
+        <View style={loginStyles.brandSection}>
+          <Image
+            source={require('../../assets/images/logo/Logo_nobg_shdw.png')}
+            style={loginStyles.brandLogo}
+            resizeMode="contain"
+          />
           <Text style={loginStyles.appName}>BetABeer</Text>
           <Text style={loginStyles.welcomeText}>
             {isLoginMode ? 'Velkommen tilbake!' : 'Opprett ny bruker'}
           </Text>
         </View>
 
-        {/* Login Form */}
-        <View style={globalStyles.formContainer}>
-          {isLoginMode ? (
-            <View style={globalStyles.inputGroup}>
-              <Text style={globalStyles.label}>E-postadresse</Text>
-              <TextInput
-                style={globalStyles.input}
-                value={formData.email}
-                onChangeText={(text) => setFormData({ ...formData, email: text })}
-                placeholder="Skriv inn e-postadresse"
-                placeholderTextColor={theme.colors.textSecondary}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-          ) : (
-            <>
-              <View style={globalStyles.inputGroup}>
-                <Text style={globalStyles.label}>Brukernavn</Text>
-                <TextInput
-                  style={globalStyles.input}
-                  value={formData.username}
-                  onChangeText={(text) => setFormData({ ...formData, username: text })}
-                  placeholder="Skriv inn brukernavn"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-              <View style={globalStyles.inputGroup}>
-                <Text style={globalStyles.label}>Navn</Text>
-                <TextInput
-                  style={globalStyles.input}
-                  value={formData.name}
-                  onChangeText={(text) => setFormData({ ...formData, name: text })}
-                  placeholder="Skriv inn fullt navn"
-                  placeholderTextColor={theme.colors.textSecondary}
-                />
-              </View>
-              <View style={globalStyles.inputGroup}>
-                <Text style={globalStyles.label}>E-postadresse</Text>
-                <TextInput
-                  style={globalStyles.input}
-                  value={formData.email}
-                  onChangeText={(text) => setFormData({ ...formData, email: text })}
-                  placeholder="Skriv inn e-postadresse"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-            </>
-          )}
+        <View style={loginStyles.cardWrapper}>
+          <View style={loginStyles.cardBorderFade} pointerEvents="none" />
 
-          <View style={globalStyles.inputGroup}>
-            <Text style={globalStyles.label}>Passord</Text>
-            <TextInput
-              style={globalStyles.input}
-              value={formData.password}
-              onChangeText={(text) => setFormData({ ...formData, password: text })}
-              placeholder="Skriv inn passord"
-              placeholderTextColor={theme.colors.textSecondary}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              textContentType="oneTimeCode"
+          <View style={loginStyles.authCard}>
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0)']}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={loginStyles.cardHighlight}
+              pointerEvents="none"
             />
-          </View>
 
-          {!isLoginMode && (
-            <View style={globalStyles.inputGroup}>
-              <Text style={globalStyles.label}>Bekreft passord</Text>
-              <TextInput
-                style={globalStyles.input}
-                value={formData.confirmPassword}
-                onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
-                placeholder="Bekreft passord"
-                placeholderTextColor={theme.colors.textSecondary}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                textContentType="oneTimeCode"
-              />
+            <LinearGradient
+              colors={['rgba(31, 36, 51, 0.98)', 'rgba(18, 22, 33, 0.95)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={loginStyles.authCardGradient}
+            >
+            <View
+              style={loginStyles.modeSwitchContainer}
+              onLayout={(event) => setModeSwitchWidth(event.nativeEvent.layout.width)}
+            >
+              {modeSwitchWidth > 0 && (
+                <Animated.View
+                  style={[
+                    loginStyles.modeSwitchIndicator,
+                    {
+                      width: (modeSwitchWidth - 8) / 2,
+                      transform: [
+                        {
+                          translateX: modeAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, (modeSwitchWidth - 8) / 2],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                />
+              )}
+
+              <TouchableOpacity
+                style={[loginStyles.modeButton, isLoginMode && loginStyles.modeButtonActive]}
+                onPress={() => {
+                  if (!isLoginMode) {
+                    toggleMode();
+                  }
+                }}
+              >
+                <Text style={[loginStyles.modeButtonText, isLoginMode && loginStyles.modeButtonTextActive]}>
+                  Logg inn
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[loginStyles.modeButton, !isLoginMode && loginStyles.modeButtonActive]}
+                onPress={() => {
+                  if (isLoginMode) {
+                    toggleMode();
+                  }
+                }}
+              >
+                <Text style={[loginStyles.modeButtonText, !isLoginMode && loginStyles.modeButtonTextActive]}>
+                  Registrer deg
+                </Text>
+              </TouchableOpacity>
             </View>
-          )}
 
-          {/* Action Button */}
-          <TouchableOpacity
-            style={[globalStyles.primaryButtonShadow, isLoading && globalStyles.disabledButton]}
-            onPress={isLoginMode ? handleLogin : handleRegister}
-            disabled={isLoading}
-          >
-            <Text style={globalStyles.primaryButtonText}>
-              {isLoading
-                ? 'Venter...'
-                : isLoginMode
-                  ? 'Logg inn'
-                  : 'Opprett bruker'
-              }
-            </Text>
-          </TouchableOpacity>
+            {isLoginMode ? (
+              <View style={[globalStyles.inputGroup, loginStyles.formInputGroup]}>
+                <Text style={loginStyles.fieldLabel}>E-postadresse</Text>
+                <View style={[loginStyles.inputShell, activeField === 'email' && loginStyles.inputShellFocused]}>
+                  <TextInput
+                    style={[globalStyles.input, loginStyles.authInput]}
+                    value={formData.email}
+                    onChangeText={(text) => setFormData({ ...formData, email: text })}
+                    onFocus={() => setActiveField('email')}
+                    onBlur={() => setActiveField(null)}
+                    placeholder="Skriv inn e-postadresse"
+                    placeholderTextColor={theme.colors.textSecondary}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+              </View>
+            ) : (
+              <>
+                <View style={[globalStyles.inputGroup, loginStyles.formInputGroup]}>
+                  <Text style={loginStyles.fieldLabel}>Brukernavn</Text>
+                  <View style={[loginStyles.inputShell, activeField === 'username' && loginStyles.inputShellFocused]}>
+                    <TextInput
+                      style={[globalStyles.input, loginStyles.authInput]}
+                      value={formData.username}
+                      onChangeText={(text) => setFormData({ ...formData, username: text })}
+                      onFocus={() => setActiveField('username')}
+                      onBlur={() => setActiveField(null)}
+                      placeholder="Skriv inn brukernavn"
+                      placeholderTextColor={theme.colors.textSecondary}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+                </View>
+                <View style={[globalStyles.inputGroup, loginStyles.formInputGroup]}>
+                  <Text style={loginStyles.fieldLabel}>Navn</Text>
+                  <View style={[loginStyles.inputShell, activeField === 'name' && loginStyles.inputShellFocused]}>
+                    <TextInput
+                      style={[globalStyles.input, loginStyles.authInput]}
+                      value={formData.name}
+                      onChangeText={(text) => setFormData({ ...formData, name: text })}
+                      onFocus={() => setActiveField('name')}
+                      onBlur={() => setActiveField(null)}
+                      placeholder="Skriv inn navn"
+                      placeholderTextColor={theme.colors.textSecondary}
+                    />
+                  </View>
+                </View>
+                <View style={[globalStyles.inputGroup, loginStyles.formInputGroup]}>
+                  <Text style={loginStyles.fieldLabel}>E-postadresse</Text>
+                  <View style={[loginStyles.inputShell, activeField === 'registerEmail' && loginStyles.inputShellFocused]}>
+                    <TextInput
+                      style={[globalStyles.input, loginStyles.authInput]}
+                      value={formData.email}
+                      onChangeText={(text) => setFormData({ ...formData, email: text })}
+                      onFocus={() => setActiveField('registerEmail')}
+                      onBlur={() => setActiveField(null)}
+                      placeholder="Skriv inn e-postadresse"
+                      placeholderTextColor={theme.colors.textSecondary}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+                </View>
+              </>
+            )}
 
-          {/* Toggle Mode */}
-          <View style={loginStyles.toggleContainer}>
-            <Text style={loginStyles.toggleText}>
-              {isLoginMode
-                ? 'Har du ikke en bruker?'
-                : 'Har du allerede en bruker?'
-              }
-            </Text>
-            <TouchableOpacity onPress={toggleMode}>
-              <Text style={loginStyles.toggleLink}>
-                {isLoginMode ? 'Opprett ny bruker' : 'Logg inn her'}
-              </Text>
+            <View style={[globalStyles.inputGroup, loginStyles.formInputGroup]}>
+              <Text style={loginStyles.fieldLabel}>Passord</Text>
+              <View style={[loginStyles.inputShellWithIcon, activeField === 'password' && loginStyles.inputShellFocused]}>
+                <TextInput
+                  style={[globalStyles.input, loginStyles.authInput, loginStyles.authInputWithIcon]}
+                  value={formData.password}
+                  onChangeText={(text) => setFormData({ ...formData, password: text })}
+                  onFocus={() => setActiveField('password')}
+                  onBlur={() => setActiveField(null)}
+                  placeholder="Skriv inn passord"
+                  placeholderTextColor={theme.colors.textSecondary}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="oneTimeCode"
+                />
+                <TouchableOpacity
+                  style={loginStyles.eyeButton}
+                  onPress={() => setShowPassword((prev) => !prev)}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={22}
+                    color={theme.colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {!isLoginMode && (
+              <View style={[globalStyles.inputGroup, loginStyles.formInputGroup]}>
+                <Text style={loginStyles.fieldLabel}>Bekreft passord</Text>
+                <View style={[loginStyles.inputShellWithIcon, activeField === 'confirmPassword' && loginStyles.inputShellFocused]}>
+                  <TextInput
+                    style={[globalStyles.input, loginStyles.authInput, loginStyles.authInputWithIcon]}
+                    value={formData.confirmPassword}
+                    onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+                    onFocus={() => setActiveField('confirmPassword')}
+                    onBlur={() => setActiveField(null)}
+                    placeholder="Bekreft passord"
+                    placeholderTextColor={theme.colors.textSecondary}
+                    secureTextEntry={!showConfirmPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textContentType="oneTimeCode"
+                  />
+                  <TouchableOpacity
+                    style={loginStyles.eyeButton}
+                    onPress={() => setShowConfirmPassword((prev) => !prev)}
+                  >
+                    <Ionicons
+                      name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={22}
+                      color={theme.colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[
+                loginStyles.ctaButton,
+                isLoading && globalStyles.disabledButton,
+              ]}
+              onPress={isLoginMode ? handleLogin : handleRegister}
+              disabled={isLoading}
+            >
+              <LinearGradient
+                colors={['#D4AF37', '#F6D365']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={loginStyles.ctaGradient}
+              >
+                <View style={loginStyles.ctaContentRow}>
+                  {isLoading && <ActivityIndicator size="small" color="#1E1806" style={loginStyles.ctaLoader} />}
+                  <Text style={[globalStyles.primaryButtonText, loginStyles.ctaButtonText]}>
+                    {isLoading
+                      ? isLoginMode
+                        ? 'Logger inn...'
+                        : 'Oppretter...'
+                      : isLoginMode
+                        ? 'Logg inn'
+                        : 'Opprett bruker'
+                    }
+                  </Text>
+                </View>
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    loginStyles.ctaShineSweep,
+                    {
+                      transform: [
+                        {
+                          translateX: shineAnim.interpolate({
+                            inputRange: [-1, 1.2],
+                            outputRange: [-220, 280],
+                          }),
+                        },
+                        { skewX: '-20deg' },
+                      ],
+                    },
+                  ]}
+                />
+              </LinearGradient>
             </TouchableOpacity>
+            </LinearGradient>
           </View>
         </View>
       </ScrollView>
