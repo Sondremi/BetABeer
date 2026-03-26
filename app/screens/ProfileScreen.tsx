@@ -3,7 +3,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { Dimensions, FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useAuth } from '../context/AuthContext';
@@ -435,7 +435,7 @@ const ProfileScreen: React.FC = () => {
     );
   }
 
-  const renderGroupItem = ({ item }: { item: Group }) => (
+  const renderGroupItem = (item: Group) => (
     <TouchableOpacity style={profileStyles.groupItem} onPress={() => navigateToGroup(item)}>
       <Image source={item.image} style={globalStyles.groupHeaderImage} />
       <View style={globalStyles.overlay}>
@@ -445,7 +445,7 @@ const ProfileScreen: React.FC = () => {
     </TouchableOpacity>
   );
 
-  const renderInvitationItem = ({ item }: { item: GroupInvitation }) => (
+  const renderInvitationItem = (item: GroupInvitation) => (
     <View style={[globalStyles.listItemRow, { paddingVertical: 10 }]}>
       <View style={{ flex: 1, paddingBottom: 0 }}>
         <Text style={globalStyles.modalText}>{item.groupName}</Text>
@@ -662,15 +662,13 @@ const ProfileScreen: React.FC = () => {
             )}
           </View>
           {groupInvitations.length > 0 ? (
-            <FlatList
-              data={groupInvitations}
-              renderItem={renderInvitationItem}
-              keyExtractor={(item) => `${item.groupId}_${item.groupName}`}
-              contentContainerStyle={globalStyles.listContainer}
-              scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
-              ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-            />
+            <View style={globalStyles.listContainer}>
+              {groupInvitations.map((item) => (
+                <View key={`${item.id}_${item.groupId}`} style={{ marginBottom: theme.spacing.sm }}>
+                  {renderInvitationItem(item)}
+                </View>
+              ))}
+            </View>
           ) : (
             <Text style={globalStyles.emptyStateText}>Ingen invitasjoner</Text>
           )}
@@ -693,15 +691,17 @@ const ProfileScreen: React.FC = () => {
               </Text>
             </TouchableOpacity>
           </View>
-          <FlatList
-            data={groups}
-            renderItem={renderGroupItem}
-            keyExtractor={(item) => item.id}
-            numColumns={2}
-            columnWrapperStyle={profileStyles.groupRow}
-            scrollEnabled={false}
-            showsVerticalScrollIndicator={false}
-          />
+          <View>
+            {Array.from({ length: Math.ceil(groups.length / 2) }, (_, rowIndex) => {
+              const rowItems = groups.slice(rowIndex * 2, rowIndex * 2 + 2);
+              return (
+                <View key={`group-row-${rowIndex}`} style={profileStyles.groupRow}>
+                  {rowItems.map((item) => renderGroupItem(item))}
+                  {rowItems.length === 1 && <View style={{ width: '48%' }} />}
+                </View>
+              );
+            })}
+          </View>
           <Modal
             visible={createGroupModalVisible}
             animationType="slide"

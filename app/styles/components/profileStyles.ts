@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
-import { theme } from '../theme';
 import { globalStyles } from '../globalStyles';
+import { theme } from '../theme';
 
 export const profileStyles = StyleSheet.create({
   headerButtons: {
@@ -40,6 +40,7 @@ export const profileStyles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   groupRow: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: theme.spacing.lg,
   },
