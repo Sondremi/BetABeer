@@ -2,18 +2,24 @@ import { addDoc, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, query,
 import { DrinkEntry, Group, GroupInvitation } from '../types/drinkTypes';
 import { auth, firestore } from './firebase/FirebaseConfig';
 
+const GROUP_INVITATIONS_COLLECTION = 'group_invitations';
+
 export const getGroupInvitation = async (currentUserId: string) : Promise<GroupInvitation[]> => {
-  const groupInvitationRef = collection(firestore, "group_invitations");
+  const groupInvitationRef = collection(firestore, GROUP_INVITATIONS_COLLECTION);
   const q = query(
     groupInvitationRef,
     where("toUserId", "==", currentUserId),
     where("status", "==", "pending")
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as GroupInvitation[];
+  return snapshot.docs.map((docSnap) => {
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      ...data,
+      groupName: data.groupName || data.group_name || 'Group',
+    };
+  }) as GroupInvitation[];
 };
 
 export const acceptGroupInvitation = async (group: GroupInvitation) : Promise<void> => {
@@ -23,9 +29,9 @@ export const acceptGroupInvitation = async (group: GroupInvitation) : Promise<vo
         console.log("Bruker ikke autorisert");
         return;
     }
-    const invitationRef = doc(firestore, "group_invitations", group.id);
+    const invitationRef = doc(firestore, GROUP_INVITATIONS_COLLECTION, group.id);
     const groupRef = doc(firestore, "groups", group.groupId);
-    const userRef = doc(firestore, "users", group.toUserId);
+    const userRef = doc(firestore, "users", currentUser.uid);
     await Promise.all([
         updateDoc(groupRef, {members: arrayUnion(group.toUserId)}),
         updateDoc(userRef, {groups: arrayUnion(group.groupId)}),
@@ -45,7 +51,7 @@ export const declineGroupInvitation = async (requestId: string) => {
         return;
     }
   try {
-    const groupInvitationRef = doc(firestore, "group_invitations", requestId);
+    const groupInvitationRef = doc(firestore, GROUP_INVITATIONS_COLLECTION, requestId);
     await deleteDoc(groupInvitationRef);
     console.log("Invitasjon avslått og slettet", requestId);
   } catch (error) {
@@ -91,13 +97,19 @@ export const updateGroupName = async(groupId: string, newName: string): Promise<
     try {
         const groupRef = doc(firestore, 'groups', groupId)
         await updateDoc(groupRef, {name: newName})
-        const inviteQuery = query(collection(firestore, 'group_invitations'), where('groupId', '==', groupId))
+        const inviteQuery = query(collection(firestore, GROUP_INVITATIONS_COLLECTION), where('groupId', '==', groupId))
         const inviteSnapshot = await getDocs(inviteQuery)
-        const updatePromises = inviteSnapshot.docs.map(async (invDoc) => {
-            console.log(`Attempting to update invitation ${invDoc.id} with groupName: ${newName}`);
-            return updateDoc(doc(firestore, 'group_invitations', invDoc.id), {groupName: newName})
-        })
-        await Promise.all(updatePromises)
+        const updatePromises = inviteSnapshot.docs.map((invDoc) => (
+          updateDoc(doc(firestore, GROUP_INVITATIONS_COLLECTION, invDoc.id), {
+            groupName: newName,
+            group_name: newName,
+          })
+        ));
+        const updateResults = await Promise.allSettled(updatePromises);
+        const failedUpdates = updateResults.filter((result) => result.status === 'rejected').length;
+        if (failedUpdates > 0) {
+          console.warn(`Updated group name, but failed to update ${failedUpdates} invitation document(s).`);
+        }
     } catch (error) {
         console.error(error)
         throw new Error(`${(error as Error).message}`)

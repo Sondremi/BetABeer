@@ -4,9 +4,10 @@ import { defaultProfileImageMap } from '../utils/defaultProfileImages';
 import { auth, firestore } from './firebase/FirebaseConfig';
 
 const DefaultProfilePicture = require('../../assets/images/default/default_profilepicture.png');
+const FRIEND_REQUESTS_COLLECTION = 'friendRequests';
 
 export const listenToIncomingRequests = (currentUserId: string, callback: (requests: FriendRequest[]) => void) => {
-  const friendRequestRef = collection(firestore, "friendRequests");
+  const friendRequestRef = collection(firestore, FRIEND_REQUESTS_COLLECTION);
   const q = query(
     friendRequestRef,
     where("toUserId", "==", currentUserId),
@@ -32,7 +33,7 @@ export const listenToIncomingRequests = (currentUserId: string, callback: (reque
 };
 
 export const listenToOutgoingRequests = (currentUserId: string, callback: (requests: FriendRequest[]) => void) => {
-  const friendRequestRef = collection(firestore, "friendRequests");
+  const friendRequestRef = collection(firestore, FRIEND_REQUESTS_COLLECTION);
   const q = query(
     friendRequestRef,
     where("fromUserId", "==", currentUserId),
@@ -100,26 +101,29 @@ export const sendFriendRequest = async (toUserId: string) => {
   if (toUserId === currentUser.uid) {
     throw new Error('Kan ikke sende venneforespørsel til deg selv')
   }
-  const friendRequestRef = collection(firestore, "friendRequests");
+  const friendRequestRef = collection(firestore, FRIEND_REQUESTS_COLLECTION);
   // Get current user's profile data
   const currentUserDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
   const currentUserData = currentUserDoc.data();
-
-  const docRef = await addDoc(friendRequestRef, {
+  const payload: Record<string, unknown> = {
     fromUserId: currentUser.uid,
     toUserId,
-    status: "pending",
+    status: 'pending',
     createdAt: serverTimestamp(),
     fromUserName: currentUserData?.name || 'Ukjent',
     fromUsername: currentUserData?.username || 'ukjent',
-    fromUserProfileImage: currentUserData?.profileImage,
-  });
+  };
+  if (currentUserData?.profileImage) {
+    payload.fromUserProfileImage = currentUserData.profileImage;
+  }
+
+  const docRef = await addDoc(friendRequestRef, payload);
   console.log("Venneforespørsel opprettet", docRef.id);
   return docRef.id;
 };
 
 export const getIncomingRequest = async (currentUserId: string) : Promise<FriendRequest[]> => {
-  const friendRequestRef = collection(firestore, "friendRequests");
+  const friendRequestRef = collection(firestore, FRIEND_REQUESTS_COLLECTION);
   const q = query(
     friendRequestRef,
     where("toUserId", "==", currentUserId),
@@ -134,7 +138,7 @@ export const getIncomingRequest = async (currentUserId: string) : Promise<Friend
 
 export const cancelFriendRequest = async (requestId: string) => {
   try {
-    const requestDocRef = doc(firestore, 'friendRequests', requestId);
+    const requestDocRef = doc(firestore, FRIEND_REQUESTS_COLLECTION, requestId);
     await deleteDoc(requestDocRef);
     console.log('Friend request cancelled', requestId);
   } catch(error) {
@@ -144,7 +148,7 @@ export const cancelFriendRequest = async (requestId: string) => {
 };
 
 export const getOutgoingRequest = async (currentUserId: string) : Promise<FriendRequest[]> => {
-  const friendRequestRef = collection(firestore, "friendRequests");
+  const friendRequestRef = collection(firestore, FRIEND_REQUESTS_COLLECTION);
   const q = query(
     friendRequestRef,
     where("fromUserId", "==", currentUserId),
@@ -182,7 +186,7 @@ export const acceptFriendRequest = async (requestId: string, fromUserId: string,
       updateDoc(fromUserRef, {friends: arrayUnion(toUserId)}),
       updateDoc(toUserRef, {friends: arrayUnion(fromUserId)}),
     ]);
-    const requestDocRef = doc(firestore, "friendRequests", requestId);
+    const requestDocRef = doc(firestore, FRIEND_REQUESTS_COLLECTION, requestId);
     await deleteDoc(requestDocRef);
     console.log(`Friendship established and request deleted: ${requestId}`)
   } catch(error) {
@@ -193,7 +197,7 @@ export const acceptFriendRequest = async (requestId: string, fromUserId: string,
 
 export const declineFriendRequest = async (requestId: string) => {
   try {
-    const requestDocRef = doc(firestore, "friendRequests", requestId);
+    const requestDocRef = doc(firestore, FRIEND_REQUESTS_COLLECTION, requestId);
     await deleteDoc(requestDocRef);
     console.log("Forespørsel avslått og slettet", requestId);
   } catch (error) {
@@ -206,8 +210,10 @@ export const removeFriend = async (currentuserId: string, friendId: string) => {
   try {
     const currentUserRef = doc(firestore, 'users', currentuserId);
     const friendUserRef = doc(firestore, 'users', friendId);
-    updateDoc(friendUserRef, {friends: arrayRemove(currentuserId)});
-    updateDoc(currentUserRef, {friends: arrayRemove(friendId)});
+    await Promise.all([
+      updateDoc(friendUserRef, {friends: arrayRemove(currentuserId)}),
+      updateDoc(currentUserRef, {friends: arrayRemove(friendId)}),
+    ]);
     console.log("Fjernet venn");
   } catch(error) {
     console.error(error);

@@ -2,6 +2,8 @@ import { addDoc, arrayRemove, collection, deleteDoc, doc, getDoc, getDocs, incre
 import { DrinkType, Group, MeasureType, MemberDrinkStats } from '../types/drinkTypes';
 import { auth, firestore } from './firebase/FirebaseConfig';
 
+const GROUP_INVITATIONS_COLLECTION = 'group_invitations';
+
 export const sendGroupInvitation = async (toUserId: string, group: Group) => {
   const currentUser = auth.currentUser;
   if (!currentUser) {
@@ -10,7 +12,7 @@ export const sendGroupInvitation = async (toUserId: string, group: Group) => {
   if (toUserId === currentUser.uid) {
     throw new Error('Kan ikke sende venneforespørsel til deg selv')
   }
-  const groupInvitationRef = collection(firestore, "group_invitations");
+  const groupInvitationRef = collection(firestore, GROUP_INVITATIONS_COLLECTION);
   const q = query(
     groupInvitationRef,
     where('groupId', '==', group.id),
@@ -23,6 +25,7 @@ export const sendGroupInvitation = async (toUserId: string, group: Group) => {
   }
   const docRef =  await addDoc(groupInvitationRef, {
     groupName: group.name,
+    group_name: group.name,
     groupId: group.id,
     fromUserId: currentUser.uid,
     toUserId: toUserId,

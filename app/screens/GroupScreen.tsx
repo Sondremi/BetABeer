@@ -75,6 +75,7 @@ const GroupScreen = () => {
   const [distributions, setDistributions] = useState<{ userId: string; drinkType: DrinkType; measureType: MeasureType; amount: number }[]>([]);
   const [createGroupModalVisible, setCreateGroupModalVisible] = useState(false);
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const [sentInvitationUserIds, setSentInvitationUserIds] = useState<string[]>([]);
 
   const currentGroup: Group & { image: any } = selectedGroup
     ? { ...selectedGroup, name: groupName, image: selectedGroup.image ?? ImageMissing }
@@ -90,15 +91,19 @@ const GroupScreen = () => {
       const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
       const groupSnapshot = await getDocs(groupQuery);
       if (!isMounted) return;
-      const groupList = groupSnapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        name: docSnap.data().name,
-        memberCount: docSnap.data().members.length,
-        image: ImageMissing,
-        createdBy: docSnap.data().createdBy,
-        members: docSnap.data().members,
-      }));
-      setGroups(groupList);
+      const groupList = groupSnapshot.docs.map((docSnap) => {
+        const groupData = docSnap.data();
+        return {
+          id: docSnap.id,
+          name: groupData.name || groupData.groupName || groupData.group_name || 'Gruppenavn',
+          memberCount: groupData.members?.length || 0,
+          image: ImageMissing,
+          createdBy: groupData.createdBy || '',
+          members: groupData.members || [],
+        };
+      });
+      const uniqueGroups = Array.from(new Map(groupList.map((group) => [group.id, group])).values());
+      setGroups(uniqueGroups);
 
       const invitationList = await getGroupInvitation(user.id);
       if (!isMounted) return;
@@ -292,6 +297,34 @@ const GroupScreen = () => {
   }, [user?.id, membersModalVisible]);
 
   useEffect(() => {
+    if (!user?.id || !selectedGroup?.id || !membersModalVisible) return;
+
+    const fetchSentInvitations = async () => {
+      try {
+        const sentInvitationQuery = query(
+          collection(firestore, 'group_invitations'),
+          where('fromUserId', '==', user.id),
+          where('groupId', '==', selectedGroup.id),
+          where('status', '==', 'pending')
+        );
+        const sentInvitationSnapshot = await getDocs(sentInvitationQuery);
+        const invitedUserIds = Array.from(
+          new Set(
+            sentInvitationSnapshot.docs
+              .map((docSnap) => docSnap.data().toUserId)
+              .filter((id): id is string => typeof id === 'string')
+          )
+        );
+        setSentInvitationUserIds(invitedUserIds);
+      } catch (error) {
+        console.error('Error fetching sent group invitations:', error);
+      }
+    };
+
+    fetchSentInvitations();
+  }, [user?.id, selectedGroup?.id, membersModalVisible]);
+
+  useEffect(() => {
     if (!user?.id || !selectedGroup?.id) return;
     
     const loadAvailableDrinks = async () => {
@@ -395,6 +428,7 @@ const GroupScreen = () => {
     setInviting(true);
     try {
       await sendGroupInvitation(friend.id, selectedGroup);
+      setSentInvitationUserIds(prev => prev.includes(friend.id) ? prev : [...prev, friend.id]);
       showAlert('Invitasjon sendt', `Invitasjon sendt til ${friend.name}`);
     } catch(error) {
       console.error(error);
@@ -476,7 +510,7 @@ const GroupScreen = () => {
     try {
       const newGroup = await createGroup(user.id);
       const groupWithImage: Group = { ...newGroup, image: ImageMissing };
-      setGroups(prev => [...prev, groupWithImage]);
+      setGroups(prev => prev.some(group => group.id === groupWithImage.id) ? prev : [...prev, groupWithImage]);
       setSelectedGroup(groupWithImage);
       setCreateGroupModalVisible(false);
       
@@ -493,13 +527,18 @@ const GroupScreen = () => {
 
   const handleSaveGroupName = async () => {
     if (!selectedGroup) return;
-    if (!groupName.trim()) {
+    const trimmedName = groupName.trim();
+    if (!trimmedName) {
       showAlert('Feil', 'Gruppenavn kan ikke være tomt');
       return;
     }
     setSaving(true);
     try {
-      await updateGroupName(selectedGroup.id, groupName.trim())
+      await updateGroupName(selectedGroup.id, trimmedName);
+      const updatedGroup = { ...selectedGroup, name: trimmedName };
+      setSelectedGroup(updatedGroup);
+      setGroups(prev => prev.map(group => group.id === selectedGroup.id ? { ...group, name: trimmedName } : group));
+      await AsyncStorage.setItem('lastSelectedGroup', JSON.stringify(updatedGroup));
       setEditingName(false);
     } catch (error) {
       console.error('Error saving group name:', error);
@@ -1037,7 +1076,7 @@ const GroupScreen = () => {
   };
 
   const renderFriendItem = ({ item }: { item: Friend }) => {
-    const invitationSent = invitations.some(inv => inv.toUserId === item.id && inv.groupId === selectedGroup?.id);
+    const invitationSent = sentInvitationUserIds.includes(item.id);
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
         <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 50, height: 50, marginRight: 10 }]} />
@@ -1382,7 +1421,10 @@ const GroupScreen = () => {
                     <TouchableOpacity onPress={handleSaveGroupName} disabled={saving} style={{ marginLeft: 4 }}>
                       <Image source={PencilIcon} style={globalStyles.primaryIcon} />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setEditingName(false)} disabled={saving} style={{ marginLeft: 4 }}>
+                    <TouchableOpacity onPress={() => {
+                      setGroupName(selectedGroup.name);
+                      setEditingName(false);
+                    }} disabled={saving} style={{ marginLeft: 4 }}>
                       <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
                     </TouchableOpacity>
                   </View>

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
-import { collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, getDoc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
@@ -9,7 +9,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/firebase/authService';
 import { auth, firestore } from '../services/firebase/FirebaseConfig';
-import { acceptGroupInvitation, createGroup, declineGroupInvitation, getGroupInvitation, profileService } from '../services/profileService';
+import { acceptGroupInvitation, createGroup, declineGroupInvitation, profileService } from '../services/profileService';
 import { profileStyles } from '../styles/components/profileStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
@@ -59,6 +59,7 @@ const ProfileScreen: React.FC = () => {
   const { user, loading } = useAuth();
   const [profileImageModalVisible, setProfileImageModalVisible] = useState(false);
   const [selectedProfileImage, setSelectedProfileImage] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState('');
 
   useEffect(() => {
     if (user && (user as any).profileImage) {
@@ -66,14 +67,31 @@ const ProfileScreen: React.FC = () => {
     }
   }, [user]);
 
-  const handleProfileImageSave = async () => {
-    if (!user || !selectedProfileImage) return;
+  useEffect(() => {
+    if (user?.name) {
+      setDisplayName(user.name);
+    }
+  }, [user?.name]);
+
+  const handleProfileSave = async () => {
+    if (!user) return;
+    const trimmedName = displayName.trim();
+    if (!trimmedName) {
+      showAlert('Feil', 'Name cannot be empty');
+      return;
+    }
+
+    const payload: { name: string; profileImage?: string | null } = { name: trimmedName };
+    if (selectedProfileImage) {
+      payload.profileImage = selectedProfileImage;
+    }
+
     try {
-      await updateDoc(doc(firestore, 'users', user.id), { profileImage: selectedProfileImage });
+      await updateDoc(doc(firestore, 'users', user.id), payload);
       setProfileImageModalVisible(false);
     } catch (error) {
       console.error(error)
-      showAlert('Feil', 'Kunne ikke oppdatere profilbilde');
+      showAlert('Feil', 'Could not update profile');
     }
   };
   const router = useRouter();
@@ -126,29 +144,44 @@ const ProfileScreen: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
-    let isMounted = true;
+    const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
+    const invitationQuery = query(
+      collection(firestore, 'group_invitations'),
+      where('toUserId', '==', user.id),
+      where('status', '==', 'pending')
+    );
 
-    const fetchGroupsAndInvitations = async () => {
-      const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
-      const groupSnapshot = await getDocs(groupQuery);
-      if (!isMounted) return;
-      const groupList: Group[] = groupSnapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        name: docSnap.data().name,
-        memberCount: docSnap.data().members.length,
-        image: ImageMissing,
-        createdBy: docSnap.data().createdBy,
-        members: docSnap.data().members,
-      }));
-      setGroups(groupList);
+    const unsubscribeGroups = onSnapshot(groupQuery, (groupSnapshot) => {
+      const groupMap = new Map<string, Group>();
+      groupSnapshot.docs.forEach((docSnap) => {
+        const groupData = docSnap.data();
+        groupMap.set(docSnap.id, {
+          id: docSnap.id,
+          name: groupData.name || groupData.groupName || groupData.group_name || 'Gruppenavn',
+          memberCount: groupData.members?.length || 0,
+          image: ImageMissing,
+          createdBy: groupData.createdBy || '',
+          members: groupData.members || [],
+        });
+      });
+      setGroups(Array.from(groupMap.values()));
+    });
 
-      const invitationList = await getGroupInvitation(user.id);
-      if (!isMounted) return;
+    const unsubscribeInvitations = onSnapshot(invitationQuery, (snapshot) => {
+      const invitationList = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...data,
+          groupName: data.groupName || data.group_name || 'Group',
+        };
+      }) as GroupInvitation[];
       setGroupInvitations(invitationList);
-    };
-    fetchGroupsAndInvitations();
+    });
+
     return () => {
-      isMounted = false;
+      unsubscribeGroups();
+      unsubscribeInvitations();
     };
   }, [user]);
 
@@ -345,7 +378,6 @@ const ProfileScreen: React.FC = () => {
     try {
       const newGroup = await createGroup(user.id);
       const groupWithImage: Group = { ...newGroup, image: ImageMissing };
-      setGroups(prev => [...prev, groupWithImage]);
       
       await AsyncStorage.setItem('lastSelectedGroup', JSON.stringify(groupWithImage));
       
@@ -364,20 +396,6 @@ const ProfileScreen: React.FC = () => {
     try {
       await acceptGroupInvitation(invitation);
       setGroupInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
-      const groupRef = doc(firestore, 'groups', invitation.groupId);
-      const groupSnap = await getDoc(groupRef);
-      if (groupSnap.exists()) {
-        const groupData = groupSnap.data();
-        const newGroup: Group = {
-          id: invitation.groupId,
-          name: groupData.name,
-          memberCount: groupData.members.length,
-          image: ImageMissing,
-          createdBy: groupData.createdBy,
-          members: [...groupData.members, user.id],
-        };
-        setGroups(prev => [...prev, newGroup]);
-      }
     } catch (error) {
       console.error('Error accepting invitation:', error);
       showAlert('Feil', `Kunne ikke godta invitasjonen: ${(error as Error).message}`);
@@ -517,11 +535,23 @@ const ProfileScreen: React.FC = () => {
                   </TouchableOpacity>
                 ))}
               </ScrollView>
+              <View style={[globalStyles.inputGroup, { marginTop: theme.spacing.md, marginBottom: theme.spacing.md }]}> 
+                <Text style={globalStyles.label}>Name</Text>
+                <TextInput
+                  style={globalStyles.input}
+                  value={displayName}
+                  onChangeText={setDisplayName}
+                  placeholder="Your name"
+                  placeholderTextColor={theme.colors.textMuted}
+                  maxLength={40}
+                  autoCapitalize="words"
+                />
+              </View>
               <View style={globalStyles.buttonRow}>
                 <TouchableOpacity style={globalStyles.cancelButton} onPress={() => setProfileImageModalVisible(false)}>
                   <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={globalStyles.saveButton} onPress={handleProfileImageSave}>
+                <TouchableOpacity style={globalStyles.saveButton} onPress={handleProfileSave}>
                   <Text style={globalStyles.saveButtonTextAlt}>Lagre</Text>
                 </TouchableOpacity>
               </View>

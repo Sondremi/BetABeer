@@ -72,6 +72,7 @@ export interface GroupInvitation {
   id: string;
   groupId: string;
   groupName: string;
+  group_name?: string;
   fromUserId: string;
   toUserId: string;
   status: 'accepted' | 'pending' | 'declined';
