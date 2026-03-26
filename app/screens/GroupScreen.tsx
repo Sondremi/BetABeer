@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, getFirestore, increment, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, getIncomingRequest, getOutgoingRequest, sendFriendRequest } from '../services/friendService';
@@ -38,6 +38,7 @@ const GroupScreen = () => {
   const [editingName, setEditingName] = useState(false);
   const [betTitle, setBetTitle] = useState('');
   const [betOptions, setBetOptions] = useState<{ name: string }[]>([{ name: '' }]);
+  const [hiddenBetMemberIds, setHiddenBetMemberIds] = useState<string[]>([]);
   const [betSaving, setBetSaving] = useState(false);
   const [bets, setBets] = useState<Bet[]>([]);
   const [placeBetModalVisible, setPlaceBetModalVisible] = useState(false);
@@ -52,6 +53,7 @@ const GroupScreen = () => {
   const [editBetIdx, setEditBetIdx] = useState<number | null>(null);
   const [editBetTitle, setEditBetTitle] = useState('');
   const [editBetOptions, setEditBetOptions] = useState<{ name: string }[]>([]);
+  const [editHiddenBetMemberIds, setEditHiddenBetMemberIds] = useState<string[]>([]);
   const [editBetSaving, setEditBetSaving] = useState(false);
   const [leaderboardModalVisible, setLeaderboardModalVisible] = useState(false);
   const [editMenuModalVisible, setEditMenuModalVisible] = useState(false);
@@ -74,7 +76,9 @@ const GroupScreen = () => {
   const [selectedDistribution, setSelectedDistribution] = useState<{ drinkType: DrinkType; measureType: MeasureType; amount: number } | null>(null);
   const [distributions, setDistributions] = useState<{ userId: string; drinkType: DrinkType; measureType: MeasureType; amount: number }[]>([]);
   const [createGroupModalVisible, setCreateGroupModalVisible] = useState(false);
+  const [createGroupName, setCreateGroupName] = useState('');
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const [sentInvitationUserIds, setSentInvitationUserIds] = useState<string[]>([]);
 
   const currentGroup: Group & { image: any } = selectedGroup
     ? { ...selectedGroup, name: groupName, image: selectedGroup.image ?? ImageMissing }
@@ -90,15 +94,19 @@ const GroupScreen = () => {
       const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
       const groupSnapshot = await getDocs(groupQuery);
       if (!isMounted) return;
-      const groupList = groupSnapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        name: docSnap.data().name,
-        memberCount: docSnap.data().members.length,
-        image: ImageMissing,
-        createdBy: docSnap.data().createdBy,
-        members: docSnap.data().members,
-      }));
-      setGroups(groupList);
+      const groupList = groupSnapshot.docs.map((docSnap) => {
+        const groupData = docSnap.data();
+        return {
+          id: docSnap.id,
+          name: groupData.name || groupData.groupName || groupData.group_name || 'Gruppenavn',
+          memberCount: groupData.members?.length || 0,
+          image: ImageMissing,
+          createdBy: groupData.createdBy || '',
+          members: groupData.members || [],
+        };
+      });
+      const uniqueGroups = Array.from(new Map(groupList.map((group) => [group.id, group])).values());
+      setGroups(uniqueGroups);
 
       const invitationList = await getGroupInvitation(user.id);
       if (!isMounted) return;
@@ -148,15 +156,6 @@ const GroupScreen = () => {
       });
     }
   }, [selectedGroup]);
-
-  useEffect(() => {
-    if (user && groups.length === 0 && !selectedGroup && invitations.length === 0) {
-      const timer = setTimeout(() => {
-        setCreateGroupModalVisible(true);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [user, groups, selectedGroup, invitations]);
 
   useEffect(() => {
     if (!user) return;
@@ -292,6 +291,34 @@ const GroupScreen = () => {
   }, [user?.id, membersModalVisible]);
 
   useEffect(() => {
+    if (!user?.id || !selectedGroup?.id || !membersModalVisible) return;
+
+    const fetchSentInvitations = async () => {
+      try {
+        const sentInvitationQuery = query(
+          collection(firestore, 'group_invitations'),
+          where('fromUserId', '==', user.id),
+          where('groupId', '==', selectedGroup.id),
+          where('status', '==', 'pending')
+        );
+        const sentInvitationSnapshot = await getDocs(sentInvitationQuery);
+        const invitedUserIds = Array.from(
+          new Set(
+            sentInvitationSnapshot.docs
+              .map((docSnap) => docSnap.data().toUserId)
+              .filter((id): id is string => typeof id === 'string')
+          )
+        );
+        setSentInvitationUserIds(invitedUserIds);
+      } catch (error) {
+        console.error('Error fetching sent group invitations:', error);
+      }
+    };
+
+    fetchSentInvitations();
+  }, [user?.id, selectedGroup?.id, membersModalVisible]);
+
+  useEffect(() => {
     if (!user?.id || !selectedGroup?.id) return;
     
     const loadAvailableDrinks = async () => {
@@ -395,6 +422,7 @@ const GroupScreen = () => {
     setInviting(true);
     try {
       await sendGroupInvitation(friend.id, selectedGroup);
+      setSentInvitationUserIds(prev => prev.includes(friend.id) ? prev : [...prev, friend.id]);
       showAlert('Invitasjon sendt', `Invitasjon sendt til ${friend.name}`);
     } catch(error) {
       console.error(error);
@@ -472,13 +500,19 @@ const GroupScreen = () => {
 
   const handleCreateGroup = async () => {
     if (!user) return;
+    const trimmedGroupName = createGroupName.trim();
+    if (!trimmedGroupName) {
+      showAlert('Feil', 'Gruppenavn kan ikke være tomt');
+      return;
+    }
     setCreatingGroup(true);
     try {
-      const newGroup = await createGroup(user.id);
+      const newGroup = await createGroup(user.id, trimmedGroupName);
       const groupWithImage: Group = { ...newGroup, image: ImageMissing };
-      setGroups(prev => [...prev, groupWithImage]);
+      setGroups(prev => prev.some(group => group.id === groupWithImage.id) ? prev : [...prev, groupWithImage]);
       setSelectedGroup(groupWithImage);
       setCreateGroupModalVisible(false);
+      setCreateGroupName('');
       
       await AsyncStorage.setItem('lastSelectedGroup', JSON.stringify(groupWithImage));
       
@@ -493,13 +527,22 @@ const GroupScreen = () => {
 
   const handleSaveGroupName = async () => {
     if (!selectedGroup) return;
-    if (!groupName.trim()) {
+    if (selectedGroup.createdBy !== user?.id) {
+      showAlert('Ikke tilgang', 'Kun gruppeeier kan endre gruppenavn.');
+      return;
+    }
+    const trimmedName = groupName.trim();
+    if (!trimmedName) {
       showAlert('Feil', 'Gruppenavn kan ikke være tomt');
       return;
     }
     setSaving(true);
     try {
-      await updateGroupName(selectedGroup.id, groupName.trim())
+      await updateGroupName(selectedGroup.id, trimmedName);
+      const updatedGroup = { ...selectedGroup, name: trimmedName };
+      setSelectedGroup(updatedGroup);
+      setGroups(prev => prev.map(group => group.id === selectedGroup.id ? { ...group, name: trimmedName } : group));
+      await AsyncStorage.setItem('lastSelectedGroup', JSON.stringify(updatedGroup));
       setEditingName(false);
     } catch (error) {
       console.error('Error saving group name:', error);
@@ -512,7 +555,20 @@ const GroupScreen = () => {
   const openBetModal = () => {
     setBetTitle('');
     setBetOptions([{ name: '' }]);
+    setHiddenBetMemberIds([]);
     setBetModalVisible(true);
+  };
+
+  const toggleHiddenBetMember = (memberId: string) => {
+    setHiddenBetMemberIds((prev) =>
+      prev.includes(memberId) ? prev.filter((id) => id !== memberId) : [...prev, memberId]
+    );
+  };
+
+  const toggleEditHiddenBetMember = (memberId: string) => {
+    setEditHiddenBetMemberIds((prev) =>
+      prev.includes(memberId) ? prev.filter((id) => id !== memberId) : [...prev, memberId]
+    );
   };
 
   const addBetOption = () => {
@@ -524,7 +580,7 @@ const GroupScreen = () => {
   };
 
   const handleSaveBet = async () => {
-    if (!selectedGroup) return;
+    if (!selectedGroup || !user?.id) return;
     if (!betTitle.trim()) {
       showAlert('Feil', 'Bet-tittel kan ikke være tom');
       return;
@@ -549,6 +605,9 @@ const GroupScreen = () => {
           name: opt.name,
         })),
         wagers: [],
+        hiddenFromUserIds: hiddenBetMemberIds,
+        createdByUserId: user.id,
+        createdByUsername: user.username || user.name || 'Unknown',
       };
       await updateDoc(groupRef, { bets: [...groupBets, newBet] });
       setBets(prev => [...prev, newBet]);
@@ -633,7 +692,16 @@ const GroupScreen = () => {
     return option ? option.name : 'Ukjent alternativ';
   };
 
+  const canManageBet = (bet: Bet) => {
+    if (!user?.id) return false;
+    return bet.createdByUserId === user.id;
+  };
+
   const openEditBetModal = (bet: Bet, idx: number) => {
+    if (!canManageBet(bet)) {
+      showAlert('Ikke tilgang', 'Kun den som opprettet bettet kan redigere eller markere det som ferdig.');
+      return;
+    }
     setSelectedEditBet({ bet, index: idx });
     setEditBetIdx(idx);
     setEditMenuModalVisible(true);
@@ -649,6 +717,10 @@ const GroupScreen = () => {
 
       if (groupSnap.exists()) {
         const groupBets = groupSnap.data().bets || [];
+        const targetBet = groupBets[selectCorrectBetIdx];
+        if (!targetBet || targetBet.createdByUserId !== user?.id) {
+          throw new Error('Only the bet creator can mark this bet as finished.');
+        }
         const newBets = [...groupBets];
 
         if (optionId === null) {
@@ -722,13 +794,18 @@ const GroupScreen = () => {
       if (groupSnap.exists() && groupSnap.data().bets) {
         groupBets = groupSnap.data().bets;
       }
+      const originalBet = groupBets[editBetIdx];
+      if (!originalBet || originalBet.createdByUserId !== user?.id) {
+        throw new Error('Only the bet creator can edit this bet.');
+      }
       const updatedBet = {
-        ...groupBets[editBetIdx],
+        ...originalBet,
         title: editBetTitle,
         options: editBetOptions.map((opt, idx) => ({
-          id: `${groupBets[editBetIdx].id}_${idx}`,
+          id: `${originalBet.id}_${idx}`,
           name: opt.name,
         })),
+        hiddenFromUserIds: editHiddenBetMemberIds,
       };
       const newBets = [...groupBets];
       newBets[editBetIdx] = updatedBet;
@@ -754,6 +831,10 @@ const GroupScreen = () => {
       let groupBets: Bet[] = [];
       if (groupSnap.exists() && groupSnap.data().bets) {
         groupBets = groupSnap.data().bets;
+      }
+      const targetBet = groupBets[betIndex];
+      if (!targetBet || targetBet.createdByUserId !== user?.id) {
+        throw new Error('Only the bet creator can delete this bet.');
       }
       const newBets = groupBets.filter((_, idx: number) => idx !== betIndex);
       await updateDoc(groupRef, { bets: newBets });
@@ -1037,7 +1118,7 @@ const GroupScreen = () => {
   };
 
   const renderFriendItem = ({ item }: { item: Friend }) => {
-    const invitationSent = invitations.some(inv => inv.toUserId === item.id && inv.groupId === selectedGroup?.id);
+    const invitationSent = sentInvitationUserIds.includes(item.id);
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
         <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 50, height: 50, marginRight: 10 }]} />
@@ -1125,9 +1206,11 @@ const GroupScreen = () => {
                 </Text>
               )}
             </View>
-            <TouchableOpacity onPress={() => openEditBetModal(item, index)}>
-              <Image source={PencilIcon} style={globalStyles.primaryIcon} />
-            </TouchableOpacity>
+            {canManageBet(item) && (
+              <TouchableOpacity onPress={() => openEditBetModal(item, index)}>
+                <Image source={PencilIcon} style={globalStyles.primaryIcon} />
+              </TouchableOpacity>
+            )}
           </View>
 
           {userWager && (
@@ -1151,15 +1234,11 @@ const GroupScreen = () => {
             </View>
           )}
 
-          <FlatList
-            data={item.options}
-            renderItem={({ item: option }) => renderBettingOption({ item: option, bet: item })}
-            keyExtractor={option => option.id}
-            horizontal={false}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={globalStyles.listContainer}
-            scrollEnabled={false}
-          />
+          <View style={globalStyles.listContainer}>
+            {item.options.map((option) => (
+              <View key={option.id}>{renderBettingOption({ item: option, bet: item })}</View>
+            ))}
+          </View>
 
           {item.wagers && item.wagers.length > 0 && (
             <View style={globalStyles.sectionDivider}>
@@ -1349,11 +1428,14 @@ const GroupScreen = () => {
             Ingen gruppe valgt
           </Text>
           <Text style={[globalStyles.secondaryText, { textAlign: 'center', marginBottom: theme.spacing.lg, color: theme.colors.textSecondary }]}>
-            Du har ikke valgt noen gruppe eller ikke noen grupper ennå.
+            Velg en eksisterende eller opprett en ny gruppe.
           </Text>
           <TouchableOpacity
             style={[globalStyles.primaryButton, { paddingHorizontal: theme.spacing.xl }]}
-            onPress={() => setCreateGroupModalVisible(true)}
+            onPress={() => {
+              setCreateGroupName('');
+              setCreateGroupModalVisible(true);
+            }}
           >
             <Text style={globalStyles.primaryButtonText}>Opprett gruppe</Text>
           </TouchableOpacity>
@@ -1382,7 +1464,10 @@ const GroupScreen = () => {
                     <TouchableOpacity onPress={handleSaveGroupName} disabled={saving} style={{ marginLeft: 4 }}>
                       <Image source={PencilIcon} style={globalStyles.primaryIcon} />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setEditingName(false)} disabled={saving} style={{ marginLeft: 4 }}>
+                    <TouchableOpacity onPress={() => {
+                      setGroupName(selectedGroup.name);
+                      setEditingName(false);
+                    }} disabled={saving} style={{ marginLeft: 4 }}>
                       <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
                     </TouchableOpacity>
                   </View>
@@ -1392,9 +1477,11 @@ const GroupScreen = () => {
                   <Text style={groupStyles.groupHeaderName}>{currentGroup.name}</Text>
                   {selectedGroup && (
                     <View style={{ flexDirection: 'row' }}>
-                      <TouchableOpacity onPress={() => setEditingName(true)} style={{ marginLeft: theme.spacing.sm }}>
-                        <Image source={PencilIcon} style={globalStyles.primaryIcon} />
-                      </TouchableOpacity>
+                      {selectedGroup.createdBy === user?.id && (
+                        <TouchableOpacity onPress={() => setEditingName(true)} style={{ marginLeft: theme.spacing.sm }}>
+                          <Image source={PencilIcon} style={globalStyles.primaryIcon} />
+                        </TouchableOpacity>
+                      )}
                       {selectedGroup.createdBy === user?.id && (
                         <TouchableOpacity
                           onPress={handleDeleteGroup}
@@ -1439,9 +1526,12 @@ const GroupScreen = () => {
           </TouchableOpacity>
         </View>
         <View style={{ paddingBottom: theme.spacing.xl }}>
-          {bets.map((item, idx) => (
-            <View key={item.id}>{renderBet({ item, index: idx })}</View>
-          ))}
+          {bets
+            .filter((bet) => bet.isFinished || !bet.hiddenFromUserIds?.includes(user?.id || ''))
+            .map((item) => {
+              const originalIndex = bets.findIndex((bet) => bet.id === item.id);
+              return <View key={item.id}>{renderBet({ item, index: originalIndex })}</View>;
+            })}
         </View>
       </ScrollView>
       )}
@@ -1490,14 +1580,13 @@ const GroupScreen = () => {
                 <Text style={{ fontSize: 16, color: theme.colors.text, marginBottom: theme.spacing.sm, fontWeight: '600' }}>
                   👥 Velg mottaker:
                 </Text>
-                <FlatList
-                  data={memberData}
-                  renderItem={renderMemberCard}
-                  keyExtractor={item => item.id}
-                  numColumns={3}
-                  scrollEnabled={false}
-                  style={{ marginBottom: theme.spacing.md }}
-                />
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: theme.spacing.md }}>
+                  {memberData.map((member) => (
+                    <View key={member.id} style={{ width: '33.33%' }}>
+                      {renderMemberCard({ item: member })}
+                    </View>
+                  ))}
+                </View>
 
                 {selectedMember && (
                   <View style={{ 
@@ -1723,54 +1812,50 @@ const GroupScreen = () => {
       <Modal visible={membersModalVisible} animationType="slide" transparent onRequestClose={() => setMembersModalVisible(false)}>
         <View style={globalStyles.modalContainer}> 
           <View style={[globalStyles.modalContent, {padding: theme.spacing.md, borderRadius: theme.borderRadius.lg, maxHeight: '80%', width: '90%'}]}>
-            <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.md, fontSize: 18, fontWeight: '600', color: theme.colors.text}]}>
-              Medlemmer i {selectedGroup?.name}
-            </Text>
-            
-            {/* Members section */}
-            <View style={{ marginBottom: theme.spacing.md }}>
-              <Text style={[globalStyles.sectionTitleLeft, { fontSize: 16, marginBottom: theme.spacing.sm }]}>Medlemmer</Text>
-              {memberData.length > 0 ? (
-                <FlatList
-                  data={memberData}
-                  renderItem={renderMemberItem}
-                  keyExtractor={item => item.id}
-                  contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
-                  scrollEnabled
-                  showsVerticalScrollIndicator={false}
-                />
-              ) : (
-                <Text style={[globalStyles.emptyStateText, { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginVertical: theme.spacing.md}]}>
-                  Ingen medlemmer i gruppen
-                </Text>
-              )}
-            </View>
+            <ScrollView contentContainerStyle={{ paddingBottom: theme.spacing.sm }} showsVerticalScrollIndicator={false}>
+              <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.md, fontSize: 18, fontWeight: '600', color: theme.colors.text}]}> 
+                Medlemmer i {selectedGroup?.name}
+              </Text>
+              
+              {/* Members section */}
+              <View style={{ marginBottom: theme.spacing.md }}>
+                <Text style={[globalStyles.sectionTitleLeft, { fontSize: 16, marginBottom: theme.spacing.sm }]}>Medlemmer</Text>
+                {memberData.length > 0 ? (
+                  <View style={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}>
+                    {memberData.map((member) => (
+                      <View key={member.id}>{renderMemberItem({ item: member })}</View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={[globalStyles.emptyStateText, { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginVertical: theme.spacing.md}]}> 
+                    Ingen medlemmer i gruppen
+                  </Text>
+                )}
+              </View>
 
-            {/* Invite friends section */}
-            <View style={{ flex: 1 }}>
-              <Text style={[globalStyles.sectionTitleLeft, { fontSize: 16, marginBottom: theme.spacing.sm }]}>Inviter venner</Text>
-              {(() => {
-                const availableFriends = friends.filter(friend => !selectedGroup?.members.includes(friend.id));
-                if (availableFriends.length === 0) {
+              {/* Invite friends section */}
+              <View>
+                <Text style={[globalStyles.sectionTitleLeft, { fontSize: 16, marginBottom: theme.spacing.sm }]}>Inviter venner</Text>
+                {(() => {
+                  const availableFriends = friends.filter(friend => !selectedGroup?.members.includes(friend.id));
+                  if (availableFriends.length === 0) {
+                    return (
+                      <Text style={[globalStyles.secondaryText, { textAlign: 'center', paddingVertical: theme.spacing.md }]}> 
+                        Ingen flere å invitere
+                      </Text>
+                    );
+                  }
+
                   return (
-                    <Text style={[globalStyles.secondaryText, { textAlign: 'center', paddingVertical: theme.spacing.md }]}>
-                      Ingen flere å invitere
-                    </Text>
+                    <View style={globalStyles.listContainer}>
+                      {availableFriends.map((friend) => (
+                        <View key={friend.id}>{renderFriendItem({ item: friend })}</View>
+                      ))}
+                    </View>
                   );
-                }
-                
-                return (
-                  <FlatList
-                    data={availableFriends}
-                    renderItem={renderFriendItem}
-                    keyExtractor={item => item.id}
-                    contentContainerStyle={globalStyles.listContainer}
-                    scrollEnabled
-                    showsVerticalScrollIndicator={false}
-                  />
-                );
-              })()}
-            </View>
+                })()}
+              </View>
+            </ScrollView>
 
             <View style={[globalStyles.editButtonsContainer, { marginTop: theme.spacing.md }]}>
               <TouchableOpacity onPress={() => setMembersModalVisible(false)}>
@@ -1785,7 +1870,12 @@ const GroupScreen = () => {
 
       <Modal visible={betModalVisible} animationType="slide" transparent onRequestClose={() => setBetModalVisible(false)}>
         <View style={globalStyles.modalContainer}>
-          <View style={globalStyles.modalContent}>
+          <View style={[globalStyles.modalContent, { maxHeight: '85%', width: '92%' }]}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: theme.spacing.sm }}
+            >
             <Text style={globalStyles.modalTitle}>Opprett nytt bet</Text>
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Tittel på bet</Text>
@@ -1817,6 +1907,48 @@ const GroupScreen = () => {
             <TouchableOpacity onPress={addBetOption} style={{ marginBottom: theme.spacing.md, alignSelf: 'flex-start' }}>
               <Text style={globalStyles.addOptionText}>+ Legg til alternativ</Text>
             </TouchableOpacity>
+
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Skjul bettet for medlemmer</Text>
+              <Text style={[globalStyles.secondaryText, { marginBottom: theme.spacing.sm }]}>Disse kan ikke se bettet før det markeres som ferdig.</Text>
+              <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled showsVerticalScrollIndicator>
+                <View style={{ gap: theme.spacing.xs, paddingRight: 2 }}>
+                  {memberData
+                    .filter((member) => member.id !== user?.id)
+                    .map((member) => {
+                      const isHidden = hiddenBetMemberIds.includes(member.id);
+                      return (
+                        <TouchableOpacity
+                          key={member.id}
+                          style={[
+                            globalStyles.listItemRow,
+                            {
+                              paddingVertical: theme.spacing.sm,
+                              backgroundColor: isHidden ? theme.colors.primary + '20' : theme.colors.surface,
+                              borderColor: isHidden ? theme.colors.primary : theme.colors.border,
+                            },
+                          ]}
+                          onPress={() => toggleHiddenBetMember(member.id)}
+                        >
+                          <Image
+                            source={member.profilePicture}
+                            style={[globalStyles.circularImage, { width: 32, height: 32, marginRight: 10 }]}
+                          />
+                          <View style={{ flex: 1 }}>
+                            <Text style={groupStyles.wagerUser}>{member.name}</Text>
+                            <Text style={globalStyles.secondaryText}>@{member.username}</Text>
+                          </View>
+                          <Text style={[globalStyles.selectionButtonText, { color: isHidden ? theme.colors.primary : theme.colors.textSecondary, fontWeight: '700' }]}> 
+                            {isHidden ? 'Skjult' : 'Synlig'}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                </View>
+              </ScrollView>
+            </View>
+            </ScrollView>
+
             <View style={globalStyles.editButtonsContainer}>
               <TouchableOpacity onPress={() => setBetModalVisible(false)} disabled={betSaving}>
                 <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
@@ -1931,6 +2063,43 @@ const GroupScreen = () => {
             <TouchableOpacity onPress={addEditBetOption} style={{ marginBottom: theme.spacing.md, alignSelf: 'flex-start' }}>
               <Text style={globalStyles.addOptionText}>+ Legg til alternativ</Text>
             </TouchableOpacity>
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Skjul bettet for medlemmer</Text>
+              <Text style={[globalStyles.secondaryText, { marginBottom: theme.spacing.sm }]}>Disse kan ikke se bettet før det markeres som ferdig.</Text>
+              <View style={{ gap: theme.spacing.xs }}>
+                {memberData
+                  .filter((member) => member.id !== user?.id)
+                  .map((member) => {
+                    const isHidden = editHiddenBetMemberIds.includes(member.id);
+                    return (
+                      <TouchableOpacity
+                        key={member.id}
+                        style={[
+                          globalStyles.listItemRow,
+                          {
+                            paddingVertical: theme.spacing.sm,
+                            backgroundColor: isHidden ? theme.colors.primary + '20' : theme.colors.surface,
+                            borderColor: isHidden ? theme.colors.primary : theme.colors.border,
+                          },
+                        ]}
+                        onPress={() => toggleEditHiddenBetMember(member.id)}
+                      >
+                        <Image
+                          source={member.profilePicture}
+                          style={[globalStyles.circularImage, { width: 32, height: 32, marginRight: 10 }]}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={groupStyles.wagerUser}>{member.name}</Text>
+                          <Text style={globalStyles.secondaryText}>@{member.username}</Text>
+                        </View>
+                        <Text style={[globalStyles.selectionButtonText, { color: isHidden ? theme.colors.primary : theme.colors.textSecondary, fontWeight: '700' }]}>
+                          {isHidden ? 'Skjult' : 'Synlig'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+              </View>
+            </View>
             <View style={globalStyles.editButtonsContainer}>
               <TouchableOpacity onPress={() => setEditBetModalVisible(false)} disabled={editBetSaving}>
                 <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
@@ -2053,13 +2222,11 @@ const GroupScreen = () => {
                         <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text, marginBottom: theme.spacing.md }}>
                           📊 Medlemmer og deres drikke-status:
                         </Text>
-                        <FlatList
-                          data={leaderboardData}
-                          renderItem={renderDetailedDrinkOverview}
-                          keyExtractor={item => item.userId}
-                          scrollEnabled={false}
-                          showsVerticalScrollIndicator={false}
-                        />
+                        <View>
+                          {leaderboardData.map((member) => (
+                            <View key={member.userId}>{renderDetailedDrinkOverview({ item: member })}</View>
+                          ))}
+                        </View>
                       </View>
                       
                       {/* Transaksjonshistorikk */}
@@ -2067,21 +2234,28 @@ const GroupScreen = () => {
                         <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text, marginBottom: theme.spacing.md }}>
                           📝 Siste overføringer
                         </Text>
-                        <FlatList
-                          data={leaderboardData.flatMap(member => member.transactions)
+                        {(() => {
+                          const recentTransactions = leaderboardData
+                            .flatMap(member => member.transactions)
                             .sort((a, b) => b.timestamp - a.timestamp)
-                            .slice(0, 10)}
-                          renderItem={renderTransactionItem}
-                          keyExtractor={(item, index) => `${item.fromUserId}-${item.toUserId}-${index}`}
-                          contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
-                          scrollEnabled={false}
-                          showsVerticalScrollIndicator={false}
-                          ListEmptyComponent={() => (
-                            <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center' }}>
-                              Ingen overføringer ennå
-                            </Text>
-                          )}
-                        />
+                            .slice(0, 10);
+                          if (recentTransactions.length === 0) {
+                            return (
+                              <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center' }}>
+                                Ingen overføringer ennå
+                              </Text>
+                            );
+                          }
+                          return (
+                            <View style={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}> 
+                              {recentTransactions.map((transaction, idx) => (
+                                <View key={`${transaction.fromUserId}-${transaction.toUserId}-${transaction.timestamp}-${idx}`}>
+                                  {renderTransactionItem({ item: transaction })}
+                                </View>
+                              ))}
+                            </View>
+                          );
+                        })()}
                       </View>
                     </View>
                   ) : (
@@ -2210,14 +2384,11 @@ const GroupScreen = () => {
                       </View>
                       {/* Remaining Members */}
                       {leaderboardData.length > 3 && (
-                        <FlatList
-                          data={leaderboardData.slice(3)}
-                          renderItem={renderLeaderboardItem}
-                          keyExtractor={item => item.userId}
-                          contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
-                          scrollEnabled={false}
-                          showsVerticalScrollIndicator={false}
-                        />
+                        <View style={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}> 
+                          {leaderboardData.slice(3).map((member, idx) => (
+                            <View key={member.userId}>{renderLeaderboardItem({ item: member, index: idx })}</View>
+                          ))}
+                        </View>
                       )}
                     </View>
                   )}
@@ -2255,6 +2426,7 @@ const GroupScreen = () => {
                 if (selectedEditBet) {
                   setEditBetIdx(selectedEditBet.index);
                   setEditBetTitle(selectedEditBet.bet.title);
+                  setEditHiddenBetMemberIds(selectedEditBet.bet.hiddenFromUserIds || []);
                   setEditBetOptions(
                     selectedEditBet.bet.options.map((opt: BettingOption) => ({
                       name: opt.name,
@@ -2312,24 +2484,42 @@ const GroupScreen = () => {
       </Modal>
 
       {/* Create Group Modal */}
-      <Modal visible={createGroupModalVisible} animationType="slide" transparent onRequestClose={() => setCreateGroupModalVisible(false)}>
+      <Modal visible={createGroupModalVisible} animationType="slide" transparent onRequestClose={() => {
+        setCreateGroupName('');
+        setCreateGroupModalVisible(false);
+      }}>
         <View style={globalStyles.modalContainer}>
           <View style={globalStyles.modalContent}>
-            <Text style={globalStyles.modalTitle}>Opprett første gruppe</Text>
-            <Text style={globalStyles.modalText}>
-              Du har ikke noen grupper ennå. Vil du opprette din første gruppe nå?
-            </Text>
+            <Text style={globalStyles.modalTitle}>Opprett gruppe</Text>
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Gruppenavn</Text>
+              <TextInput
+                placeholder="Skriv gruppenavn"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={createGroupName}
+                onChangeText={setCreateGroupName}
+                style={globalStyles.input}
+                maxLength={40}
+              />
+            </View>
             <TouchableOpacity
-              style={[globalStyles.selectionButton, { marginBottom: theme.spacing.sm }]}
+              style={[
+                globalStyles.selectionButton,
+                { marginBottom: theme.spacing.sm },
+                !createGroupName.trim() && globalStyles.disabledButton,
+              ]}
               onPress={handleCreateGroup}
-              disabled={creatingGroup}
+              disabled={creatingGroup || !createGroupName.trim()}
             >
               <Text style={globalStyles.selectionButtonText}>
                 {creatingGroup ? 'Oppretter...' : 'Opprett gruppe'}
               </Text>
             </TouchableOpacity>
             <View style={globalStyles.editButtonsContainer}>
-              <TouchableOpacity onPress={() => setCreateGroupModalVisible(false)}>
+              <TouchableOpacity onPress={() => {
+                setCreateGroupName('');
+                setCreateGroupModalVisible(false);
+              }}>
                 <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
               </TouchableOpacity>
             </View>

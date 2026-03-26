@@ -42,6 +42,9 @@ export interface Bet {
   wagers?: BetWager[];
   correctOptionId?: string;
   isFinished?: boolean;
+  hiddenFromUserIds?: string[];
+  createdByUserId?: string;
+  createdByUsername?: string;
 }
 
 export interface BettingOption {
@@ -72,6 +75,7 @@ export interface GroupInvitation {
   id: string;
   groupId: string;
   groupName: string;
+  group_name?: string;
   fromUserId: string;
   toUserId: string;
   status: 'accepted' | 'pending' | 'declined';

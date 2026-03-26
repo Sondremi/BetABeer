@@ -46,8 +46,8 @@ service cloud.firestore {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Friend Requests Collection
-    match /friendRequests/{requestId} {
+    // Friend Requests Collection (primary)
+    match /friend_requests/{requestId} {
       // Allow creating a friend request if authenticated and sender
       allow create: if request.auth != null 
         && request.resource.data.fromUserId == request.auth.uid
@@ -65,6 +65,42 @@ service cloud.firestore {
         && request.resource.data.status in ['accepted', 'rejected'];
       
       // Allow deletion by sender or receiver
+      allow delete: if request.auth != null
+        && ( resource.data.fromUserId == request.auth.uid 
+          || resource.data.toUserId == request.auth.uid
+      );
+    }
+
+    // Friend Requests Collection (legacy compatibility)
+    match /friendRequests/{requestId} {
+      allow create: if request.auth != null 
+        && request.resource.data.fromUserId == request.auth.uid
+        && request.resource.data.toUserId is string
+        && request.resource.data.status == 'pending';
+      allow read, list: if request.auth != null 
+        && (resource.data.fromUserId == request.auth.uid 
+          || resource.data.toUserId == request.auth.uid);
+      allow update: if request.auth != null 
+        && resource.data.toUserId == request.auth.uid
+        && request.resource.data.status in ['accepted', 'rejected'];
+      allow delete: if request.auth != null
+        && ( resource.data.fromUserId == request.auth.uid 
+          || resource.data.toUserId == request.auth.uid
+      );
+    }
+
+    // Friend Requests Collection (singular compatibility)
+    match /friendRequest/{requestId} {
+      allow create: if request.auth != null 
+        && request.resource.data.fromUserId == request.auth.uid
+        && request.resource.data.toUserId is string
+        && request.resource.data.status == 'pending';
+      allow read, list: if request.auth != null 
+        && (resource.data.fromUserId == request.auth.uid 
+          || resource.data.toUserId == request.auth.uid);
+      allow update: if request.auth != null 
+        && resource.data.toUserId == request.auth.uid
+        && request.resource.data.status in ['accepted', 'rejected'];
       allow delete: if request.auth != null
         && ( resource.data.fromUserId == request.auth.uid 
           || resource.data.toUserId == request.auth.uid
@@ -119,10 +155,64 @@ service cloud.firestore {
 
     // Group Invitations Collection
     match /group_invitations/{invitationId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if true;
+      allow create: if request.auth != null
+        && request.resource.data.fromUserId == request.auth.uid
+        && request.resource.data.toUserId is string
+        && request.resource.data.groupId is string
+        && request.resource.data.status == 'pending';
+
+      allow read, list: if request.auth != null
+        && (
+          resource.data.fromUserId == request.auth.uid
+          || resource.data.toUserId == request.auth.uid
+          || get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.members.hasAny([request.auth.uid])
+        );
+
+      allow update: if request.auth != null
+        && request.resource.data.groupId == resource.data.groupId
+        && request.resource.data.toUserId == resource.data.toUserId
+        && request.resource.data.fromUserId == resource.data.fromUserId
+        && (
+          resource.data.fromUserId == request.auth.uid
+          || get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.members.hasAny([request.auth.uid])
+        );
+
+      allow delete: if request.auth != null
+        && (
+          resource.data.fromUserId == request.auth.uid
+          || resource.data.toUserId == request.auth.uid
+        );
+    }
+
+    // Group Invitations Collection (singular compatibility)
+    match /group_invitation/{invitationId} {
+      allow create: if request.auth != null
+        && request.resource.data.fromUserId == request.auth.uid
+        && request.resource.data.toUserId is string
+        && request.resource.data.groupId is string
+        && request.resource.data.status == 'pending';
+
+      allow read, list: if request.auth != null
+        && (
+          resource.data.fromUserId == request.auth.uid
+          || resource.data.toUserId == request.auth.uid
+          || get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.members.hasAny([request.auth.uid])
+        );
+
+      allow update: if request.auth != null
+        && request.resource.data.groupId == resource.data.groupId
+        && request.resource.data.toUserId == resource.data.toUserId
+        && request.resource.data.fromUserId == resource.data.fromUserId
+        && (
+          resource.data.fromUserId == request.auth.uid
+          || get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.members.hasAny([request.auth.uid])
+        );
+
+      allow delete: if request.auth != null
+        && (
+          resource.data.fromUserId == request.auth.uid
+          || resource.data.toUserId == request.auth.uid
+        );
     }
   }
 }

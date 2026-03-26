@@ -1,6 +1,6 @@
 import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { FlatList, Image, KeyboardAvoidingView, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, friendSearch, getIncomingRequest, getOutgoingRequest, listenToIncomingRequests, listenToOutgoingRequests, removeFriend, sendFriendRequest } from '../services/friendService';
 import { friendsStyles } from '../styles/components/friendsStyles';
@@ -304,6 +304,7 @@ const FriendsScreen = () => {
                 backgroundColor: theme.colors.surface,
                 borderRadius: 8,
                 padding: 12,
+                fontSize: Platform.OS === 'web' ? 16 : theme.fonts.md,
                 color: theme.colors.text,
                 marginRight: 8
               }}
@@ -321,11 +322,8 @@ const FriendsScreen = () => {
             </TouchableOpacity>
           </View>
           {searchResults.length > 0 && (
-            <FlatList
-              data={searchResults}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-              renderItem={({ item }) => (
+            <View>
+              {searchResults.map((item) => (
                 <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]} key={item.id}>
                   <Image
                     source={item.profilePicture}
@@ -342,8 +340,8 @@ const FriendsScreen = () => {
                     <Image source={AddFriendIcon} style={globalStyles.primaryIcon} />
                   </TouchableOpacity>
                 </View>
-              )}
-            />
+              ))}
+            </View>
           )}
         </View>
 
@@ -351,13 +349,11 @@ const FriendsScreen = () => {
         <View style={globalStyles.section}>
           <Text style={globalStyles.sectionTitle}>Mine venner ({friends.length})</Text>
           {friends.length > 0 ? (
-            <FlatList
-              data={friends}
-              renderItem={renderFriend}
-              keyExtractor={(item) => item.id + (item.type === 'pending' ? '-pending' : '')}
-              scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
-            />
+            <View>
+              {friends.map((item) => (
+                <View key={item.id + (item.type === 'pending' ? '-pending' : '')}>{renderFriend({ item })}</View>
+              ))}
+            </View>
           ) : (
             <View style={globalStyles.emptyState}>
               <Image source={PeopleIcon} style={globalStyles.primaryIcon} />
@@ -371,11 +367,8 @@ const FriendsScreen = () => {
         <View style={globalStyles.section}>
           <Text style={globalStyles.sectionTitle}>Venneforespørsler</Text>
           {incomingRequests.length > 0 ? (
-            <FlatList
-              data={incomingRequests}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-              renderItem={({ item }) => (
+            <View>
+              {incomingRequests.map((item) => (
                 <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]} key={item.id}>
                   <Image
                     source={item.profilePicture}
@@ -400,8 +393,8 @@ const FriendsScreen = () => {
                     </TouchableOpacity>
                   </View>
                 </View>
-              )}
-            />
+              ))}
+            </View>
           ) : (
             <View style={globalStyles.emptyState}>
               <Image source={AddFriendIcon} style={globalStyles.primaryIcon} />
