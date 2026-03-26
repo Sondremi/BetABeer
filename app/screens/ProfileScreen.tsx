@@ -96,6 +96,8 @@ const ProfileScreen: React.FC = () => {
   };
   const router = useRouter();
   const [groups, setGroups] = useState<Group[]>([]);
+  const [createGroupModalVisible, setCreateGroupModalVisible] = useState(false);
+  const [createGroupName, setCreateGroupName] = useState('');
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [groupInvitations, setGroupInvitations] = useState<GroupInvitation[]>([]);
   const [handlingInvitation, setHandlingInvitation] = useState(false);
@@ -374,12 +376,19 @@ const ProfileScreen: React.FC = () => {
 
   const handleCreateGroup = async () => {
     if (!user) return;
+    const trimmedGroupName = createGroupName.trim();
+    if (!trimmedGroupName) {
+      showAlert('Feil', 'Gruppenavn kan ikke være tomt');
+      return;
+    }
     setCreatingGroup(true);
     try {
-      const newGroup = await createGroup(user.id);
+      const newGroup = await createGroup(user.id, trimmedGroupName);
       const groupWithImage: Group = { ...newGroup, image: ImageMissing };
       
       await AsyncStorage.setItem('lastSelectedGroup', JSON.stringify(groupWithImage));
+      setCreateGroupName('');
+      setCreateGroupModalVisible(false);
       
       router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(groupWithImage) } });
     } catch (error) {
@@ -673,7 +682,10 @@ const ProfileScreen: React.FC = () => {
             <Text style={globalStyles.sectionTitleLeft}>Mine grupper</Text>
             <TouchableOpacity
               style={globalStyles.outlineButton}
-              onPress={handleCreateGroup}
+              onPress={() => {
+                setCreateGroupName('');
+                setCreateGroupModalVisible(true);
+              }}
               disabled={creatingGroup}
             >
               <Text style={globalStyles.outlineButtonGoldText}>
@@ -690,6 +702,53 @@ const ProfileScreen: React.FC = () => {
             scrollEnabled={false}
             showsVerticalScrollIndicator={false}
           />
+          <Modal
+            visible={createGroupModalVisible}
+            animationType="slide"
+            transparent
+            onRequestClose={() => {
+              setCreateGroupName('');
+              setCreateGroupModalVisible(false);
+            }}
+          >
+            <View style={globalStyles.modalContainer}>
+              <View style={globalStyles.modalContent}>
+                <Text style={globalStyles.modalTitle}>Opprett gruppe</Text>
+                <View style={globalStyles.inputGroup}>
+                  <Text style={globalStyles.label}>Gruppenavn</Text>
+                  <TextInput
+                    placeholder="Skriv gruppenavn"
+                    placeholderTextColor={theme.colors.textSecondary}
+                    value={createGroupName}
+                    onChangeText={setCreateGroupName}
+                    style={globalStyles.input}
+                    maxLength={40}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={[
+                    globalStyles.selectionButton,
+                    { marginBottom: theme.spacing.sm },
+                    (!createGroupName.trim() || creatingGroup) && globalStyles.disabledButton,
+                  ]}
+                  onPress={handleCreateGroup}
+                  disabled={creatingGroup || !createGroupName.trim()}
+                >
+                  <Text style={globalStyles.selectionButtonText}>
+                    {creatingGroup ? 'Oppretter...' : 'Opprett gruppe'}
+                  </Text>
+                </TouchableOpacity>
+                <View style={globalStyles.editButtonsContainer}>
+                  <TouchableOpacity onPress={() => {
+                    setCreateGroupName('');
+                    setCreateGroupModalVisible(false);
+                  }}>
+                    <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
           <Modal
             visible={drinkModalVisible}
             animationType="slide"

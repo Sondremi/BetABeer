@@ -60,15 +60,19 @@ export const declineGroupInvitation = async (requestId: string) => {
   }
 };
 
-export const createGroup = async (userId: string): Promise<Group> => {
+export const createGroup = async (userId: string, groupName = 'Gruppenavn'): Promise<Group> => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
         console.log("Bruker ikke autorisert");
         throw new Error('Faaaaah')
     }
+  const trimmedGroupName = groupName.trim();
+  if (!trimmedGroupName) {
+    throw new Error('Group name cannot be empty');
+  }
     try {
         const groupDoc = await addDoc(collection(firestore, 'groups'), {
-            name: 'Gruppenavn',
+      name: trimmedGroupName,
             image: 'image_missing',
             members: [currentUser.uid],
             bets: [],
@@ -81,7 +85,7 @@ export const createGroup = async (userId: string): Promise<Group> => {
         await updateDoc(userRef, { groups: [...userGroups, groupDoc.id] });
         return {
             id: groupDoc.id,
-            name: 'Gruppenavn',
+          name: trimmedGroupName,
             memberCount: 1,
             image: 'image_missing',
             createdBy: userId,

@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, getFirestore, increment, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, getIncomingRequest, getOutgoingRequest, sendFriendRequest } from '../services/friendService';
@@ -76,6 +76,7 @@ const GroupScreen = () => {
   const [selectedDistribution, setSelectedDistribution] = useState<{ drinkType: DrinkType; measureType: MeasureType; amount: number } | null>(null);
   const [distributions, setDistributions] = useState<{ userId: string; drinkType: DrinkType; measureType: MeasureType; amount: number }[]>([]);
   const [createGroupModalVisible, setCreateGroupModalVisible] = useState(false);
+  const [createGroupName, setCreateGroupName] = useState('');
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [sentInvitationUserIds, setSentInvitationUserIds] = useState<string[]>([]);
 
@@ -155,15 +156,6 @@ const GroupScreen = () => {
       });
     }
   }, [selectedGroup]);
-
-  useEffect(() => {
-    if (user && groups.length === 0 && !selectedGroup && invitations.length === 0) {
-      const timer = setTimeout(() => {
-        setCreateGroupModalVisible(true);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [user, groups, selectedGroup, invitations]);
 
   useEffect(() => {
     if (!user) return;
@@ -508,13 +500,19 @@ const GroupScreen = () => {
 
   const handleCreateGroup = async () => {
     if (!user) return;
+    const trimmedGroupName = createGroupName.trim();
+    if (!trimmedGroupName) {
+      showAlert('Feil', 'Gruppenavn kan ikke være tomt');
+      return;
+    }
     setCreatingGroup(true);
     try {
-      const newGroup = await createGroup(user.id);
+      const newGroup = await createGroup(user.id, trimmedGroupName);
       const groupWithImage: Group = { ...newGroup, image: ImageMissing };
       setGroups(prev => prev.some(group => group.id === groupWithImage.id) ? prev : [...prev, groupWithImage]);
       setSelectedGroup(groupWithImage);
       setCreateGroupModalVisible(false);
+      setCreateGroupName('');
       
       await AsyncStorage.setItem('lastSelectedGroup', JSON.stringify(groupWithImage));
       
@@ -529,6 +527,10 @@ const GroupScreen = () => {
 
   const handleSaveGroupName = async () => {
     if (!selectedGroup) return;
+    if (selectedGroup.createdBy !== user?.id) {
+      showAlert('Ikke tilgang', 'Kun gruppeeier kan endre gruppenavn.');
+      return;
+    }
     const trimmedName = groupName.trim();
     if (!trimmedName) {
       showAlert('Feil', 'Gruppenavn kan ikke være tomt');
@@ -1426,11 +1428,14 @@ const GroupScreen = () => {
             Ingen gruppe valgt
           </Text>
           <Text style={[globalStyles.secondaryText, { textAlign: 'center', marginBottom: theme.spacing.lg, color: theme.colors.textSecondary }]}>
-            Du har ikke valgt noen gruppe eller ikke noen grupper ennå.
+            Velg en eksisterende eller opprett en ny gruppe.
           </Text>
           <TouchableOpacity
             style={[globalStyles.primaryButton, { paddingHorizontal: theme.spacing.xl }]}
-            onPress={() => setCreateGroupModalVisible(true)}
+            onPress={() => {
+              setCreateGroupName('');
+              setCreateGroupModalVisible(true);
+            }}
           >
             <Text style={globalStyles.primaryButtonText}>Opprett gruppe</Text>
           </TouchableOpacity>
@@ -1472,9 +1477,11 @@ const GroupScreen = () => {
                   <Text style={groupStyles.groupHeaderName}>{currentGroup.name}</Text>
                   {selectedGroup && (
                     <View style={{ flexDirection: 'row' }}>
-                      <TouchableOpacity onPress={() => setEditingName(true)} style={{ marginLeft: theme.spacing.sm }}>
-                        <Image source={PencilIcon} style={globalStyles.primaryIcon} />
-                      </TouchableOpacity>
+                      {selectedGroup.createdBy === user?.id && (
+                        <TouchableOpacity onPress={() => setEditingName(true)} style={{ marginLeft: theme.spacing.sm }}>
+                          <Image source={PencilIcon} style={globalStyles.primaryIcon} />
+                        </TouchableOpacity>
+                      )}
                       {selectedGroup.createdBy === user?.id && (
                         <TouchableOpacity
                           onPress={handleDeleteGroup}
@@ -2469,24 +2476,42 @@ const GroupScreen = () => {
       </Modal>
 
       {/* Create Group Modal */}
-      <Modal visible={createGroupModalVisible} animationType="slide" transparent onRequestClose={() => setCreateGroupModalVisible(false)}>
+      <Modal visible={createGroupModalVisible} animationType="slide" transparent onRequestClose={() => {
+        setCreateGroupName('');
+        setCreateGroupModalVisible(false);
+      }}>
         <View style={globalStyles.modalContainer}>
           <View style={globalStyles.modalContent}>
-            <Text style={globalStyles.modalTitle}>Opprett første gruppe</Text>
-            <Text style={globalStyles.modalText}>
-              Du har ikke noen grupper ennå. Vil du opprette din første gruppe nå?
-            </Text>
+            <Text style={globalStyles.modalTitle}>Opprett gruppe</Text>
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Gruppenavn</Text>
+              <TextInput
+                placeholder="Skriv gruppenavn"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={createGroupName}
+                onChangeText={setCreateGroupName}
+                style={globalStyles.input}
+                maxLength={40}
+              />
+            </View>
             <TouchableOpacity
-              style={[globalStyles.selectionButton, { marginBottom: theme.spacing.sm }]}
+              style={[
+                globalStyles.selectionButton,
+                { marginBottom: theme.spacing.sm },
+                !createGroupName.trim() && globalStyles.disabledButton,
+              ]}
               onPress={handleCreateGroup}
-              disabled={creatingGroup}
+              disabled={creatingGroup || !createGroupName.trim()}
             >
               <Text style={globalStyles.selectionButtonText}>
                 {creatingGroup ? 'Oppretter...' : 'Opprett gruppe'}
               </Text>
             </TouchableOpacity>
             <View style={globalStyles.editButtonsContainer}>
-              <TouchableOpacity onPress={() => setCreateGroupModalVisible(false)}>
+              <TouchableOpacity onPress={() => {
+                setCreateGroupName('');
+                setCreateGroupModalVisible(false);
+              }}>
                 <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
               </TouchableOpacity>
             </View>
