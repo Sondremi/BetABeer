@@ -38,6 +38,7 @@ const GroupScreen = () => {
   const [editingName, setEditingName] = useState(false);
   const [betTitle, setBetTitle] = useState('');
   const [betOptions, setBetOptions] = useState<{ name: string }[]>([{ name: '' }]);
+  const [hiddenBetMemberIds, setHiddenBetMemberIds] = useState<string[]>([]);
   const [betSaving, setBetSaving] = useState(false);
   const [bets, setBets] = useState<Bet[]>([]);
   const [placeBetModalVisible, setPlaceBetModalVisible] = useState(false);
@@ -52,6 +53,7 @@ const GroupScreen = () => {
   const [editBetIdx, setEditBetIdx] = useState<number | null>(null);
   const [editBetTitle, setEditBetTitle] = useState('');
   const [editBetOptions, setEditBetOptions] = useState<{ name: string }[]>([]);
+  const [editHiddenBetMemberIds, setEditHiddenBetMemberIds] = useState<string[]>([]);
   const [editBetSaving, setEditBetSaving] = useState(false);
   const [leaderboardModalVisible, setLeaderboardModalVisible] = useState(false);
   const [editMenuModalVisible, setEditMenuModalVisible] = useState(false);
@@ -551,7 +553,20 @@ const GroupScreen = () => {
   const openBetModal = () => {
     setBetTitle('');
     setBetOptions([{ name: '' }]);
+    setHiddenBetMemberIds([]);
     setBetModalVisible(true);
+  };
+
+  const toggleHiddenBetMember = (memberId: string) => {
+    setHiddenBetMemberIds((prev) =>
+      prev.includes(memberId) ? prev.filter((id) => id !== memberId) : [...prev, memberId]
+    );
+  };
+
+  const toggleEditHiddenBetMember = (memberId: string) => {
+    setEditHiddenBetMemberIds((prev) =>
+      prev.includes(memberId) ? prev.filter((id) => id !== memberId) : [...prev, memberId]
+    );
   };
 
   const addBetOption = () => {
@@ -563,7 +578,7 @@ const GroupScreen = () => {
   };
 
   const handleSaveBet = async () => {
-    if (!selectedGroup) return;
+    if (!selectedGroup || !user?.id) return;
     if (!betTitle.trim()) {
       showAlert('Feil', 'Bet-tittel kan ikke være tom');
       return;
@@ -588,6 +603,9 @@ const GroupScreen = () => {
           name: opt.name,
         })),
         wagers: [],
+        hiddenFromUserIds: hiddenBetMemberIds,
+        createdByUserId: user.id,
+        createdByUsername: user.username || user.name || 'Unknown',
       };
       await updateDoc(groupRef, { bets: [...groupBets, newBet] });
       setBets(prev => [...prev, newBet]);
@@ -672,7 +690,16 @@ const GroupScreen = () => {
     return option ? option.name : 'Ukjent alternativ';
   };
 
+  const canManageBet = (bet: Bet) => {
+    if (!user?.id) return false;
+    return bet.createdByUserId === user.id;
+  };
+
   const openEditBetModal = (bet: Bet, idx: number) => {
+    if (!canManageBet(bet)) {
+      showAlert('Ikke tilgang', 'Kun den som opprettet bettet kan redigere eller markere det som ferdig.');
+      return;
+    }
     setSelectedEditBet({ bet, index: idx });
     setEditBetIdx(idx);
     setEditMenuModalVisible(true);
@@ -688,6 +715,10 @@ const GroupScreen = () => {
 
       if (groupSnap.exists()) {
         const groupBets = groupSnap.data().bets || [];
+        const targetBet = groupBets[selectCorrectBetIdx];
+        if (!targetBet || targetBet.createdByUserId !== user?.id) {
+          throw new Error('Only the bet creator can mark this bet as finished.');
+        }
         const newBets = [...groupBets];
 
         if (optionId === null) {
@@ -761,13 +792,18 @@ const GroupScreen = () => {
       if (groupSnap.exists() && groupSnap.data().bets) {
         groupBets = groupSnap.data().bets;
       }
+      const originalBet = groupBets[editBetIdx];
+      if (!originalBet || originalBet.createdByUserId !== user?.id) {
+        throw new Error('Only the bet creator can edit this bet.');
+      }
       const updatedBet = {
-        ...groupBets[editBetIdx],
+        ...originalBet,
         title: editBetTitle,
         options: editBetOptions.map((opt, idx) => ({
-          id: `${groupBets[editBetIdx].id}_${idx}`,
+          id: `${originalBet.id}_${idx}`,
           name: opt.name,
         })),
+        hiddenFromUserIds: editHiddenBetMemberIds,
       };
       const newBets = [...groupBets];
       newBets[editBetIdx] = updatedBet;
@@ -793,6 +829,10 @@ const GroupScreen = () => {
       let groupBets: Bet[] = [];
       if (groupSnap.exists() && groupSnap.data().bets) {
         groupBets = groupSnap.data().bets;
+      }
+      const targetBet = groupBets[betIndex];
+      if (!targetBet || targetBet.createdByUserId !== user?.id) {
+        throw new Error('Only the bet creator can delete this bet.');
       }
       const newBets = groupBets.filter((_, idx: number) => idx !== betIndex);
       await updateDoc(groupRef, { bets: newBets });
@@ -1164,9 +1204,11 @@ const GroupScreen = () => {
                 </Text>
               )}
             </View>
-            <TouchableOpacity onPress={() => openEditBetModal(item, index)}>
-              <Image source={PencilIcon} style={globalStyles.primaryIcon} />
-            </TouchableOpacity>
+            {canManageBet(item) && (
+              <TouchableOpacity onPress={() => openEditBetModal(item, index)}>
+                <Image source={PencilIcon} style={globalStyles.primaryIcon} />
+              </TouchableOpacity>
+            )}
           </View>
 
           {userWager && (
@@ -1481,9 +1523,12 @@ const GroupScreen = () => {
           </TouchableOpacity>
         </View>
         <View style={{ paddingBottom: theme.spacing.xl }}>
-          {bets.map((item, idx) => (
-            <View key={item.id}>{renderBet({ item, index: idx })}</View>
-          ))}
+          {bets
+            .filter((bet) => bet.isFinished || !bet.hiddenFromUserIds?.includes(user?.id || ''))
+            .map((item) => {
+              const originalIndex = bets.findIndex((bet) => bet.id === item.id);
+              return <View key={item.id}>{renderBet({ item, index: originalIndex })}</View>;
+            })}
         </View>
       </ScrollView>
       )}
@@ -1859,6 +1904,45 @@ const GroupScreen = () => {
             <TouchableOpacity onPress={addBetOption} style={{ marginBottom: theme.spacing.md, alignSelf: 'flex-start' }}>
               <Text style={globalStyles.addOptionText}>+ Legg til alternativ</Text>
             </TouchableOpacity>
+
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Skjul bettet for medlemmer</Text>
+              <Text style={[globalStyles.secondaryText, { marginBottom: theme.spacing.sm }]}>Disse kan ikke se bettet før det markeres som ferdig.</Text>
+              <View style={{ gap: theme.spacing.xs }}>
+                {memberData
+                  .filter((member) => member.id !== user?.id)
+                  .map((member) => {
+                    const isHidden = hiddenBetMemberIds.includes(member.id);
+                    return (
+                      <TouchableOpacity
+                        key={member.id}
+                        style={[
+                          globalStyles.listItemRow,
+                          {
+                            paddingVertical: theme.spacing.sm,
+                            backgroundColor: isHidden ? theme.colors.primary + '20' : theme.colors.surface,
+                            borderColor: isHidden ? theme.colors.primary : theme.colors.border,
+                          },
+                        ]}
+                        onPress={() => toggleHiddenBetMember(member.id)}
+                      >
+                        <Image
+                          source={member.profilePicture}
+                          style={[globalStyles.circularImage, { width: 32, height: 32, marginRight: 10 }]}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={groupStyles.wagerUser}>{member.name}</Text>
+                          <Text style={globalStyles.secondaryText}>@{member.username}</Text>
+                        </View>
+                        <Text style={[globalStyles.selectionButtonText, { color: isHidden ? theme.colors.primary : theme.colors.textSecondary, fontWeight: '700' }]}>
+                          {isHidden ? 'Skjult' : 'Synlig'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+              </View>
+            </View>
+
             <View style={globalStyles.editButtonsContainer}>
               <TouchableOpacity onPress={() => setBetModalVisible(false)} disabled={betSaving}>
                 <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
@@ -1973,6 +2057,43 @@ const GroupScreen = () => {
             <TouchableOpacity onPress={addEditBetOption} style={{ marginBottom: theme.spacing.md, alignSelf: 'flex-start' }}>
               <Text style={globalStyles.addOptionText}>+ Legg til alternativ</Text>
             </TouchableOpacity>
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.label}>Skjul bettet for medlemmer</Text>
+              <Text style={[globalStyles.secondaryText, { marginBottom: theme.spacing.sm }]}>Disse kan ikke se bettet før det markeres som ferdig.</Text>
+              <View style={{ gap: theme.spacing.xs }}>
+                {memberData
+                  .filter((member) => member.id !== user?.id)
+                  .map((member) => {
+                    const isHidden = editHiddenBetMemberIds.includes(member.id);
+                    return (
+                      <TouchableOpacity
+                        key={member.id}
+                        style={[
+                          globalStyles.listItemRow,
+                          {
+                            paddingVertical: theme.spacing.sm,
+                            backgroundColor: isHidden ? theme.colors.primary + '20' : theme.colors.surface,
+                            borderColor: isHidden ? theme.colors.primary : theme.colors.border,
+                          },
+                        ]}
+                        onPress={() => toggleEditHiddenBetMember(member.id)}
+                      >
+                        <Image
+                          source={member.profilePicture}
+                          style={[globalStyles.circularImage, { width: 32, height: 32, marginRight: 10 }]}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={groupStyles.wagerUser}>{member.name}</Text>
+                          <Text style={globalStyles.secondaryText}>@{member.username}</Text>
+                        </View>
+                        <Text style={[globalStyles.selectionButtonText, { color: isHidden ? theme.colors.primary : theme.colors.textSecondary, fontWeight: '700' }]}>
+                          {isHidden ? 'Skjult' : 'Synlig'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+              </View>
+            </View>
             <View style={globalStyles.editButtonsContainer}>
               <TouchableOpacity onPress={() => setEditBetModalVisible(false)} disabled={editBetSaving}>
                 <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
@@ -2297,6 +2418,7 @@ const GroupScreen = () => {
                 if (selectedEditBet) {
                   setEditBetIdx(selectedEditBet.index);
                   setEditBetTitle(selectedEditBet.bet.title);
+                  setEditHiddenBetMemberIds(selectedEditBet.bet.hiddenFromUserIds || []);
                   setEditBetOptions(
                     selectedEditBet.bet.options.map((opt: BettingOption) => ({
                       name: opt.name,

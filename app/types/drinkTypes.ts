@@ -42,6 +42,9 @@ export interface Bet {
   wagers?: BetWager[];
   correctOptionId?: string;
   isFinished?: boolean;
+  hiddenFromUserIds?: string[];
+  createdByUserId?: string;
+  createdByUsername?: string;
 }
 
 export interface BettingOption {
