@@ -1232,15 +1232,11 @@ const GroupScreen = () => {
             </View>
           )}
 
-          <FlatList
-            data={item.options}
-            renderItem={({ item: option }) => renderBettingOption({ item: option, bet: item })}
-            keyExtractor={option => option.id}
-            horizontal={false}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={globalStyles.listContainer}
-            scrollEnabled={false}
-          />
+          <View style={globalStyles.listContainer}>
+            {item.options.map((option) => (
+              <View key={option.id}>{renderBettingOption({ item: option, bet: item })}</View>
+            ))}
+          </View>
 
           {item.wagers && item.wagers.length > 0 && (
             <View style={globalStyles.sectionDivider}>
@@ -1577,14 +1573,13 @@ const GroupScreen = () => {
                 <Text style={{ fontSize: 16, color: theme.colors.text, marginBottom: theme.spacing.sm, fontWeight: '600' }}>
                   👥 Velg mottaker:
                 </Text>
-                <FlatList
-                  data={memberData}
-                  renderItem={renderMemberCard}
-                  keyExtractor={item => item.id}
-                  numColumns={3}
-                  scrollEnabled={false}
-                  style={{ marginBottom: theme.spacing.md }}
-                />
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: theme.spacing.md }}>
+                  {memberData.map((member) => (
+                    <View key={member.id} style={{ width: '33.33%' }}>
+                      {renderMemberCard({ item: member })}
+                    </View>
+                  ))}
+                </View>
 
                 {selectedMember && (
                   <View style={{ 
@@ -1810,54 +1805,50 @@ const GroupScreen = () => {
       <Modal visible={membersModalVisible} animationType="slide" transparent onRequestClose={() => setMembersModalVisible(false)}>
         <View style={globalStyles.modalContainer}> 
           <View style={[globalStyles.modalContent, {padding: theme.spacing.md, borderRadius: theme.borderRadius.lg, maxHeight: '80%', width: '90%'}]}>
-            <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.md, fontSize: 18, fontWeight: '600', color: theme.colors.text}]}>
-              Medlemmer i {selectedGroup?.name}
-            </Text>
-            
-            {/* Members section */}
-            <View style={{ marginBottom: theme.spacing.md }}>
-              <Text style={[globalStyles.sectionTitleLeft, { fontSize: 16, marginBottom: theme.spacing.sm }]}>Medlemmer</Text>
-              {memberData.length > 0 ? (
-                <FlatList
-                  data={memberData}
-                  renderItem={renderMemberItem}
-                  keyExtractor={item => item.id}
-                  contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
-                  scrollEnabled
-                  showsVerticalScrollIndicator={false}
-                />
-              ) : (
-                <Text style={[globalStyles.emptyStateText, { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginVertical: theme.spacing.md}]}>
-                  Ingen medlemmer i gruppen
-                </Text>
-              )}
-            </View>
+            <ScrollView contentContainerStyle={{ paddingBottom: theme.spacing.sm }} showsVerticalScrollIndicator={false}>
+              <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.md, fontSize: 18, fontWeight: '600', color: theme.colors.text}]}> 
+                Medlemmer i {selectedGroup?.name}
+              </Text>
+              
+              {/* Members section */}
+              <View style={{ marginBottom: theme.spacing.md }}>
+                <Text style={[globalStyles.sectionTitleLeft, { fontSize: 16, marginBottom: theme.spacing.sm }]}>Medlemmer</Text>
+                {memberData.length > 0 ? (
+                  <View style={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}>
+                    {memberData.map((member) => (
+                      <View key={member.id}>{renderMemberItem({ item: member })}</View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={[globalStyles.emptyStateText, { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginVertical: theme.spacing.md}]}> 
+                    Ingen medlemmer i gruppen
+                  </Text>
+                )}
+              </View>
 
-            {/* Invite friends section */}
-            <View style={{ flex: 1 }}>
-              <Text style={[globalStyles.sectionTitleLeft, { fontSize: 16, marginBottom: theme.spacing.sm }]}>Inviter venner</Text>
-              {(() => {
-                const availableFriends = friends.filter(friend => !selectedGroup?.members.includes(friend.id));
-                if (availableFriends.length === 0) {
+              {/* Invite friends section */}
+              <View>
+                <Text style={[globalStyles.sectionTitleLeft, { fontSize: 16, marginBottom: theme.spacing.sm }]}>Inviter venner</Text>
+                {(() => {
+                  const availableFriends = friends.filter(friend => !selectedGroup?.members.includes(friend.id));
+                  if (availableFriends.length === 0) {
+                    return (
+                      <Text style={[globalStyles.secondaryText, { textAlign: 'center', paddingVertical: theme.spacing.md }]}> 
+                        Ingen flere å invitere
+                      </Text>
+                    );
+                  }
+
                   return (
-                    <Text style={[globalStyles.secondaryText, { textAlign: 'center', paddingVertical: theme.spacing.md }]}>
-                      Ingen flere å invitere
-                    </Text>
+                    <View style={globalStyles.listContainer}>
+                      {availableFriends.map((friend) => (
+                        <View key={friend.id}>{renderFriendItem({ item: friend })}</View>
+                      ))}
+                    </View>
                   );
-                }
-                
-                return (
-                  <FlatList
-                    data={availableFriends}
-                    renderItem={renderFriendItem}
-                    keyExtractor={item => item.id}
-                    contentContainerStyle={globalStyles.listContainer}
-                    scrollEnabled
-                    showsVerticalScrollIndicator={false}
-                  />
-                );
-              })()}
-            </View>
+                })()}
+              </View>
+            </ScrollView>
 
             <View style={[globalStyles.editButtonsContainer, { marginTop: theme.spacing.md }]}>
               <TouchableOpacity onPress={() => setMembersModalVisible(false)}>
@@ -2216,13 +2207,11 @@ const GroupScreen = () => {
                         <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text, marginBottom: theme.spacing.md }}>
                           📊 Medlemmer og deres drikke-status:
                         </Text>
-                        <FlatList
-                          data={leaderboardData}
-                          renderItem={renderDetailedDrinkOverview}
-                          keyExtractor={item => item.userId}
-                          scrollEnabled={false}
-                          showsVerticalScrollIndicator={false}
-                        />
+                        <View>
+                          {leaderboardData.map((member) => (
+                            <View key={member.userId}>{renderDetailedDrinkOverview({ item: member })}</View>
+                          ))}
+                        </View>
                       </View>
                       
                       {/* Transaksjonshistorikk */}
@@ -2230,21 +2219,28 @@ const GroupScreen = () => {
                         <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text, marginBottom: theme.spacing.md }}>
                           📝 Siste overføringer
                         </Text>
-                        <FlatList
-                          data={leaderboardData.flatMap(member => member.transactions)
+                        {(() => {
+                          const recentTransactions = leaderboardData
+                            .flatMap(member => member.transactions)
                             .sort((a, b) => b.timestamp - a.timestamp)
-                            .slice(0, 10)}
-                          renderItem={renderTransactionItem}
-                          keyExtractor={(item, index) => `${item.fromUserId}-${item.toUserId}-${index}`}
-                          contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
-                          scrollEnabled={false}
-                          showsVerticalScrollIndicator={false}
-                          ListEmptyComponent={() => (
-                            <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center' }}>
-                              Ingen overføringer ennå
-                            </Text>
-                          )}
-                        />
+                            .slice(0, 10);
+                          if (recentTransactions.length === 0) {
+                            return (
+                              <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center' }}>
+                                Ingen overføringer ennå
+                              </Text>
+                            );
+                          }
+                          return (
+                            <View style={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}> 
+                              {recentTransactions.map((transaction, idx) => (
+                                <View key={`${transaction.fromUserId}-${transaction.toUserId}-${transaction.timestamp}-${idx}`}>
+                                  {renderTransactionItem({ item: transaction })}
+                                </View>
+                              ))}
+                            </View>
+                          );
+                        })()}
                       </View>
                     </View>
                   ) : (
@@ -2373,14 +2369,11 @@ const GroupScreen = () => {
                       </View>
                       {/* Remaining Members */}
                       {leaderboardData.length > 3 && (
-                        <FlatList
-                          data={leaderboardData.slice(3)}
-                          renderItem={renderLeaderboardItem}
-                          keyExtractor={item => item.userId}
-                          contentContainerStyle={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}
-                          scrollEnabled={false}
-                          showsVerticalScrollIndicator={false}
-                        />
+                        <View style={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}> 
+                          {leaderboardData.slice(3).map((member, idx) => (
+                            <View key={member.userId}>{renderLeaderboardItem({ item: member, index: idx })}</View>
+                          ))}
+                        </View>
                       )}
                     </View>
                   )}

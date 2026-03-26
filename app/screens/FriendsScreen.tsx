@@ -304,6 +304,7 @@ const FriendsScreen = () => {
                 backgroundColor: theme.colors.surface,
                 borderRadius: 8,
                 padding: 12,
+                fontSize: Platform.OS === 'web' ? 16 : theme.fonts.md,
                 color: theme.colors.text,
                 marginRight: 8
               }}
