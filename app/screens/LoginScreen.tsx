@@ -1,7 +1,8 @@
-import { useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { loginStyles } from '@/app/styles/components/loginStyles';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -15,7 +16,6 @@ import {
   View,
 } from 'react-native';
 import { authService } from '../services/firebase/authService';
-import { loginStyles } from '@/app/styles/components/loginStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import { showAlert } from '../utils/platformAlert';
