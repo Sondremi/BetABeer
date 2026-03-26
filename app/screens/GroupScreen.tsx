@@ -1870,7 +1870,12 @@ const GroupScreen = () => {
 
       <Modal visible={betModalVisible} animationType="slide" transparent onRequestClose={() => setBetModalVisible(false)}>
         <View style={globalStyles.modalContainer}>
-          <View style={globalStyles.modalContent}>
+          <View style={[globalStyles.modalContent, { maxHeight: '85%', width: '92%' }]}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: theme.spacing.sm }}
+            >
             <Text style={globalStyles.modalTitle}>Opprett nytt bet</Text>
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Tittel på bet</Text>
@@ -1906,40 +1911,43 @@ const GroupScreen = () => {
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Skjul bettet for medlemmer</Text>
               <Text style={[globalStyles.secondaryText, { marginBottom: theme.spacing.sm }]}>Disse kan ikke se bettet før det markeres som ferdig.</Text>
-              <View style={{ gap: theme.spacing.xs }}>
-                {memberData
-                  .filter((member) => member.id !== user?.id)
-                  .map((member) => {
-                    const isHidden = hiddenBetMemberIds.includes(member.id);
-                    return (
-                      <TouchableOpacity
-                        key={member.id}
-                        style={[
-                          globalStyles.listItemRow,
-                          {
-                            paddingVertical: theme.spacing.sm,
-                            backgroundColor: isHidden ? theme.colors.primary + '20' : theme.colors.surface,
-                            borderColor: isHidden ? theme.colors.primary : theme.colors.border,
-                          },
-                        ]}
-                        onPress={() => toggleHiddenBetMember(member.id)}
-                      >
-                        <Image
-                          source={member.profilePicture}
-                          style={[globalStyles.circularImage, { width: 32, height: 32, marginRight: 10 }]}
-                        />
-                        <View style={{ flex: 1 }}>
-                          <Text style={groupStyles.wagerUser}>{member.name}</Text>
-                          <Text style={globalStyles.secondaryText}>@{member.username}</Text>
-                        </View>
-                        <Text style={[globalStyles.selectionButtonText, { color: isHidden ? theme.colors.primary : theme.colors.textSecondary, fontWeight: '700' }]}>
-                          {isHidden ? 'Skjult' : 'Synlig'}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-              </View>
+              <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled showsVerticalScrollIndicator>
+                <View style={{ gap: theme.spacing.xs, paddingRight: 2 }}>
+                  {memberData
+                    .filter((member) => member.id !== user?.id)
+                    .map((member) => {
+                      const isHidden = hiddenBetMemberIds.includes(member.id);
+                      return (
+                        <TouchableOpacity
+                          key={member.id}
+                          style={[
+                            globalStyles.listItemRow,
+                            {
+                              paddingVertical: theme.spacing.sm,
+                              backgroundColor: isHidden ? theme.colors.primary + '20' : theme.colors.surface,
+                              borderColor: isHidden ? theme.colors.primary : theme.colors.border,
+                            },
+                          ]}
+                          onPress={() => toggleHiddenBetMember(member.id)}
+                        >
+                          <Image
+                            source={member.profilePicture}
+                            style={[globalStyles.circularImage, { width: 32, height: 32, marginRight: 10 }]}
+                          />
+                          <View style={{ flex: 1 }}>
+                            <Text style={groupStyles.wagerUser}>{member.name}</Text>
+                            <Text style={globalStyles.secondaryText}>@{member.username}</Text>
+                          </View>
+                          <Text style={[globalStyles.selectionButtonText, { color: isHidden ? theme.colors.primary : theme.colors.textSecondary, fontWeight: '700' }]}> 
+                            {isHidden ? 'Skjult' : 'Synlig'}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                </View>
+              </ScrollView>
             </View>
+            </ScrollView>
 
             <View style={globalStyles.editButtonsContainer}>
               <TouchableOpacity onPress={() => setBetModalVisible(false)} disabled={betSaving}>
