@@ -207,3 +207,54 @@ export const distributeDrinks = async (
     });
   }));
 };
+
+export const registerConsumedDrinks = async (
+  userId: string,
+  consumptions: { drinkType: DrinkType; measureType: MeasureType; amount: number }[]
+): Promise<void> => {
+  if (!userId) {
+    throw new Error('Bruker ikke tilgjengelig');
+  }
+
+  if (!consumptions.length) {
+    throw new Error('Ingen drikker å registrere');
+  }
+
+  const currentUser = auth.currentUser;
+  if (!currentUser || currentUser.uid !== userId) {
+    throw new Error('Ikke autorisert');
+  }
+
+  const userRef = doc(firestore, 'users', userId);
+  const userDoc = await getDoc(userRef);
+  if (!userDoc.exists()) {
+    throw new Error('Bruker ikke funnet');
+  }
+
+  const userData = userDoc.data();
+  const drinksToConsume: MemberDrinkStats['drinksToConsume'] = userData.drinksToConsume || {};
+  const aggregated: { [key: string]: number } = {};
+
+  consumptions.forEach(({ drinkType, measureType, amount }) => {
+    if (amount <= 0) return;
+    const key = `${drinkType}|${measureType}`;
+    aggregated[key] = (aggregated[key] || 0) + amount;
+  });
+
+  const updatePayload: Record<string, any> = {};
+  Object.entries(aggregated).forEach(([key, amount]) => {
+    const [drinkType, measureType] = key.split('|') as [DrinkType, MeasureType];
+    const available = drinksToConsume[drinkType]?.[measureType] || 0;
+    if (amount > available) {
+      throw new Error(`Du kan ikke registrere mer enn du har for ${measureType} ${drinkType}`);
+    }
+    updatePayload[`drinksToConsume.${drinkType}.${measureType}`] = increment(-amount);
+    updatePayload[`drinksConsumed.${drinkType}.${measureType}`] = increment(amount);
+  });
+
+  if (!Object.keys(updatePayload).length) {
+    throw new Error('Ingen gyldige endringer å lagre');
+  }
+
+  await updateDoc(userRef, updatePayload);
+};
