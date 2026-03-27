@@ -24,17 +24,17 @@ const useAnimatedBACText = (
   gender: 'male' | 'female' | undefined,
   currentTime: number
 ) => {
-  const currentBAC = drinks && weight && gender
+  const currentBACValue = drinks && weight && gender
     ? profileService.calculateBAC(drinks, weight, gender, currentTime)
     : 0;
-  const color = currentBAC < 1 ? ('#4CAF50') :
-                currentBAC <= 2 ? ('#F57C00') :
+  const color = currentBACValue < 1 ? ('#4CAF50') :
+                currentBACValue <= 2 ? ('#F57C00') :
                 ('#FF0000');
-  const emoji = currentBAC < 1 ? '🥂' :
-                currentBAC <= 2 ? '🍻' :
-                currentBAC < 3 ? '🥴' : '💀'
-  const exclamationMarks = currentBAC > 2.5 ? '!'.repeat(Math.min(3, Math.floor((currentBAC - 2.5) / 0.1))) : '';
-  const isHighBAC = currentBAC >= 3;
+  const emoji = currentBACValue < 1 ? '🥂' :
+                currentBACValue <= 2 ? '🍻' :
+                currentBACValue < 3 ? '🥴' : '💀'
+  const exclamationMarks = currentBACValue > 2.5 ? '!'.repeat(Math.min(3, Math.floor((currentBACValue - 2.5) / 0.1))) : '';
+  const isHighBAC = currentBACValue >= 3;
   const scale = useSharedValue(isHighBAC ? 1.2 : 1);
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: withSpring(scale.value) }],
@@ -42,7 +42,8 @@ const useAnimatedBACText = (
   scale.value = isHighBAC ? 1.2 : 1; // Update scale on re-render
 
   return {
-    currentBAC: currentBAC.toFixed(3),
+    currentBACValue,
+    currentBAC: currentBACValue.toFixed(3),
     color,
     emoji,
     exclamationMarks,
@@ -134,17 +135,45 @@ const ProfileScreen: React.FC = () => {
     weight?: number;
     gender?: 'male' | 'female';
     drinks?: DrinkEntry[];
+    bacHighscoreAllTime?: number;
+    bacHighscoreUpdatedAt?: number;
   }>({});
   const [isLoading, setIsLoading] = useState(true);
   const [drinkModalVisible, setDrinkModalVisible] = useState(false);
   const [drinkForm, setDrinkForm] = useState<DrinkFormState>(INITIAL_DRINK_FORM);
   const [bacCalculationTime, setBacCalculationTime] = useState(() => Date.now());
-  const { currentBAC, color, emoji, exclamationMarks, isHighBAC, animatedStyle } = useAnimatedBACText(
+  const { currentBAC, currentBACValue, color, emoji, exclamationMarks, isHighBAC, animatedStyle } = useAnimatedBACText(
     userInfo.drinks,
     userInfo.weight,
     userInfo.gender,
     bacCalculationTime
   );
+
+  useEffect(() => {
+    const persistHighscoreIfNeeded = async () => {
+      if (!user?.id || !userInfo.weight || !userInfo.gender) return;
+      if (!userInfo.drinks?.length) return;
+      if (currentBACValue <= 0) return;
+
+      const existingHighscore = userInfo.bacHighscoreAllTime ?? 0;
+      const epsilon = 0.0005;
+      if (currentBACValue <= existingHighscore + epsilon) return;
+
+      const roundedHighscore = Number(currentBACValue.toFixed(3));
+      try {
+        await profileService.updateBACHighscore(user.id, roundedHighscore);
+        setUserInfo(prev => ({
+          ...prev,
+          bacHighscoreAllTime: roundedHighscore,
+          bacHighscoreUpdatedAt: Date.now(),
+        }));
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    persistHighscoreIfNeeded();
+  }, [currentBACValue, user?.id, userInfo.weight, userInfo.gender, userInfo.drinks, userInfo.bacHighscoreAllTime]);
 
   useEffect(() => {
     if (!userInfo.drinks?.length || !userInfo.weight || !userInfo.gender) {
@@ -722,6 +751,9 @@ const ProfileScreen: React.FC = () => {
               >        
               Nåværende promille: {currentBAC}‰{exclamationMarks} {emoji}
               </Animated.Text>
+              <Text style={[globalStyles.secondaryText, { textAlign: 'center', marginTop: theme.spacing.xs }]}>
+                All-time høyeste promille: {(userInfo.bacHighscoreAllTime ?? 0).toFixed(3)}‰
+              </Text>
             </View>
           );
         })()}
