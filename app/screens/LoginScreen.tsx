@@ -1,4 +1,4 @@
-import { loginStyles } from '@/app/styles/components/loginStyles';
+import { loginScreenTokens, loginStyles } from '@/app/styles/components/loginStyles';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -17,7 +17,6 @@ import {
 } from 'react-native';
 import { authService } from '../services/firebase/authService';
 import { globalStyles } from '../styles/globalStyles';
-import { theme } from '../styles/theme';
 import { showAlert } from '../utils/platformAlert';
 
 const LoginScreen: React.FC = () => {
@@ -207,7 +206,7 @@ const LoginScreen: React.FC = () => {
       style={[
         Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container,
         loginStyles.darkContainer,
-        { padding: 0 }
+        loginStyles.pageContainer,
       ]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
@@ -222,7 +221,7 @@ const LoginScreen: React.FC = () => {
       >
         <View style={loginStyles.backgroundLayer} pointerEvents="none">
           <LinearGradient
-            colors={['#0B0F1A', '#02040A']}
+            colors={loginScreenTokens.backgroundGradientColors}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
             style={loginStyles.backgroundGradient}
@@ -237,7 +236,7 @@ const LoginScreen: React.FC = () => {
           />
           <Text style={loginStyles.appName}>BetABeer</Text>
           <Text style={loginStyles.welcomeText}>
-            {isLoginMode ? 'Velkommen tilbake!' : 'Opprett ny bruker'}
+            {isLoginMode ? 'Velkommen tilbake!' : 'Registrer deg'}
           </Text>
         </View>
 
@@ -246,7 +245,7 @@ const LoginScreen: React.FC = () => {
 
           <View style={loginStyles.authCard}>
             <LinearGradient
-              colors={['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0)']}
+              colors={loginScreenTokens.cardHighlightGradientColors}
               start={{ x: 0.5, y: 0 }}
               end={{ x: 0.5, y: 1 }}
               style={loginStyles.cardHighlight}
@@ -254,7 +253,7 @@ const LoginScreen: React.FC = () => {
             />
 
             <LinearGradient
-              colors={['rgba(31, 36, 51, 0.98)', 'rgba(18, 22, 33, 0.95)']}
+              colors={loginScreenTokens.authCardGradientColors}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={loginStyles.authCardGradient}
@@ -311,7 +310,7 @@ const LoginScreen: React.FC = () => {
             {isLoginMode ? (
               <View style={[globalStyles.inputGroup, loginStyles.formInputGroup]}>
                 <Text style={loginStyles.fieldLabel}>E-postadresse</Text>
-                <View style={[loginStyles.inputShell, activeField === 'email' && loginStyles.inputShellFocused]}>
+                <View style={[globalStyles.inputShellDark, activeField === 'email' && globalStyles.inputShellFocusedGold]}>
                   <TextInput
                     style={[globalStyles.input, loginStyles.authInput]}
                     value={formData.email}
@@ -319,7 +318,7 @@ const LoginScreen: React.FC = () => {
                     onFocus={() => setActiveField('email')}
                     onBlur={() => setActiveField(null)}
                     placeholder="Skriv inn e-postadresse"
-                    placeholderTextColor={theme.colors.textSecondary}
+                    placeholderTextColor={loginScreenTokens.placeholderTextColor}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -330,7 +329,7 @@ const LoginScreen: React.FC = () => {
               <>
                 <View style={[globalStyles.inputGroup, loginStyles.formInputGroup]}>
                   <Text style={loginStyles.fieldLabel}>Brukernavn</Text>
-                  <View style={[loginStyles.inputShell, activeField === 'username' && loginStyles.inputShellFocused]}>
+                  <View style={[globalStyles.inputShellDark, activeField === 'username' && globalStyles.inputShellFocusedGold]}>
                     <TextInput
                       style={[globalStyles.input, loginStyles.authInput]}
                       value={formData.username}
@@ -338,7 +337,7 @@ const LoginScreen: React.FC = () => {
                       onFocus={() => setActiveField('username')}
                       onBlur={() => setActiveField(null)}
                       placeholder="Skriv inn brukernavn"
-                      placeholderTextColor={theme.colors.textSecondary}
+                      placeholderTextColor={loginScreenTokens.placeholderTextColor}
                       autoCapitalize="none"
                       autoCorrect={false}
                     />
@@ -346,7 +345,7 @@ const LoginScreen: React.FC = () => {
                 </View>
                 <View style={[globalStyles.inputGroup, loginStyles.formInputGroup]}>
                   <Text style={loginStyles.fieldLabel}>Navn</Text>
-                  <View style={[loginStyles.inputShell, activeField === 'name' && loginStyles.inputShellFocused]}>
+                  <View style={[globalStyles.inputShellDark, activeField === 'name' && globalStyles.inputShellFocusedGold]}>
                     <TextInput
                       style={[globalStyles.input, loginStyles.authInput]}
                       value={formData.name}
@@ -354,13 +353,13 @@ const LoginScreen: React.FC = () => {
                       onFocus={() => setActiveField('name')}
                       onBlur={() => setActiveField(null)}
                       placeholder="Skriv inn navn"
-                      placeholderTextColor={theme.colors.textSecondary}
+                      placeholderTextColor={loginScreenTokens.placeholderTextColor}
                     />
                   </View>
                 </View>
                 <View style={[globalStyles.inputGroup, loginStyles.formInputGroup]}>
                   <Text style={loginStyles.fieldLabel}>E-postadresse</Text>
-                  <View style={[loginStyles.inputShell, activeField === 'registerEmail' && loginStyles.inputShellFocused]}>
+                  <View style={[globalStyles.inputShellDark, activeField === 'registerEmail' && globalStyles.inputShellFocusedGold]}>
                     <TextInput
                       style={[globalStyles.input, loginStyles.authInput]}
                       value={formData.email}
@@ -368,7 +367,7 @@ const LoginScreen: React.FC = () => {
                       onFocus={() => setActiveField('registerEmail')}
                       onBlur={() => setActiveField(null)}
                       placeholder="Skriv inn e-postadresse"
-                      placeholderTextColor={theme.colors.textSecondary}
+                      placeholderTextColor={loginScreenTokens.placeholderTextColor}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
@@ -380,7 +379,7 @@ const LoginScreen: React.FC = () => {
 
             <View style={[globalStyles.inputGroup, loginStyles.formInputGroup]}>
               <Text style={loginStyles.fieldLabel}>Passord</Text>
-              <View style={[loginStyles.inputShellWithIcon, activeField === 'password' && loginStyles.inputShellFocused]}>
+              <View style={[globalStyles.inputShellDark, loginStyles.inputShellWithIcon, activeField === 'password' && globalStyles.inputShellFocusedGold]}>
                 <TextInput
                   style={[globalStyles.input, loginStyles.authInput, loginStyles.authInputWithIcon]}
                   value={formData.password}
@@ -388,7 +387,7 @@ const LoginScreen: React.FC = () => {
                   onFocus={() => setActiveField('password')}
                   onBlur={() => setActiveField(null)}
                   placeholder="Skriv inn passord"
-                  placeholderTextColor={theme.colors.textSecondary}
+                  placeholderTextColor={loginScreenTokens.placeholderTextColor}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -401,7 +400,7 @@ const LoginScreen: React.FC = () => {
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={22}
-                    color={theme.colors.textSecondary}
+                    color={loginScreenTokens.iconTint}
                   />
                 </TouchableOpacity>
               </View>
@@ -410,7 +409,7 @@ const LoginScreen: React.FC = () => {
             {!isLoginMode && (
               <View style={[globalStyles.inputGroup, loginStyles.formInputGroup]}>
                 <Text style={loginStyles.fieldLabel}>Bekreft passord</Text>
-                <View style={[loginStyles.inputShellWithIcon, activeField === 'confirmPassword' && loginStyles.inputShellFocused]}>
+                <View style={[globalStyles.inputShellDark, loginStyles.inputShellWithIcon, activeField === 'confirmPassword' && globalStyles.inputShellFocusedGold]}>
                   <TextInput
                     style={[globalStyles.input, loginStyles.authInput, loginStyles.authInputWithIcon]}
                     value={formData.confirmPassword}
@@ -418,7 +417,7 @@ const LoginScreen: React.FC = () => {
                     onFocus={() => setActiveField('confirmPassword')}
                     onBlur={() => setActiveField(null)}
                     placeholder="Bekreft passord"
-                    placeholderTextColor={theme.colors.textSecondary}
+                    placeholderTextColor={loginScreenTokens.placeholderTextColor}
                     secureTextEntry={!showConfirmPassword}
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -431,7 +430,7 @@ const LoginScreen: React.FC = () => {
                     <Ionicons
                       name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
                       size={22}
-                      color={theme.colors.textSecondary}
+                      color={loginScreenTokens.iconTint}
                     />
                   </TouchableOpacity>
                 </View>
@@ -447,21 +446,21 @@ const LoginScreen: React.FC = () => {
               disabled={isLoading}
             >
               <LinearGradient
-                colors={['#D4AF37', '#F6D365']}
+                colors={loginScreenTokens.ctaGradientColors}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={loginStyles.ctaGradient}
               >
                 <View style={loginStyles.ctaContentRow}>
-                  {isLoading && <ActivityIndicator size="small" color="#1E1806" style={loginStyles.ctaLoader} />}
+                  {isLoading && <ActivityIndicator size="small" color={loginScreenTokens.loaderColor} style={loginStyles.ctaLoader} />}
                   <Text style={[globalStyles.primaryButtonText, loginStyles.ctaButtonText]}>
                     {isLoading
                       ? isLoginMode
                         ? 'Logger inn...'
-                        : 'Oppretter...'
+                        : 'Registrerer...'
                       : isLoginMode
                         ? 'Logg inn'
-                        : 'Opprett bruker'
+                        : 'Registrer deg'
                     }
                   </Text>
                 </View>

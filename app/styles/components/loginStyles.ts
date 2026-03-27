@@ -1,9 +1,23 @@
 import { Platform, StyleSheet } from 'react-native';
 import { globalStyles } from '../globalStyles';
+import { theme } from '../theme';
+
+export const loginScreenTokens = {
+  placeholderTextColor: theme.colors.textSecondary,
+  iconTint: theme.colors.textSecondary,
+  loaderColor: theme.colors.shadowDim,
+  backgroundGradientColors: [theme.gradients.loginBackgroundStart, theme.gradients.loginBackgroundEnd] as const,
+  cardHighlightGradientColors: [theme.effects.white08, theme.effects.white00] as const,
+  authCardGradientColors: [theme.effects.authGradientFrom, theme.effects.authGradientTo] as const,
+  ctaGradientColors: [theme.gradients.ctaStart, theme.gradients.ctaEnd] as const,
+};
 
 export const loginStyles: any = StyleSheet.create({
+  pageContainer: {
+    padding: 0,
+  },
   darkContainer: {
-    backgroundColor: '#0F131A',
+    backgroundColor: theme.colors.backgroundDeep,
   },
   screenContent: {
     flexGrow: 1,
@@ -19,7 +33,7 @@ export const loginStyles: any = StyleSheet.create({
   },
   backgroundLayer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0F131A',
+    backgroundColor: theme.colors.backgroundDeep,
   },
   backgroundGradient: {
     ...StyleSheet.absoluteFillObject,
@@ -39,15 +53,15 @@ export const loginStyles: any = StyleSheet.create({
     fontSize: 42,
     lineHeight: 46,
     fontWeight: '800',
-    color: '#E0B84F',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    color: theme.colors.primarySoft,
+    textShadowColor: theme.effects.black50,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 4,
     letterSpacing: -0.3,
   },
   welcomeText: {
     fontSize: 17,
-    color: '#E5E7EB',
+    color: theme.colors.textStrong,
     textAlign: 'center',
     marginTop: 4,
     fontWeight: '500',
@@ -67,8 +81,8 @@ export const loginStyles: any = StyleSheet.create({
     left: 1,
     right: 1,
     borderRadius: 24,
-    backgroundColor: 'rgba(241, 210, 120, 0.03)',
-    shadowColor: '#F1D278',
+    backgroundColor: theme.effects.gold03,
+    shadowColor: theme.colors.primaryGlow,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: Platform.OS === 'web' ? 0.44 : 0.31,
     shadowRadius: Platform.OS === 'web' ? 44 : 30,
@@ -78,12 +92,12 @@ export const loginStyles: any = StyleSheet.create({
   authCard: {
     width: '100%',
     borderWidth: 1,
-    borderColor: '#D4AF37',
+    borderColor: theme.gradients.ctaStart,
     borderRadius: 24,
-    backgroundColor: '#222834',
+    backgroundColor: theme.colors.backgroundCard,
     overflow: 'hidden',
     marginHorizontal: 0,
-    shadowColor: '#000',
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 20,
@@ -103,10 +117,10 @@ export const loginStyles: any = StyleSheet.create({
   },
   modeSwitchContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(9, 12, 19, 0.74)',
+    backgroundColor: theme.effects.modeTrack,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: theme.effects.white08,
     padding: 4,
     marginBottom: 20,
     position: 'relative',
@@ -118,9 +132,9 @@ export const loginStyles: any = StyleSheet.create({
     bottom: 4,
     left: 4,
     borderRadius: 10,
-    backgroundColor: 'rgba(212, 175, 55, 0.24)',
+    backgroundColor: theme.effects.modeIndicatorBg,
     borderWidth: 1,
-    borderColor: 'rgba(236, 211, 122, 0.72)',
+    borderColor: theme.effects.modeIndicatorBorder,
   },
   modeButton: {
     flex: 1,
@@ -135,16 +149,16 @@ export const loginStyles: any = StyleSheet.create({
     borderWidth: 0,
   },
   modeButtonText: {
-    color: '#A8B1C1',
+    color: theme.colors.textModeIdle,
     fontSize: 14,
     fontWeight: '600',
   },
   modeButtonTextActive: {
-    color: '#F4DC8C',
+    color: theme.colors.textModeActive,
   },
   fieldLabel: {
     ...globalStyles.label,
-    color: '#FFFFFF',
+    color: theme.colors.white,
     marginBottom: 8,
     fontSize: 14,
     fontWeight: '500',
@@ -152,34 +166,14 @@ export const loginStyles: any = StyleSheet.create({
   formInputGroup: {
     marginBottom: 28,
   },
-  inputShell: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#0F121A',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
   inputShellWithIcon: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#0F121A',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  inputShellFocused: {
-    borderColor: 'rgba(241, 210, 120, 0.8)',
-    shadowColor: '#F1D278',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: Platform.OS === 'web' ? 0.26 : 0.18,
-    shadowRadius: Platform.OS === 'web' ? 10 : 7,
-    elevation: 3,
   },
   authInput: {
     borderWidth: 0,
     backgroundColor: 'transparent',
-    color: '#CCD4DF',
+    color: theme.colors.textInput,
     fontSize: 16,
     paddingVertical: 13,
     paddingHorizontal: 14,
@@ -200,10 +194,10 @@ export const loginStyles: any = StyleSheet.create({
     marginBottom: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
+    borderColor: theme.effects.black08,
     minHeight: 52,
     justifyContent: 'center',
-    shadowColor: '#ECD37A',
+    shadowColor: theme.colors.primaryGlowStrong,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: Platform.OS === 'web' ? 0.35 : 0.24,
     shadowRadius: 16,
@@ -225,7 +219,7 @@ export const loginStyles: any = StyleSheet.create({
     marginRight: 8,
   },
   ctaButtonText: {
-    color: '#080808',
+    color: theme.colors.textOnGold,
     fontSize: 21,
     fontWeight: '700',
     letterSpacing: 0,
@@ -235,7 +229,7 @@ export const loginStyles: any = StyleSheet.create({
     top: -18,
     width: 90,
     height: 110,
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    backgroundColor: theme.effects.white55,
     opacity: 0.7,
   },
 });
