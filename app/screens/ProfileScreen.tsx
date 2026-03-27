@@ -3,7 +3,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Dimensions, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -67,6 +67,12 @@ type DrinkFormState = {
   customSizeDl: string;
   customAlcoholPercentManual: string;
   customQuantity: string;
+};
+
+type BACEstimatorDrinkOption = {
+  key: string;
+  label: string;
+  template: Omit<DrinkEntry, 'timestamp' | 'quantity'>;
 };
 
 const INITIAL_DRINK_FORM: DrinkFormState = {
@@ -142,12 +148,113 @@ const ProfileScreen: React.FC = () => {
   const [drinkModalVisible, setDrinkModalVisible] = useState(false);
   const [drinkForm, setDrinkForm] = useState<DrinkFormState>(INITIAL_DRINK_FORM);
   const [bacCalculationTime, setBacCalculationTime] = useState(() => Date.now());
+  const [selectedEstimatorDrinkKey, setSelectedEstimatorDrinkKey] = useState<string>('');
   const { currentBAC, currentBACValue, color, emoji, exclamationMarks, isHighBAC, animatedStyle } = useAnimatedBACText(
     userInfo.drinks,
     userInfo.weight,
     userInfo.gender,
     bacCalculationTime
   );
+
+  const estimatorDrinkOptions = useMemo<BACEstimatorDrinkOption[]>(() => {
+    const drinks = userInfo.drinks || [];
+    const unique = new Map<string, BACEstimatorDrinkOption>();
+
+    drinks.forEach((drink) => {
+      const namePart = drink.name?.trim() || '';
+      const key = `${namePart}|${drink.category}|${drink.sizeDl}|${drink.alcoholPercent}`;
+      if (unique.has(key)) return;
+
+      const baseLabel = `${drink.sizeDl} dl ${drink.category} (${drink.alcoholPercent}%)`;
+      const label = namePart ? `${namePart} - ${baseLabel}` : baseLabel;
+
+      unique.set(key, {
+        key,
+        label,
+        template: {
+          name: namePart || undefined,
+          category: drink.category,
+          sizeDl: drink.sizeDl,
+          alcoholPercent: drink.alcoholPercent,
+        },
+      });
+    });
+
+    return Array.from(unique.values());
+  }, [userInfo.drinks]);
+
+  useEffect(() => {
+    if (!estimatorDrinkOptions.length) {
+      setSelectedEstimatorDrinkKey('');
+      return;
+    }
+
+    const selectionStillExists = estimatorDrinkOptions.some((option) => option.key === selectedEstimatorDrinkKey);
+    if (!selectedEstimatorDrinkKey || !selectionStillExists) {
+      setSelectedEstimatorDrinkKey(estimatorDrinkOptions[0].key);
+    }
+  }, [estimatorDrinkOptions, selectedEstimatorDrinkKey]);
+
+  const selectedEstimatorOption = useMemo(
+    () => estimatorDrinkOptions.find((option) => option.key === selectedEstimatorDrinkKey),
+    [estimatorDrinkOptions, selectedEstimatorDrinkKey]
+  );
+
+  const estimatedAdditionalDrinksToBeatHighscore = useMemo(() => {
+    if (!userInfo.drinks?.length || !userInfo.weight || !userInfo.gender) {
+      return null;
+    }
+
+    const highscore = userInfo.bacHighscoreAllTime ?? 0;
+    if (highscore <= 0 || !selectedEstimatorOption) {
+      return null;
+    }
+
+    const now = bacCalculationTime;
+    const threshold = highscore + 0.0005;
+    const timeStepMs = 5 * 60 * 1000;
+    const horizonMs = 6 * 60 * 60 * 1000;
+
+    const getProjectedPeakBAC = (drinks: DrinkEntry[]) => {
+      let peak = 0;
+      for (let offset = 0; offset <= horizonMs; offset += timeStepMs) {
+        const pointInTime = now + offset;
+        const bac = profileService.calculateBAC(drinks, userInfo.weight!, userInfo.gender!, pointInTime);
+        if (bac > peak) {
+          peak = bac;
+        }
+      }
+      return peak;
+    };
+
+    const baselinePeak = getProjectedPeakBAC(userInfo.drinks);
+    if (baselinePeak > threshold) {
+      return 0;
+    }
+
+    const maxAdditionalServings = 50;
+    for (let servings = 1; servings <= maxAdditionalServings; servings += 1) {
+      const addedDrinks: DrinkEntry[] = Array.from({ length: servings }, () => ({
+        ...selectedEstimatorOption.template,
+        quantity: 1,
+        timestamp: now,
+      }));
+
+      const projectedPeak = getProjectedPeakBAC([...userInfo.drinks, ...addedDrinks]);
+      if (projectedPeak > threshold) {
+        return servings;
+      }
+    }
+
+    return null;
+  }, [
+    userInfo.drinks,
+    userInfo.weight,
+    userInfo.gender,
+    userInfo.bacHighscoreAllTime,
+    selectedEstimatorOption,
+    bacCalculationTime,
+  ]);
 
   useEffect(() => {
     const persistHighscoreIfNeeded = async () => {
@@ -754,6 +861,41 @@ const ProfileScreen: React.FC = () => {
               <Text style={[globalStyles.secondaryText, { textAlign: 'center', marginTop: theme.spacing.xs }]}>
                 All-time høyeste promille: {(userInfo.bacHighscoreAllTime ?? 0).toFixed(3)}‰
               </Text>
+
+              {(userInfo.bacHighscoreAllTime ?? 0) > 0 && estimatorDrinkOptions.length > 0 && (
+                <View style={{ marginTop: theme.spacing.md }}>
+                  <Text style={[globalStyles.label, { textAlign: 'left' }]}>Scenario (kun for innsikt)</Text>
+                  <Text style={[globalStyles.secondaryText, { textAlign: 'left', marginBottom: theme.spacing.xs }]}>Velg en drikke du allerede har registrert</Text>
+                  <View style={globalStyles.pickerInput}>
+                    <Picker
+                      style={globalStyles.picker}
+                      itemStyle={{ color: theme.colors.text }}
+                      selectedValue={selectedEstimatorDrinkKey}
+                      onValueChange={(value: string) => setSelectedEstimatorDrinkKey(value)}
+                    >
+                      {estimatorDrinkOptions.map((option) => (
+                        <Picker.Item key={option.key} label={option.label} value={option.key} />
+                      ))}
+                    </Picker>
+                  </View>
+
+                  {estimatedAdditionalDrinksToBeatHighscore === 0 && (
+                    <Text style={[globalStyles.secondaryText, { marginTop: theme.spacing.xs, textAlign: 'left' }]}>Du ligger allerede over tidligere topp med nåværende registrering.</Text>
+                  )}
+                  {typeof estimatedAdditionalDrinksToBeatHighscore === 'number' && estimatedAdditionalDrinksToBeatHighscore > 0 && (
+                    <Text style={[globalStyles.secondaryText, { marginTop: theme.spacing.xs, textAlign: 'left' }]}>
+                      Modellen anslår at omtrent {estimatedAdditionalDrinksToBeatHighscore} til av valgt drikke måtte vært lagt til for å passere historisk topp.
+                    </Text>
+                  )}
+                  {estimatedAdditionalDrinksToBeatHighscore === null && (
+                    <Text style={[globalStyles.secondaryText, { marginTop: theme.spacing.xs, textAlign: 'left' }]}>Ingen tydelig passering funnet i modellen innenfor 50 ekstra enheter av valgt drikke.</Text>
+                  )}
+
+                  <Text style={[globalStyles.secondaryText, { marginTop: theme.spacing.xs, fontStyle: 'italic', textAlign: 'left' }]}>
+                    Dette er en matematisk modell for risikoforståelse, ikke en anbefaling om å drikke mer.
+                  </Text>
+                </View>
+              )}
             </View>
           );
         })()}
