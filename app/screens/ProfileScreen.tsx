@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Dimensions, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -207,28 +207,31 @@ const ProfileScreen: React.FC = () => {
     fetchNames();
   }, [groupInvitations]);
 
-  useEffect(() => {
-    loadUserData();
-  }, []);
-
-  const loadUserData = async () => {
+  const loadUserData = useCallback(async () => {
     try {
       const currentUser = authService.getCurrentUser();
       if (currentUser) {
         const userData = await profileService.getUserData(currentUser.uid);
         setUserInfo(userData);
+
         if (!userData.weight || !userData.gender) {
-          showAlert(
-            'Mangler informasjon',
-            'Du må angi vekt og kjønn i innstillingene for å bruke promillekalkulatoren.',
-            [
-              {
-                text: 'Gå til innstillinger',
-                onPress: () => router.push('/settings'),
-              },
-              { text: 'Avbryt', style: 'cancel' },
-            ]
-          );
+          const alertStorageKey = `bacMissingInfoAlertShown:${currentUser.uid}`;
+          const hasShownAlert = await AsyncStorage.getItem(alertStorageKey);
+
+          if (!hasShownAlert) {
+            showAlert(
+              'Mangler informasjon',
+              'Du må angi vekt og kjønn i innstillingene for å bruke promillekalkulatoren.',
+              [
+                {
+                  text: 'Gå til innstillinger',
+                  onPress: () => router.push('/settings'),
+                },
+                { text: 'Avbryt', style: 'cancel' },
+              ]
+            );
+            await AsyncStorage.setItem(alertStorageKey, 'true');
+          }
         }
       }
     } catch (error) {
@@ -237,7 +240,11 @@ const ProfileScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    loadUserData();
+  }, [loadUserData]);
 
   const getSizeOptions = (category: DrinkCategory | '') => {
     switch (category) {
