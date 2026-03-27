@@ -7,8 +7,8 @@ import { authService } from '../services/firebase/authService';
 import { firestore } from '../services/firebase/FirebaseConfig';
 import { settingsScreenTokens, settingsStyles } from '../styles/components/settingsStyles';
 import { globalStyles } from '../styles/globalStyles';
-import { showAlert } from '../utils/platformAlert';
 import { Gender } from '../types/userTypes';
+import { showAlert } from '../utils/platformAlert';
 
 const SettingsScreen = () => {
   const router = useRouter();
