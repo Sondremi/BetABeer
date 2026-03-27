@@ -282,6 +282,15 @@ const ProfileScreen: React.FC = () => {
     }
   };
 
+  const getSizeOptionLabel = (category: DrinkCategory | 'custom' | '', size: number) => {
+    if (category === 'sprit') {
+      if (size === 0.4) return `${size} dl (shot)`;
+      if (size === 0.5) return `${size} dl (stor shot)`;
+    }
+
+    return `${size} dl`;
+  };
+
   const getAlcoholPercentOptions = (category: DrinkCategory | '') => {
     switch (category) {
       case 'øl':
@@ -864,7 +873,11 @@ const ProfileScreen: React.FC = () => {
                               >
                                 <Picker.Item label="Velg størrelse" value="" />
                                 {getSizeOptions(drinkForm.category).map(size => (
-                                  <Picker.Item key={size} label={`${size} dl`} value={size} />
+                                  <Picker.Item
+                                    key={size}
+                                    label={getSizeOptionLabel(drinkForm.category, size)}
+                                    value={size}
+                                  />
                                 ))}
                               </Picker>
                             </View>
@@ -936,7 +949,7 @@ const ProfileScreen: React.FC = () => {
                           style={globalStyles.input}
                           value={drinkForm.customDrinkName}
                           onChangeText={(text) => setDrinkForm({ ...drinkForm, customDrinkName: text })}
-                          placeholder="F.eks. Hjemmelaget IPA"
+                          placeholder="F.eks. Hjemmelaget vodka redubull"
                           placeholderTextColor={theme.colors.textMuted}
                           maxLength={40}
                         />
