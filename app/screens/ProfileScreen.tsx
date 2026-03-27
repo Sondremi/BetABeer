@@ -132,6 +132,7 @@ const ProfileScreen: React.FC = () => {
     return profileService.calculateBAC(userInfo.drinks, userInfo.weight, userInfo.gender, bacCalculationTime);
   }, [userInfo.drinks, userInfo.weight, userInfo.gender, bacCalculationTime]);
   const currentBAC = currentBACValue.toFixed(3);
+  const hasBacRequiredInfo = Boolean(userInfo.weight && userInfo.gender);
   const chartProjection = useMemo(() => {
     if (!userInfo.weight || !userInfo.gender || !userInfo.drinks || userInfo.drinks.length === 0) {
       return null;
@@ -990,20 +991,25 @@ const ProfileScreen: React.FC = () => {
               <View style={globalStyles.inputGroup}>
                 <View style={profileStyles.bacActionRow}>
                   <TouchableOpacity
-                    style={[globalStyles.primaryButtonShadow, profileStyles.bacActionButton, (!userInfo.weight || !userInfo.gender) && globalStyles.disabledButton]}
+                    style={[globalStyles.primaryButtonShadow, profileStyles.bacActionButton, !hasBacRequiredInfo && globalStyles.disabledButton]}
                     onPress={() => setDrinkModalVisible(true)}
-                    disabled={!userInfo.weight || !userInfo.gender}
+                    disabled={!hasBacRequiredInfo}
                   >
                     <Text style={[globalStyles.primaryButtonText, profileStyles.bacActionButtonText]}>Legg til drikke</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[globalStyles.dangerButton, profileStyles.bacResetButton, (!userInfo.weight || !userInfo.gender) && globalStyles.disabledButton]}
+                    style={[globalStyles.dangerButton, profileStyles.bacResetButton, !hasBacRequiredInfo && globalStyles.disabledButton]}
                     onPress={handleResetDrinks}
-                    disabled={!userInfo.weight || !userInfo.gender}
+                    disabled={!hasBacRequiredInfo}
                   >
                     <Text style={globalStyles.dangerButtonText}>Nullstill drikker</Text>
                   </TouchableOpacity>
                 </View>
+                {!hasBacRequiredInfo && (
+                  <Text style={globalStyles.secondaryText}>
+                    Sett vekt og kjønn i innstillinger for å bruke promillekalkulatoren.
+                  </Text>
+                )}
               </View>
             )}
             {isBacExpanded && chartProjection && (
