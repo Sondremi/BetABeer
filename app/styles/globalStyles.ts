@@ -39,6 +39,8 @@ export const globalStyles = StyleSheet.create({
     display: 'flex',
     alignSelf: 'center',
     width: '100%',
+    minHeight: '100%',
+    height: '100%',
     maxWidth: 500,
   },
   scrollContent: {
@@ -76,7 +78,7 @@ export const globalStyles = StyleSheet.create({
   rowCenter: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    gap: 6 
+    gap: theme.spacing.xxs,
   },
   dangerSection: {
     marginTop: theme.spacing.xxl,
@@ -188,6 +190,18 @@ export const globalStyles = StyleSheet.create({
   headerSideSlot: {
     width: 40,
   },
+  iconBackButton: {
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.circle,
+    backgroundColor: theme.colors.primary,
+    minWidth: theme.spacing.huge,
+    alignItems: 'center',
+  },
+  iconBackButtonText: {
+    fontSize: theme.fonts.xl,
+    color: theme.colors.background,
+    fontWeight: 'bold',
+  },
 
   // Sections
   sectionTitle: {
@@ -244,7 +258,7 @@ export const globalStyles = StyleSheet.create({
     color: theme.colors.text,
   },
   inputShellDark: {
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.md,
     overflow: 'hidden',
     backgroundColor: theme.colors.backgroundInput,
     borderWidth: 1,

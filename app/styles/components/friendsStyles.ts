@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import { globalStyles } from '../globalStyles';
 import { theme } from '../theme';
 
 export const friendsScreenTokens = {
@@ -8,6 +9,17 @@ export const friendsScreenTokens = {
 export const friendsStyles = StyleSheet.create({
   pageContainer: {
     padding: 0,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  backButton: {
+    ...globalStyles.iconBackButton,
+  },
+  backButtonText: {
+    ...globalStyles.iconBackButtonText,
   },
   compactSection: {
     paddingBottom: theme.spacing.lg,
@@ -20,12 +32,12 @@ export const friendsStyles = StyleSheet.create({
     fontSize: theme.fonts.md,
     fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: 2,
+    marginBottom: theme.spacing.xxxs,
   },
   pendingText: {
     color: theme.colors.textMuted,
     fontSize: theme.fonts.xs,
-    marginTop: 2,
+    marginTop: theme.spacing.xxxs,
   },
   button: {
     padding: theme.spacing.sm,
@@ -35,8 +47,8 @@ export const friendsStyles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 40,
-    minHeight: 40,
+    minWidth: theme.sizes.iconButton,
+    minHeight: theme.sizes.iconButton,
   },
   friendSpacing: {
     marginBottom: theme.spacing.md,
@@ -49,9 +61,9 @@ export const friendsStyles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
   },
   friendImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: theme.sizes.avatarXl,
+    height: theme.sizes.avatarXl,
+    borderRadius: theme.sizes.avatarXl / 2,
     marginRight: theme.spacing.md,
   },
   searchRow: {
@@ -102,7 +114,7 @@ export const friendsStyles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 72,
+    minWidth: theme.sizes.buttonWide,
   },
   searchButtonText: {
     fontSize: theme.fonts.md,
@@ -115,7 +127,7 @@ export const friendsStyles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   listScrollBox: {
-    maxHeight: 470,
+    maxHeight: theme.sizes.maxListHeightXxl,
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
     borderColor: theme.colors.borderWarm,

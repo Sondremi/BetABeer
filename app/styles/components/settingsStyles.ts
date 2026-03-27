@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import { globalStyles } from '../globalStyles';
 import { theme } from '../theme';
 
 export const settingsScreenTokens = {
@@ -21,16 +22,10 @@ export const settingsStyles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   backButton: {
-    padding: theme.spacing.sm,
-    borderRadius: theme.spacing.xl,
-    backgroundColor: theme.colors.primary,
-    minWidth: 40,
-    alignItems: 'center',
+    ...globalStyles.iconBackButton,
   },
   backButtonText: {
-    fontSize: theme.spacing.xl,
-    color: theme.colors.background,
-    fontWeight: 'bold',
+    ...globalStyles.iconBackButtonText,
   },
   readOnlyText: {
     fontSize: theme.fonts.md,
@@ -41,32 +36,17 @@ export const settingsStyles = StyleSheet.create({
     fontSize: theme.fonts.md,
   },
   fullWidthButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: theme.spacing.lg,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 2,
-    borderColor: theme.colors.primary,
+    ...globalStyles.outlineButtonGold,
     marginBottom: theme.spacing.md,
     width: '100%',
   },
   halfWidthCancelButton: {
+    ...globalStyles.cancelButton,
     width: '50%',
-    padding: theme.spacing.lg,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
-    alignItems: 'center',
   },
   halfWidthSaveButton: {
+    ...globalStyles.saveButton,
     width: '50%',
-    padding: theme.spacing.lg,
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.spacing.sm,
-    alignItems: 'center',
   },
   buttonRowNoGap: {
     flexDirection: 'row',
@@ -76,11 +56,11 @@ export const settingsStyles = StyleSheet.create({
     gap: theme.spacing.xs,
   },
   compactInput: {
-    height: 40,
+    height: theme.sizes.iconButton,
     borderWidth: 0,
     backgroundColor: 'transparent',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: theme.spacing.sm + theme.spacing.xxxs,
+    paddingHorizontal: theme.spacing.md,
   },
   pickerItem: {
     color: theme.colors.text,

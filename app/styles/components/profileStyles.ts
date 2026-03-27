@@ -26,7 +26,7 @@ export const profileChartConfig = {
   labelColor: () => theme.colors.textChartLabel,
   style: profileChartConfigStyle,
   propsForDots: { r: '3', strokeWidth: '1', stroke: theme.colors.primaryChart },
-  propsForLabels: { fontSize: 10 },
+  propsForLabels: { fontSize: theme.fonts.xxs },
   propsForBackgroundLines: { stroke: theme.colors.chartGrid, strokeDasharray: '' },
 };
 
@@ -44,8 +44,8 @@ export const profileStyles = StyleSheet.create({
     paddingTop: theme.spacing.xxxl,
   },
   profileImage: {
-    width: 120,
-    height: 120,
+    width: theme.sizes.avatarHero,
+    height: theme.sizes.avatarHero,
   },
   profileImageContainer: {
     marginBottom: theme.spacing.lg,
@@ -53,9 +53,9 @@ export const profileStyles = StyleSheet.create({
   },
   profileHeroCard: {
     width: '100%',
-    maxWidth: 440,
+    maxWidth: theme.sizes.heroCardMaxWidth,
     position: 'relative',
-    borderRadius: 22,
+    borderRadius: theme.borderRadius.hero,
     borderWidth: 1,
     borderColor: theme.colors.borderHero,
     backgroundColor: theme.colors.backgroundPanel,
@@ -66,12 +66,26 @@ export const profileStyles = StyleSheet.create({
   heroSettingsButton: {
     position: 'absolute',
     top: theme.spacing.md,
+    left: theme.spacing.md,
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.circle,
+    backgroundColor: theme.colors.backgroundCard,
+    borderWidth: 1,
+    borderColor: theme.colors.borderHeroButton,
+  },
+  heroFriendsButton: {
+    position: 'absolute',
+    top: theme.spacing.md,
     right: theme.spacing.md,
     padding: theme.spacing.sm,
     borderRadius: theme.borderRadius.circle,
     backgroundColor: theme.colors.backgroundCard,
     borderWidth: 1,
     borderColor: theme.colors.borderHeroButton,
+  },
+  heroFriendsIcon: {
+    ...globalStyles.primaryIcon,
+    resizeMode: 'contain',
   },
   profileName: {
     marginTop: theme.spacing.sm,
@@ -80,7 +94,7 @@ export const profileStyles = StyleSheet.create({
     marginTop: theme.spacing.xs,
   },
   sectionCard: {
-    borderRadius: 22,
+    borderRadius: theme.borderRadius.hero,
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.xl,
   },
@@ -92,9 +106,32 @@ export const profileStyles = StyleSheet.create({
     gap: theme.spacing.sm,
     alignItems: 'center',
   },
+  bacHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  collapsedHeaderRow: {
+    marginBottom: 0,
+  },
+  bacToggleButton: {
+    marginBottom: 0,
+    marginTop: 0,
+    minHeight: theme.fonts.xxl + theme.spacing.sm,
+    minWidth: theme.fonts.xxl + theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  bacToggleButtonText: {
+    fontSize: theme.fonts.md,
+    fontWeight: '700',
+    lineHeight: theme.fonts.lg,
+  },
   bacActionButton: {
     flex: 1,
-    minHeight: 44,
+    minHeight: theme.sizes.buttonMinHeight,
     marginTop: 0,
     marginBottom: 0,
     paddingVertical: theme.spacing.sm,
@@ -104,20 +141,20 @@ export const profileStyles = StyleSheet.create({
   bacActionButtonText: {
     textAlign: 'center',
     width: '100%',
-    lineHeight: 18,
+    lineHeight: theme.fonts.lg,
   },
   bacResetButton: {
     flex: 1,
-    minHeight: 44,
+    minHeight: theme.sizes.buttonMinHeight,
     paddingVertical: theme.spacing.sm,
   },
   editProfileImageButton: {
     position: 'absolute',
-    right: 4,
-    bottom: 4,
+    right: theme.spacing.xs,
+    bottom: theme.spacing.xs,
     backgroundColor: theme.colors.surface,
     borderRadius: theme.spacing.md,
-    padding: 2,
+    padding: theme.spacing.xxxs,
     borderWidth: 2,
     borderColor: theme.colors.primary,
     justifyContent: 'center',
@@ -147,7 +184,7 @@ export const profileStyles = StyleSheet.create({
     marginBottom: 0,
     alignSelf: 'flex-start',
     width: '48%',
-    minHeight: 40,
+    minHeight: theme.sizes.iconButton,
     paddingVertical: theme.spacing.xs,
     paddingHorizontal: theme.spacing.sm,
   },
@@ -163,13 +200,13 @@ export const profileStyles = StyleSheet.create({
   groupItem: {
     ...globalStyles.card,
     width: '48%',
-    height: 140,
+    height: theme.sizes.profileGroupCardHeight,
   },
   groupName: {
     fontSize: theme.fonts.md,
     fontWeight: 'bold',
     color: theme.colors.primary,
-    marginBottom: 2,
+    marginBottom: theme.spacing.xxxs,
   },
   groupMembers: {
     fontSize: theme.fonts.xs,
@@ -178,19 +215,19 @@ export const profileStyles = StyleSheet.create({
   },
   invitationBadge: {
     backgroundColor: theme.colors.primary,
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xxxs,
     justifyContent: 'center',
     alignItems: 'center',
   },
   invitationBadgeText: {
     color: theme.colors.background,
-    fontSize: 12,
+    fontSize: theme.fonts.xs,
     fontWeight: 'bold',
   },
   invitationItemRow: {
-    paddingVertical: 10,
+    paddingVertical: theme.spacing.sm + theme.spacing.xxxs,
   },
   invitationInfo: {
     flex: 1,
@@ -212,7 +249,7 @@ export const profileStyles = StyleSheet.create({
   chartCard: {
     marginBottom: 0,
     marginTop: theme.spacing.md,
-    borderRadius: 16,
+    borderRadius: theme.fonts.md,
     borderWidth: 1,
     borderColor: theme.colors.borderChartCard,
     backgroundColor: theme.colors.backgroundChartCard,
@@ -236,12 +273,12 @@ export const profileStyles = StyleSheet.create({
   statPill: {
     flex: 1,
     position: 'relative',
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.md,
     borderWidth: 1,
     borderColor: theme.colors.borderStat,
     backgroundColor: theme.colors.backgroundStat,
-    minHeight: 58,
-    paddingTop: 26,
+    minHeight: theme.spacing.massive + theme.spacing.sm,
+    paddingTop: theme.spacing.xxl + theme.spacing.xs,
     paddingBottom: theme.spacing.xs,
     paddingHorizontal: theme.spacing.sm,
     justifyContent: 'flex-start',
@@ -258,10 +295,10 @@ export const profileStyles = StyleSheet.create({
     color: theme.colors.primary,
     fontSize: theme.fonts.md,
     fontWeight: '700',
-    lineHeight: 20,
+    lineHeight: theme.spacing.xl,
   },
   statMainSlot: {
-    minHeight: 24,
+    minHeight: theme.spacing.xxl,
     justifyContent: 'center',
   },
   chartInteractiveShell: {
@@ -294,8 +331,8 @@ export const profileStyles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     borderWidth: 1,
     borderColor: theme.colors.borderPrimarySoft,
-    minHeight: 44,
-    minWidth: 84,
+    minHeight: theme.sizes.buttonMinHeight,
+    minWidth: theme.spacing.huge + theme.spacing.huge + theme.spacing.xs,
     paddingHorizontal: theme.spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -306,14 +343,14 @@ export const profileStyles = StyleSheet.create({
     fontWeight: '700',
   },
   createGroupModalContent: {
-    maxHeight: 620,
+    maxHeight: theme.sizes.sheetMaxHeight,
   },
   inviteListBox: {
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
     borderColor: theme.colors.borderListCard,
     backgroundColor: theme.colors.backgroundListCardAlt,
-    maxHeight: 220,
+    maxHeight: theme.sizes.maxListHeightMd,
     padding: theme.spacing.sm,
   },
   inviteBulkActionsRow: {
@@ -350,9 +387,9 @@ export const profileStyles = StyleSheet.create({
     backgroundColor: theme.colors.backgroundTabItemFocused,
   },
   inviteListAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: theme.sizes.avatarSm,
+    height: theme.sizes.avatarSm,
+    borderRadius: theme.sizes.avatarSm / 2,
     marginRight: theme.spacing.sm,
     borderWidth: 1,
     borderColor: theme.colors.primary,
@@ -364,7 +401,7 @@ export const profileStyles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: theme.fonts.md,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: theme.spacing.xxxs,
   },
   inviteStatusText: {
     color: theme.colors.textMuted,
@@ -372,7 +409,7 @@ export const profileStyles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'right',
     marginLeft: theme.spacing.sm,
-    maxWidth: 120,
+    maxWidth: theme.sizes.maxInlineStatusWidth,
   },
   inviteStatusTextSelected: {
     color: theme.colors.primary,
@@ -380,7 +417,7 @@ export const profileStyles = StyleSheet.create({
   profileModalContent: {
     padding: theme.spacing.md,
     borderRadius: theme.borderRadius.lg,
-    maxHeight: 500,
+    maxHeight: theme.sizes.maxDialogHeight,
   },
   profileModalGrid: {
     flexDirection: 'row',
@@ -389,16 +426,16 @@ export const profileStyles = StyleSheet.create({
   },
   profileImageChoice: {
     margin: theme.spacing.sm,
-    borderRadius: 60,
+    borderRadius: theme.sizes.avatarXl,
   },
   profileImageChoiceSelected: {
     borderWidth: 3,
     borderColor: theme.colors.primary,
   },
   profileImageChoiceImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: theme.sizes.avatarXl,
+    height: theme.sizes.avatarXl,
+    borderRadius: theme.sizes.avatarXl / 2,
   },
   profileNameGroup: {
     marginTop: theme.spacing.md,
@@ -422,7 +459,7 @@ export const profileStyles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   customAlcoholInput: {
-    height: 40,
+    height: theme.sizes.iconButton,
   },
   pickerItem: {
     color: theme.colors.text,
