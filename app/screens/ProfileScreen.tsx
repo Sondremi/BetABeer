@@ -55,6 +55,30 @@ const ImageMissing = require('../../assets/images/image_missing.png');
 const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 
+type DrinkFormState = {
+  category: DrinkCategory | 'custom' | '';
+  sizeDl: number | '';
+  alcoholPercent: number | '' | 'custom';
+  quantity: number | '';
+  customAlcoholPercent: string;
+  customDrinkName: string;
+  customSizeDl: string;
+  customAlcoholPercentManual: string;
+  customQuantity: string;
+};
+
+const INITIAL_DRINK_FORM: DrinkFormState = {
+  category: '',
+  sizeDl: '',
+  alcoholPercent: '',
+  quantity: '',
+  customAlcoholPercent: '',
+  customDrinkName: '',
+  customSizeDl: '',
+  customAlcoholPercentManual: '',
+  customQuantity: '',
+};
+
 const ProfileScreen: React.FC = () => {
   const { user, loading } = useAuth();
   const [profileImageModalVisible, setProfileImageModalVisible] = useState(false);
@@ -112,19 +136,7 @@ const ProfileScreen: React.FC = () => {
   }>({});
   const [isLoading, setIsLoading] = useState(true);
   const [drinkModalVisible, setDrinkModalVisible] = useState(false);
-  const [drinkForm, setDrinkForm] = useState<{
-    category: DrinkCategory | '';
-    sizeDl: number | '';
-    alcoholPercent: number | '' | 'custom';
-    quantity: number | '';
-    customAlcoholPercent: string;
-  }>({
-    category: '',
-    sizeDl: '',
-    alcoholPercent: '',
-    quantity: '',
-    customAlcoholPercent: '',
-  });
+  const [drinkForm, setDrinkForm] = useState<DrinkFormState>(INITIAL_DRINK_FORM);
   const { currentBAC, color, emoji, exclamationMarks, isHighBAC, animatedStyle } = useAnimatedBACText(
     userInfo.drinks,
     userInfo.weight,
@@ -267,9 +279,18 @@ const ProfileScreen: React.FC = () => {
     }
   };
 
+  const inferCategoryFromAlcoholPercent = (alcoholPercent: number): DrinkCategory => {
+    if (alcoholPercent < 8) return 'øl';
+    if (alcoholPercent < 22) return 'vin';
+    return 'sprit';
+  };
+
+  const parseNumericInput = (value: string): number => parseFloat(value.replace(',', '.'));
+
   const validateCustomAlcoholPercent = () => {
+    if (drinkForm.category === 'custom') return true;
     if (drinkForm.alcoholPercent !== 'custom') return true;
-    const value = parseFloat(drinkForm.customAlcoholPercent);
+    const value = parseNumericInput(drinkForm.customAlcoholPercent);
     if (isNaN(value)) {
       showAlert('Feil', 'Ugyldig alkoholprosent');
       return false;
@@ -299,36 +320,70 @@ const ProfileScreen: React.FC = () => {
   };
 
   const handleAddDrink = async () => {
-    if (!drinkForm.category) {
-      showAlert('Feil', 'Velg en drikkekategori');
-      return;
+    let drink: DrinkEntry;
+
+    if (drinkForm.category !== 'custom') {
+      if (!drinkForm.category) {
+        showAlert('Feil', 'Velg en drikkekategori');
+        return;
+      }
+      if (!drinkForm.sizeDl) {
+        showAlert('Feil', 'Velg en størrelse');
+        return;
+      }
+      if (!drinkForm.alcoholPercent) {
+        showAlert('Feil', 'Velg en alkoholprosent');
+        return;
+      }
+      if (!validateCustomAlcoholPercent()) {
+        return;
+      }
+      if (!drinkForm.quantity) {
+        showAlert('Feil', 'Velg antall');
+        return;
+      }
+
+      const alcoholPercent =
+        drinkForm.alcoholPercent === 'custom'
+          ? parseNumericInput(drinkForm.customAlcoholPercent)
+          : parseFloat(drinkForm.alcoholPercent.toString());
+
+      drink = {
+        category: drinkForm.category,
+        sizeDl: parseFloat(drinkForm.sizeDl.toString()),
+        alcoholPercent,
+        quantity: parseInt(drinkForm.quantity.toString(), 10),
+        timestamp: Date.now(),
+      };
+    } else {
+      const sizeDl = parseNumericInput(drinkForm.customSizeDl);
+      const alcoholPercent = parseNumericInput(drinkForm.customAlcoholPercentManual);
+      const quantity = parseInt(drinkForm.customQuantity, 10);
+
+      if (isNaN(alcoholPercent) || alcoholPercent <= 0 || alcoholPercent > 100) {
+        showAlert('Feil', 'Alkoholprosent må være mellom 0 og 100');
+        return;
+      }
+      if (isNaN(sizeDl) || sizeDl <= 0) {
+        showAlert('Feil', 'Størrelse må være større enn 0');
+        return;
+      }
+      if (isNaN(quantity) || quantity <= 0) {
+        showAlert('Feil', 'Antall må være et heltall større enn 0');
+        return;
+      }
+
+      const trimmedName = drinkForm.customDrinkName.trim();
+      drink = {
+        name: trimmedName || undefined,
+        category: inferCategoryFromAlcoholPercent(alcoholPercent),
+        sizeDl,
+        alcoholPercent,
+        quantity,
+        timestamp: Date.now(),
+      };
     }
-    if (!drinkForm.sizeDl) {
-      showAlert('Feil', 'Velg en størrelse');
-      return;
-    }
-    if (!drinkForm.alcoholPercent) {
-      showAlert('Feil', 'Velg en alkoholprosent');
-      return;
-    }
-    if (!validateCustomAlcoholPercent()) {
-      return;
-    }
-    if (!drinkForm.quantity) {
-      showAlert('Feil', 'Velg antall');
-      return;
-    }
-    const alcoholPercent =
-      drinkForm.alcoholPercent === 'custom'
-        ? parseFloat(drinkForm.customAlcoholPercent)
-        : parseFloat(drinkForm.alcoholPercent.toString());
-    const drink: DrinkEntry = {
-      category: drinkForm.category,
-      sizeDl: parseFloat(drinkForm.sizeDl.toString()),
-      alcoholPercent,
-      quantity: parseInt(drinkForm.quantity.toString(), 10),
-      timestamp: Date.now(),
-    };
+
     try {
       const currentUser = authService.getCurrentUser();
       if (currentUser) {
@@ -341,13 +396,7 @@ const ProfileScreen: React.FC = () => {
       showAlert('Feil', 'Kunne ikke legge til drikke');
     }
     setDrinkModalVisible(false);
-    setDrinkForm({
-      category: '',
-      sizeDl: '',
-      alcoholPercent: '',
-      quantity: '',
-      customAlcoholPercent: '',
-    });
+    setDrinkForm(INITIAL_DRINK_FORM);
   };
 
   const handleResetDrinks = () => {
@@ -764,99 +813,156 @@ const ProfileScreen: React.FC = () => {
                     Legg til drikke
                   </Text>
 
-                  <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
+                  <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
                     <Text style={globalStyles.label}>Kategori</Text>
                     <View style={globalStyles.pickerInput}>
                       <Picker
                         style={globalStyles.picker}
                         itemStyle={{ color: theme.colors.text }}
                         selectedValue={drinkForm.category}
-                        onValueChange={(value: DrinkCategory | '') =>
-                          setDrinkForm({ ...drinkForm, category: value, sizeDl: '', alcoholPercent: '', customAlcoholPercent: '' })
+                        onValueChange={(value: DrinkCategory | 'custom' | '') =>
+                          setDrinkForm({ ...INITIAL_DRINK_FORM, category: value })
                         }
                       >
                         <Picker.Item label="Velg kategori" value="" />
                         <Picker.Item label="Øl" value="øl" />
                         <Picker.Item label="Vin" value="vin" />
                         <Picker.Item label="Sprit" value="sprit" />
+                        <Picker.Item label="Egendefinert" value="custom" />
                       </Picker>
                     </View>
                   </View>
 
                   {drinkForm.category && (
                     <>
-                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
-                        <Text style={globalStyles.label}>Størrelse (dl)</Text>
-                        <View style={globalStyles.pickerInput}>
-                          <Picker
-                            style={globalStyles.picker}
-                            itemStyle={{ color: theme.colors.text }}
-                            selectedValue={drinkForm.sizeDl}
-                            onValueChange={(value: number | '') => setDrinkForm({ ...drinkForm, sizeDl: value })}
-                          >
-                            <Picker.Item label="Velg størrelse" value="" />
-                            {getSizeOptions(drinkForm.category).map(size => (
-                              <Picker.Item key={size} label={`${size} dl`} value={size} />
-                            ))}
-                          </Picker>
-                        </View>
-                      </View>
+                      {drinkForm.category !== 'custom' && (
+                        <>
+                          <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
+                            <Text style={globalStyles.label}>Størrelse (dl)</Text>
+                            <View style={globalStyles.pickerInput}>
+                              <Picker
+                                style={globalStyles.picker}
+                                itemStyle={{ color: theme.colors.text }}
+                                selectedValue={drinkForm.sizeDl}
+                                onValueChange={(value: number | '') => setDrinkForm({ ...drinkForm, sizeDl: value })}
+                              >
+                                <Picker.Item label="Velg størrelse" value="" />
+                                {getSizeOptions(drinkForm.category).map(size => (
+                                  <Picker.Item key={size} label={`${size} dl`} value={size} />
+                                ))}
+                              </Picker>
+                            </View>
+                          </View>
 
-                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
-                        <Text style={globalStyles.label}>Alkoholprosent</Text>
-                        <View style={globalStyles.pickerInput}>
-                          <Picker
-                            style={globalStyles.picker}
-                            itemStyle={{ color: theme.colors.text }}
-                            selectedValue={drinkForm.alcoholPercent}
-                            onValueChange={(value: number | '' | 'custom') =>
-                              setDrinkForm({ ...drinkForm, alcoholPercent: value, customAlcoholPercent: '' })
-                            }
-                          >
-                            <Picker.Item label="Velg alkoholprosent" value="" />
-                            {getAlcoholPercentOptions(drinkForm.category).map(percent => (
-                              <Picker.Item
-                                key={percent}
-                                label={percent === 'custom' ? 'Egendefinert' : `${percent}%`}
-                                value={percent}
+                          <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
+                            <Text style={globalStyles.label}>Alkoholprosent</Text>
+                            <View style={globalStyles.pickerInput}>
+                              <Picker
+                                style={globalStyles.picker}
+                                itemStyle={{ color: theme.colors.text }}
+                                selectedValue={drinkForm.alcoholPercent}
+                                onValueChange={(value: number | '' | 'custom') =>
+                                  setDrinkForm({ ...drinkForm, alcoholPercent: value, customAlcoholPercent: '' })
+                                }
+                              >
+                                <Picker.Item label="Velg alkoholprosent" value="" />
+                                {getAlcoholPercentOptions(drinkForm.category).map(percent => (
+                                  <Picker.Item
+                                    key={percent}
+                                    label={percent === 'custom' ? 'Egendefinert' : `${percent}%`}
+                                    value={percent}
+                                  />
+                                ))}
+                              </Picker>
+                            </View>
+                          </View>
+
+                          {drinkForm.alcoholPercent === 'custom' && (
+                            <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
+                              <Text style={globalStyles.label}>Egendefinert alkoholprosent</Text>
+                              <TextInput
+                                style={[globalStyles.input, { height: 40 }]}
+                                value={drinkForm.customAlcoholPercent}
+                                onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercent: text })}
+                                placeholder={
+                                  drinkForm.category === 'vin' ? '10-20%' : '22-70%'
+                                }
+                                placeholderTextColor={theme.colors.textMuted}
+                                keyboardType="numeric"
                               />
-                            ))}
-                          </Picker>
-                        </View>
-                      </View>
+                            </View>
+                          )}
 
-                      {drinkForm.alcoholPercent === 'custom' && (
-                        <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
-                          <Text style={globalStyles.label}>Egendefinert alkoholprosent</Text>
-                          <TextInput
-                            style={[globalStyles.input, { height: 40 }]}
-                            value={drinkForm.customAlcoholPercent}
-                            onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercent: text })}
-                            placeholder={
-                              drinkForm.category === 'vin' ? '10–20%' : '22–70%'
-                            }
-                            placeholderTextColor={theme.colors.textMuted}
-                            keyboardType="numeric"
-                          />
-                        </View>
+                          <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
+                            <Text style={globalStyles.label}>Antall</Text>
+                            <View style={globalStyles.pickerInput}>
+                              <Picker
+                                style={globalStyles.picker}
+                                itemStyle={{ color: theme.colors.text }}
+                                selectedValue={drinkForm.quantity}
+                                onValueChange={(value: number | '') => setDrinkForm({ ...drinkForm, quantity: value })}
+                              >
+                                <Picker.Item label="Velg antall" value="" />
+                                {Array.from({ length: 20 }, (_, i) => i + 1).map(num => (
+                                  <Picker.Item key={num} label={`${num}`} value={num} />
+                                ))}
+                              </Picker>
+                            </View>
+                          </View>
+                        </>
                       )}
 
-                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
-                        <Text style={globalStyles.label}>Antall</Text>
-                        <View style={globalStyles.pickerInput}>
-                          <Picker
-                            style={globalStyles.picker}
-                            itemStyle={{ color: theme.colors.text }}
-                            selectedValue={drinkForm.quantity}
-                            onValueChange={(value: number | '') => setDrinkForm({ ...drinkForm, quantity: value })}
-                          >
-                            <Picker.Item label="Velg antall" value="" />
-                            {Array.from({ length: 20 }, (_, i) => i + 1).map(num => (
-                              <Picker.Item key={num} label={`${num}`} value={num} />
-                            ))}
-                          </Picker>
-                        </View>
+                      {drinkForm.category === 'custom' && (
+                        <>
+                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
+                        <Text style={globalStyles.label}>Navn (valgfritt)</Text>
+                        <TextInput
+                          style={globalStyles.input}
+                          value={drinkForm.customDrinkName}
+                          onChangeText={(text) => setDrinkForm({ ...drinkForm, customDrinkName: text })}
+                          placeholder="F.eks. Hjemmelaget IPA"
+                          placeholderTextColor={theme.colors.textMuted}
+                          maxLength={40}
+                        />
                       </View>
+
+                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
+                        <Text style={globalStyles.label}>Alkoholprosent</Text>
+                        <TextInput
+                          style={[globalStyles.input, { height: 40 }]}
+                          value={drinkForm.customAlcoholPercentManual}
+                          onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercentManual: text })}
+                          placeholder="F.eks. 6.5"
+                          placeholderTextColor={theme.colors.textMuted}
+                          keyboardType="numeric"
+                        />
+                      </View>
+
+                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
+                        <Text style={globalStyles.label}>Størrelse (dl)</Text>
+                        <TextInput
+                          style={[globalStyles.input, { height: 40 }]}
+                          value={drinkForm.customSizeDl}
+                          onChangeText={(text) => setDrinkForm({ ...drinkForm, customSizeDl: text })}
+                          placeholder="F.eks. 4.5"
+                          placeholderTextColor={theme.colors.textMuted}
+                          keyboardType="numeric"
+                        />
+                      </View>
+
+                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
+                        <Text style={globalStyles.label}>Antall</Text>
+                        <TextInput
+                          style={[globalStyles.input, { height: 40 }]}
+                          value={drinkForm.customQuantity}
+                          onChangeText={(text) => setDrinkForm({ ...drinkForm, customQuantity: text })}
+                          placeholder="F.eks. 2"
+                          placeholderTextColor={theme.colors.textMuted}
+                          keyboardType="number-pad"
+                        />
+                      </View>
+                        </>
+                      )}
                     </>
                   )}
 
