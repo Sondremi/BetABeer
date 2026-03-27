@@ -44,8 +44,8 @@ const SettingsScreen = () => {
               username: userData.username || '',
               name: userData.name || '',
               email: userData.email || '',
-              weight: userData.weight,
-              gender: userData.gender,
+              weight: typeof userData.weight === 'number' ? userData.weight : undefined,
+              gender: userData.gender === 'male' || userData.gender === 'female' ? userData.gender : undefined,
             };
             setUserInfo(userInfoData);
             setEditedInfo(userInfoData);
@@ -77,7 +77,7 @@ const SettingsScreen = () => {
       return false;
     }
 
-    if (editedInfo.weight !== undefined && (isNaN(editedInfo.weight) || editedInfo.weight <= 0)) {
+    if (editedInfo.weight != null && (isNaN(editedInfo.weight) || editedInfo.weight <= 0)) {
       showAlert('Feil', 'Vekt må være et positivt tall');
       return false;
     }
@@ -91,12 +91,14 @@ const SettingsScreen = () => {
     try {
       setIsLoading(true);
 
-      await authService.updateUser(userInfo.id, {
+      const updateData = {
         name: editedInfo.name,
         email: editedInfo.email,
-        weight: editedInfo.weight,
-        gender: editedInfo.gender,
-      });
+        weight: editedInfo.weight ?? null,
+        gender: editedInfo.gender ?? null,
+      };
+
+      await authService.updateUser(userInfo.id, updateData);
 
       setUserInfo(editedInfo);
       setIsEditing(false);
@@ -294,7 +296,7 @@ const SettingsScreen = () => {
               {isEditing ? (
                 <TextInput
                   style={[globalStyles.input, { height: 40 }]}
-                  value={editedInfo.weight ? editedInfo.weight.toString() : ''}
+                  value={editedInfo.weight != null ? editedInfo.weight.toString() : ''}
                   onChangeText={(text) => {
                     const value = text ? parseInt(text) : undefined;
                     if (value === undefined || !isNaN(value)) {
@@ -307,7 +309,7 @@ const SettingsScreen = () => {
                 />
               ) : (
                 <View style={globalStyles.readOnlyInput}>
-                  <Text style={settingsStyles.readOnlyText}>{userInfo.weight ? `${userInfo.weight} kg` : 'Ikke satt'}</Text>
+                  <Text style={settingsStyles.readOnlyText}>{userInfo.weight != null ? `${userInfo.weight} kg` : 'Ikke satt'}</Text>
                 </View>
               )}
             </View>
