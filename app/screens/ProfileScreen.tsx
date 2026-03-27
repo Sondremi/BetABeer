@@ -13,7 +13,6 @@ import { sendGroupInvitation } from '../services/groupService';
 import { acceptGroupInvitation, createGroup, declineGroupInvitation, profileService } from '../services/profileService';
 import { profileChartConfig, profileChartDataset, profileScreenTokens, profileStyles } from '../styles/components/profileStyles';
 import { globalStyles } from '../styles/globalStyles';
-import { theme } from '../styles/theme';
 import { DrinkCategory, DrinkEntry, Group, GroupInvitation } from '../types/drinkTypes';
 import { Friend } from '../types/userTypes';
 import { defaultProfileImageMap, defaultProfileImages } from '../utils/defaultProfileImages';
