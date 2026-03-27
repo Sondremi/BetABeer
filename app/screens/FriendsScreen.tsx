@@ -3,9 +3,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, friendSearch, getIncomingRequest, getOutgoingRequest, listenToIncomingRequests, listenToOutgoingRequests, removeFriend, sendFriendRequest } from '../services/friendService';
-import { friendsStyles } from '../styles/components/friendsStyles';
+import { friendsScreenTokens, friendsStyles } from '../styles/components/friendsStyles';
 import { globalStyles } from '../styles/globalStyles';
-import { theme } from '../styles/theme';
 import { Friend, FriendRequest, FriendWithPending } from '../types/userTypes';
 import { debounce } from '../utils/debounce';
 import { defaultProfileImageMap } from '../utils/defaultProfileImages';
@@ -24,6 +23,7 @@ const FriendsScreen = () => {
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
   const [friends, setFriends] = useState<FriendWithPending[]>([]);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   useEffect(() => {
     const currentUser = auth.currentUser;
@@ -119,7 +119,7 @@ const FriendsScreen = () => {
         title: 'Inviter venner til BetABeer',
       });
     } catch (error) {
-      return;
+      console.warn('Share dialog closed or unavailable', error);
     }
   };
 
@@ -255,12 +255,12 @@ const FriendsScreen = () => {
   };
 
   const renderFriend = ({ item }: { item: FriendWithPending }) => (
-    <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]}>
-      <Image source={item.profilePicture} style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]} />
+    <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing, friendsStyles.friendRow]}>
+      <Image source={item.profilePicture} style={[globalStyles.circularImage, friendsStyles.friendImage]} />
       <View style={globalStyles.itemInfo}>
         <Text style={friendsStyles.friendName}>{item.name}</Text>
         <Text style={globalStyles.secondaryText}>@{item.username}</Text>
-        {item.type === 'pending' && <Text style={{ color: theme.colors.textMuted }}>Forespørsel sendt</Text>}
+        {item.type === 'pending' && <Text style={friendsStyles.pendingText}>Forespørsel sendt</Text>}
       </View>
       <TouchableOpacity style={friendsStyles.button} onPress={() => handleRemoveFriend(item)}>
         <Image source={item.type === 'pending' ? RejectIcon : RemoveFriendIcon} style={globalStyles.deleteIcon} />
@@ -270,137 +270,144 @@ const FriendsScreen = () => {
 
   return (
     <KeyboardAvoidingView
-      style={[Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container, { padding: 0 }]}
+      style={[Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container, friendsStyles.pageContainer]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={globalStyles.fullWidthScrollContent} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={globalStyles.header}>
-          <Text style={globalStyles.headerTitle}>Venner</Text>
+          <Text style={[globalStyles.headerTitle, friendsStyles.headerTitle]}>Venner</Text>
         </View>
 
         {/* Invite friends section */}
-        <View style={friendsStyles.inviteSection}>
-          <TouchableOpacity style={globalStyles.outlineButtonGold} onPress={handleInviteFriends}>
-            <Text style={globalStyles.outlineButtonGoldText}>Inviter venner</Text>
-          </TouchableOpacity>
-          <Text style={globalStyles.sectionDescription}>Del lenken med venner for å invitere dem til appen</Text>
+        <View style={[globalStyles.section, friendsStyles.compactSection]}>
+          <View style={[globalStyles.premiumCard, friendsStyles.listSectionCard]}>
+            <TouchableOpacity style={globalStyles.outlineButtonGold} onPress={handleInviteFriends}>
+              <Text style={globalStyles.outlineButtonGoldText}>Inviter venner</Text>
+            </TouchableOpacity>
+            <Text style={[globalStyles.sectionDescription, friendsStyles.inviteDescription]}>Del lenken med venner for å invitere dem til appen</Text>
+          </View>
         </View>
 
         {/* Search Section */}
-        <View style={globalStyles.section}>
-          <Text style={globalStyles.sectionTitle}>Søk etter venner</Text>
-          <View style={{ flexDirection: 'row', marginBottom: 10 }}>
-            <TextInput
-              placeholder="Skriv inn brukernavn"
-              placeholderTextColor={theme.colors.textSecondary}
-              value={searchTerm}
-              onChangeText={(text) => {
-                setSearchTerm(text);
-              }}
-              autoCapitalize="none"
-              style={{
-                flex: 1,
-                backgroundColor: theme.colors.surface,
-                borderRadius: 8,
-                padding: 12,
-                fontSize: Platform.OS === 'web' ? 16 : theme.fonts.md,
-                color: theme.colors.text,
-                marginRight: 8
-              }}
-            />
-            <TouchableOpacity
-              onPress={() => handleSearch(searchTerm)}
-              style={{
-                backgroundColor: theme.colors.primary,
-                paddingVertical: 12,
-                paddingHorizontal: 16,
-                borderRadius: 8,
-              }}
-            >
-              <Text style={globalStyles.outlineButtonText}>Søk</Text>
-            </TouchableOpacity>
-          </View>
-          {searchResults.length > 0 && (
-            <View>
-              {searchResults.map((item) => (
-                <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]} key={item.id}>
-                  <Image
-                    source={item.profilePicture}
-                    style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]}
-                  />
-                  <View style={globalStyles.itemInfo}>
-                    <Text style={friendsStyles.friendName}>{item.name}</Text>
-                    <Text style={globalStyles.secondaryText}>@{item.username}</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={friendsStyles.button}
-                    onPress={() => handleAddFriend(item)}
-                  >
-                    <Image source={AddFriendIcon} style={globalStyles.primaryIcon} />
-                  </TouchableOpacity>
-                </View>
-              ))}
+        <View style={[globalStyles.section, friendsStyles.compactSection]}>
+          <View style={[globalStyles.premiumCard, friendsStyles.searchSectionCard]}>
+            <Text style={globalStyles.sectionTitle}>Søk etter venner</Text>
+            <View style={friendsStyles.searchRow}>
+              <View style={[globalStyles.inputShellDark, friendsStyles.searchInputShell, searchFocused && globalStyles.inputShellFocusedGold]}>
+                <TextInput
+                  placeholder="Skriv inn brukernavn"
+                  placeholderTextColor={friendsScreenTokens.searchPlaceholderTextColor}
+                  value={searchTerm}
+                  onChangeText={(text) => {
+                    setSearchTerm(text);
+                  }}
+                  autoCapitalize="none"
+                  style={friendsStyles.searchInput}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
+                />
+              </View>
+              <TouchableOpacity
+                onPress={() => handleSearch(searchTerm)}
+                style={friendsStyles.searchButton}
+              >
+                <Text style={friendsStyles.searchButtonText}>Søk</Text>
+              </TouchableOpacity>
             </View>
-          )}
+            {searchResults.length > 0 && (
+              <View style={friendsStyles.searchResultBox}>
+                {searchResults.map((item) => (
+                  <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing, friendsStyles.friendRow]} key={item.id}>
+                    <Image
+                      source={item.profilePicture}
+                      style={[globalStyles.circularImage, friendsStyles.friendImage]}
+                    />
+                    <View style={globalStyles.itemInfo}>
+                      <Text style={friendsStyles.friendName}>{item.name}</Text>
+                      <Text style={globalStyles.secondaryText}>@{item.username}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={friendsStyles.button}
+                      onPress={() => handleAddFriend(item)}
+                    >
+                      <Image source={AddFriendIcon} style={globalStyles.primaryIcon} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Friends section */}
-        <View style={globalStyles.section}>
-          <Text style={globalStyles.sectionTitle}>Mine venner ({friends.length})</Text>
-          {friends.length > 0 ? (
-            <View>
-              {friends.map((item) => (
-                <View key={item.id + (item.type === 'pending' ? '-pending' : '')}>{renderFriend({ item })}</View>
-              ))}
-            </View>
-          ) : (
-            <View style={globalStyles.emptyState}>
-              <Image source={PeopleIcon} style={globalStyles.primaryIcon} />
-              <Text style={globalStyles.emptyStateText}>Du har ingen venner enda</Text>
-              <Text style={globalStyles.emptyStateSubtext}>Bruk søkefeltet over for å finne venner</Text>
-            </View>
-          )}
+        <View style={[globalStyles.section, friendsStyles.compactSection]}>
+          <View style={[globalStyles.premiumCard, friendsStyles.listSectionCard]}>
+            <Text style={globalStyles.sectionTitle}>Mine venner ({friends.length})</Text>
+            {friends.length > 0 ? (
+              <View>
+                <View style={friendsStyles.listScrollBox}>
+                  <ScrollView nestedScrollEnabled contentContainerStyle={friendsStyles.listScrollContent}>
+                    {friends.map((item) => (
+                      <View key={item.id + (item.type === 'pending' ? '-pending' : '')}>{renderFriend({ item })}</View>
+                    ))}
+                  </ScrollView>
+                </View>
+              </View>
+            ) : (
+              <View style={globalStyles.emptyState}>
+                <Image source={PeopleIcon} style={globalStyles.primaryIcon} />
+                <Text style={globalStyles.emptyStateText}>Du har ingen venner enda</Text>
+                <Text style={globalStyles.emptyStateSubtext}>Bruk søkefeltet over for å finne venner</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Friend Requests section */}
-        <View style={globalStyles.section}>
-          <Text style={globalStyles.sectionTitle}>Venneforespørsler</Text>
-          {incomingRequests.length > 0 ? (
-            <View>
-              {incomingRequests.map((item) => (
-                <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing]} key={item.id}>
-                  <Image
-                    source={item.profilePicture}
-                    style={[globalStyles.circularImage, { width: 60, height: 60, borderRadius: 30, marginRight: 10 }]}
-                  />
-                  <View style={globalStyles.itemInfo}>
-                    <Text style={friendsStyles.friendName}>{item.name}</Text>
-                    <Text style={globalStyles.secondaryText}>@{item.username}</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <TouchableOpacity
-                      style={friendsStyles.button}
-                      onPress={() => handleAcceptRequest(item)}
-                    >
-                      <Image source={AcceptIcon} style={globalStyles.primaryIcon} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={friendsStyles.button}
-                      onPress={() => handleDeclineRequest(item)}
-                    >
-                      <Image source={RejectIcon} style={globalStyles.deleteIcon} />
-                    </TouchableOpacity>
-                  </View>
+        <View style={[globalStyles.section, friendsStyles.compactSection]}>
+          <View style={[globalStyles.premiumCard, friendsStyles.listSectionCard]}>
+            <Text style={globalStyles.sectionTitle}>Venneforespørsler</Text>
+            {incomingRequests.length > 0 ? (
+              <View>
+                <View style={friendsStyles.listScrollBox}>
+                  <ScrollView nestedScrollEnabled contentContainerStyle={friendsStyles.listScrollContent}>
+                    {incomingRequests.map((item) => (
+                      <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing, friendsStyles.friendRow]} key={item.id}>
+                        <Image
+                          source={item.profilePicture}
+                          style={[globalStyles.circularImage, friendsStyles.friendImage]}
+                        />
+                        <View style={globalStyles.itemInfo}>
+                          <Text style={friendsStyles.friendName}>{item.name}</Text>
+                          <Text style={globalStyles.secondaryText}>@{item.username}</Text>
+                        </View>
+                        <View style={friendsStyles.requestActionRow}>
+                          <TouchableOpacity
+                            style={friendsStyles.button}
+                            onPress={() => handleAcceptRequest(item)}
+                          >
+                            <Image source={AcceptIcon} style={globalStyles.primaryIcon} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={friendsStyles.button}
+                            onPress={() => handleDeclineRequest(item)}
+                          >
+                            <Image source={RejectIcon} style={globalStyles.deleteIcon} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+                  </ScrollView>
                 </View>
-              ))}
-            </View>
-          ) : (
-            <View style={globalStyles.emptyState}>
-              <Image source={AddFriendIcon} style={globalStyles.primaryIcon} />
-              <Text style={globalStyles.emptyStateText}>Ingen forespørsler</Text>
-            </View>
-          )}
+              </View>
+            ) : (
+              <View style={globalStyles.emptyState}>
+                <Image source={AddFriendIcon} style={globalStyles.primaryIcon} />
+                <Text style={globalStyles.emptyStateText}>Ingen forespørsler</Text>
+              </View>
+            )}
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
