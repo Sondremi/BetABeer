@@ -5,6 +5,7 @@ export type DrinkType = 'Øl' | 'Cider' | 'Hard selzer' | 'Vin' | 'Sprit';
 export type MeasureType = 'Slurker' | 'Shot' | 'Chug';
 
 export interface DrinkEntry {
+  name?: string;
   category: DrinkCategory;
   sizeDl: number;
   alcoholPercent: number;

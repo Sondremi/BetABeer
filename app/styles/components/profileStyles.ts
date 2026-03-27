@@ -53,7 +53,6 @@ export const profileStyles = StyleSheet.create({
   },
   profileHeroCard: {
     width: '100%',
-    maxWidth: theme.sizes.heroCardMaxWidth,
     position: 'relative',
     borderRadius: theme.borderRadius.hero,
     borderWidth: 1,
@@ -272,6 +271,8 @@ export const profileStyles = StyleSheet.create({
   },
   statPill: {
     flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
     position: 'relative',
     borderRadius: theme.borderRadius.md,
     borderWidth: 1,
@@ -459,7 +460,32 @@ export const profileStyles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   customAlcoholInput: {
-    height: theme.sizes.iconButton,
+    height: theme.sizes.avatarSm,
+  },
+  compactNumberShell: {
+    alignSelf: 'flex-start',
+    width: '70%',
+    minWidth: 180,
+    maxWidth: 260,
+  },
+  compactNumberInput: {
+    height: theme.sizes.avatarSm - theme.spacing.xxxs,
+  },
+  unitInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  unitInputShell: {
+    flex: 1,
+  },
+  unitPickerShell: {
+    width: 96,
+  },
+  fieldHelperText: {
+    marginTop: theme.spacing.xs,
+    color: theme.colors.textSecondary,
+    fontSize: theme.fonts.xs,
   },
   pickerItem: {
     color: theme.colors.text,

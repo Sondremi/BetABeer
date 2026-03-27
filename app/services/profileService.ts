@@ -121,31 +121,55 @@ export const updateGroupName = async(groupId: string, newName: string): Promise<
 }
 
 export const profileService = {
-  async getUserData(userId: string): Promise<{ weight?: number; gender?: 'male' | 'female'; drinks?: DrinkEntry[] }> {
+  async getUserData(userId: string): Promise<{
+    name?: string;
+    username?: string;
+    weight?: number;
+    gender?: 'male' | 'female';
+    drinks?: DrinkEntry[];
+    bacHighscoreAllTime?: number;
+    bacHighscoreUpdatedAt?: number;
+  }> {
     const userRef = doc(firestore, 'users', userId);
     const userDoc = await getDoc(userRef);
     if (userDoc.exists()) {
       const data = userDoc.data();
       const drinks = (data.drinks || []) as DrinkEntry[];
+      const normalizedWeight = typeof data.weight === 'number' ? data.weight : undefined;
+      const normalizedGender = data.gender === 'male' || data.gender === 'female' ? data.gender : undefined;
       const latestDrinkTimestamp = drinks.length > 0 ? Math.max(...drinks.map(drink => drink.timestamp)) : null;
       const twentyFourHoursMs = 24 * 60 * 60 * 1000;
 
       if (latestDrinkTimestamp && Date.now() - latestDrinkTimestamp >= twentyFourHoursMs) {
         await updateDoc(userRef, { drinks: [] });
         return {
-          weight: data.weight,
-          gender: data.gender,
+          name: data.name,
+          username: data.username,
+          weight: normalizedWeight,
+          gender: normalizedGender,
           drinks: [],
         };
       }
 
       return {
-        weight: data.weight,
-        gender: data.gender,
+        name: data.name,
+        username: data.username,
+        weight: normalizedWeight,
+        gender: normalizedGender,
         drinks,
+        bacHighscoreAllTime: typeof data.bacHighscoreAllTime === 'number' ? data.bacHighscoreAllTime : undefined,
+        bacHighscoreUpdatedAt: typeof data.bacHighscoreUpdatedAt === 'number' ? data.bacHighscoreUpdatedAt : undefined,
       };
     }
     return {};
+  },
+
+  async updateBACHighscore(userId: string, bacHighscoreAllTime: number): Promise<void> {
+    const userRef = doc(firestore, 'users', userId);
+    await updateDoc(userRef, {
+      bacHighscoreAllTime,
+      bacHighscoreUpdatedAt: Date.now(),
+    });
   },
 
   async addDrink(userId: string, drink: DrinkEntry): Promise<void> {

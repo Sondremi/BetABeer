@@ -1,7 +1,7 @@
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { authService } from '../services/firebase/authService';
 import { firestore } from '../services/firebase/FirebaseConfig';
@@ -44,8 +44,8 @@ const SettingsScreen = () => {
               username: userData.username || '',
               name: userData.name || '',
               email: userData.email || '',
-              weight: userData.weight,
-              gender: userData.gender,
+              weight: typeof userData.weight === 'number' ? userData.weight : undefined,
+              gender: userData.gender === 'male' || userData.gender === 'female' ? userData.gender : undefined,
             };
             setUserInfo(userInfoData);
             setEditedInfo(userInfoData);
@@ -77,7 +77,7 @@ const SettingsScreen = () => {
       return false;
     }
 
-    if (editedInfo.weight !== undefined && (isNaN(editedInfo.weight) || editedInfo.weight <= 0)) {
+    if (editedInfo.weight != null && (isNaN(editedInfo.weight) || editedInfo.weight <= 0)) {
       showAlert('Feil', 'Vekt må være et positivt tall');
       return false;
     }
@@ -85,18 +85,34 @@ const SettingsScreen = () => {
     return true;
   };
 
+  const canSaveEditedData = useMemo(() => {
+    if (!editedInfo.name.trim()) return false;
+    if (!editedInfo.email.trim()) return false;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editedInfo.email)) return false;
+
+    if (editedInfo.weight != null && (isNaN(editedInfo.weight) || editedInfo.weight <= 0)) {
+      return false;
+    }
+
+    return true;
+  }, [editedInfo]);
+
   const handleSave = async () => {
     if (!validateEditedData()) return;
 
     try {
       setIsLoading(true);
 
-      await authService.updateUser(userInfo.id, {
+      const updateData = {
         name: editedInfo.name,
         email: editedInfo.email,
-        weight: editedInfo.weight,
-        gender: editedInfo.gender,
-      });
+        weight: editedInfo.weight ?? null,
+        gender: editedInfo.gender ?? null,
+      };
+
+      await authService.updateUser(userInfo.id, updateData);
 
       setUserInfo(editedInfo);
       setIsEditing(false);
@@ -318,7 +334,7 @@ const SettingsScreen = () => {
                 </View>
               ) : (
                 <View style={globalStyles.readOnlyInput}>
-                  <Text style={settingsStyles.readOnlyText}>{userInfo.weight ? `${userInfo.weight} kg` : 'Ikke satt'}</Text>
+                  <Text style={settingsStyles.readOnlyText}>{userInfo.weight != null ? `${userInfo.weight} kg` : 'Ikke satt'}</Text>
                 </View>
               )}
             </View>
@@ -356,9 +372,9 @@ const SettingsScreen = () => {
                     <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[settingsStyles.halfWidthSaveButton, isLoading && globalStyles.disabledButton]}
+                    style={[settingsStyles.halfWidthSaveButton, (isLoading || !canSaveEditedData) && globalStyles.disabledButton]}
                     onPress={handleSave}
-                    disabled={isLoading}
+                    disabled={isLoading || !canSaveEditedData}
                   >
                     <Text style={globalStyles.saveButtonTextAlt}>
                       {isLoading ? 'Lagrer...' : 'Lagre'}

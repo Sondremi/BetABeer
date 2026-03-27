@@ -3,11 +3,14 @@ import { Stack, usePathname, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { AuthProvider } from './context/AuthContext';
+import { AppAlertProvider } from './context/AppAlertProvider';
 
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <PersistedRouteStack />
+      <AppAlertProvider>
+        <PersistedRouteStack />
+      </AppAlertProvider>
     </AuthProvider>
   );
 }
