@@ -5,9 +5,8 @@ import React, { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { authService } from '../services/firebase/authService';
 import { firestore } from '../services/firebase/FirebaseConfig';
-import { settingsStyles } from '../styles/components/settingsStyles';
+import { settingsScreenTokens, settingsStyles } from '../styles/components/settingsStyles';
 import { globalStyles } from '../styles/globalStyles';
-import { theme } from '../styles/theme';
 import { showAlert } from '../utils/platformAlert';
 import { Gender } from '../types/userTypes';
 
@@ -26,6 +25,7 @@ const SettingsScreen = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedInfo, setEditedInfo] = useState(userInfo);
   const [isLoading, setIsLoading] = useState(true);
+  const [focusedField, setFocusedField] = useState<'' | 'name' | 'email' | 'weight'>('');
 
   useEffect(() => {
     loadUserData();
@@ -219,7 +219,7 @@ const SettingsScreen = () => {
     <KeyboardAvoidingView
       style={[
         Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container,
-        { padding: 0 }
+        settingsStyles.pageContainer,
       ]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
@@ -228,17 +228,16 @@ const SettingsScreen = () => {
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
-        <View style={[globalStyles.header, globalStyles.rowSpread]}>
+        <View style={[globalStyles.header, globalStyles.rowCenter]}>
           <TouchableOpacity style={settingsStyles.backButton} onPress={handleBack}>
             <Text style={settingsStyles.backButtonText}>←</Text>
           </TouchableOpacity>
-          <Text style={globalStyles.headerTitleMedium}>Innstillinger</Text>
-          <View style={settingsStyles.headerPlaceholder} />
+          <Text style={globalStyles.headerTitle}>Innstillinger</Text>
         </View>
 
-        <View style={globalStyles.section}>
+        <View style={[globalStyles.section, settingsStyles.screenSection]}>
           {/* User Information Section */}
-          <View style={globalStyles.inputGroup}>
+          <View style={[globalStyles.premiumCard, settingsStyles.sectionCard]}>
             <Text style={globalStyles.sectionTitle}>Brukerinformasjon</Text>
 
             {/* Username - not editable */}
@@ -254,13 +253,17 @@ const SettingsScreen = () => {
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Navn</Text>
               {isEditing ? (
-                <TextInput
-                  style={[globalStyles.input, { height: 40 }]}
-                  value={editedInfo.name}
-                  onChangeText={(text) => setEditedInfo({ ...editedInfo, name: text })}
-                  placeholder="Skriv inn navn"
-                  placeholderTextColor={theme.colors.textMuted}
-                />
+                <View style={[globalStyles.inputShellDark, focusedField === 'name' && globalStyles.inputShellFocusedGold]}>
+                  <TextInput
+                    style={[globalStyles.input, settingsStyles.compactInput]}
+                    value={editedInfo.name}
+                    onChangeText={(text) => setEditedInfo({ ...editedInfo, name: text })}
+                    placeholder="Skriv inn navn"
+                    placeholderTextColor={settingsScreenTokens.inputPlaceholderTextColor}
+                    onFocus={() => setFocusedField('name')}
+                    onBlur={() => setFocusedField('')}
+                  />
+                </View>
               ) : (
                 <View style={globalStyles.readOnlyInput}>
                   <Text style={settingsStyles.readOnlyText}>{userInfo.name}</Text>
@@ -272,15 +275,19 @@ const SettingsScreen = () => {
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>E-postadresse</Text>
               {isEditing ? (
-                <TextInput
-                  style={[globalStyles.input, { height: 40 }]}
-                  value={editedInfo.email}
-                  onChangeText={(text) => setEditedInfo({ ...editedInfo, email: text })}
-                  placeholder="Skriv inn e-postadresse"
-                  placeholderTextColor={theme.colors.textMuted}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
+                <View style={[globalStyles.inputShellDark, focusedField === 'email' && globalStyles.inputShellFocusedGold]}>
+                  <TextInput
+                    style={[globalStyles.input, settingsStyles.compactInput]}
+                    value={editedInfo.email}
+                    onChangeText={(text) => setEditedInfo({ ...editedInfo, email: text })}
+                    placeholder="Skriv inn e-postadresse"
+                    placeholderTextColor={settingsScreenTokens.inputPlaceholderTextColor}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    onFocus={() => setFocusedField('email')}
+                    onBlur={() => setFocusedField('')}
+                  />
+                </View>
               ) : (
                 <View style={globalStyles.readOnlyInput}>
                   <Text style={settingsStyles.readOnlyText}>{userInfo.email}</Text>
@@ -292,19 +299,23 @@ const SettingsScreen = () => {
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Vekt</Text>
               {isEditing ? (
-                <TextInput
-                  style={[globalStyles.input, { height: 40 }]}
-                  value={editedInfo.weight ? editedInfo.weight.toString() : ''}
-                  onChangeText={(text) => {
-                    const value = text ? parseInt(text) : undefined;
-                    if (value === undefined || !isNaN(value)) {
-                      setEditedInfo({ ...editedInfo, weight: value });
-                    }
-                  }}
-                  placeholder="Skriv inn vekt (kg)"
-                  placeholderTextColor={theme.colors.textMuted}
-                  keyboardType="numeric"
-                />
+                <View style={[globalStyles.inputShellDark, focusedField === 'weight' && globalStyles.inputShellFocusedGold]}>
+                  <TextInput
+                    style={[globalStyles.input, settingsStyles.compactInput]}
+                    value={editedInfo.weight ? editedInfo.weight.toString() : ''}
+                    onChangeText={(text) => {
+                      const value = text ? parseInt(text) : undefined;
+                      if (value === undefined || !isNaN(value)) {
+                        setEditedInfo({ ...editedInfo, weight: value });
+                      }
+                    }}
+                    placeholder="Skriv inn vekt (kg)"
+                    placeholderTextColor={settingsScreenTokens.inputPlaceholderTextColor}
+                    keyboardType="numeric"
+                    onFocus={() => setFocusedField('weight')}
+                    onBlur={() => setFocusedField('')}
+                  />
+                </View>
               ) : (
                 <View style={globalStyles.readOnlyInput}>
                   <Text style={settingsStyles.readOnlyText}>{userInfo.weight ? `${userInfo.weight} kg` : 'Ikke satt'}</Text>
@@ -319,7 +330,7 @@ const SettingsScreen = () => {
                 <View style={globalStyles.pickerInput}>
                   <Picker
                     style={globalStyles.picker}
-                    itemStyle={{ color: theme.colors.text }}
+                    itemStyle={settingsStyles.pickerItem}
                     selectedValue={editedInfo.gender || ''}
                     onValueChange={(value: Gender | '') => setEditedInfo({ ...editedInfo, gender: value || undefined })}
                   >
@@ -363,7 +374,7 @@ const SettingsScreen = () => {
           </View>
 
           {/* Log out Section */}
-          <View style={globalStyles.inputGroup}>
+          <View style={[globalStyles.premiumCard, settingsStyles.sectionCard]}>
             <Text style={globalStyles.sectionTitle}>Logg ut</Text>
             <TouchableOpacity style={globalStyles.outlineButton} onPress={handleLogout}>
               <Text style={globalStyles.outlineButtonGoldText}>Logg ut</Text>
@@ -371,11 +382,10 @@ const SettingsScreen = () => {
           </View>
 
           {/* Delete Account Section */}
-          <View style={globalStyles.dangerSection}>
+          <View style={[globalStyles.premiumCard, settingsStyles.sectionCard, settingsStyles.deleteSectionCard]}>
             <Text style={globalStyles.dangerSectionTitle}>Slett bruker</Text>
-            <Text style={[globalStyles.mutedText, { color: theme.colors.errorLight, lineHeight: 20 }]}>
-              Sletting av bruker vil permanent fjerne all data knyttet til brukeren din. {"\n"}
-              Dette kan ikke angres.
+            <Text style={[globalStyles.mutedText, settingsStyles.dangerHelperText]}> 
+              Sletting av bruker vil permanent fjerne all data knyttet til brukeren din. Dette kan ikke angres.
             </Text>
             <TouchableOpacity
               style={[globalStyles.dangerButton, isLoading && globalStyles.disabledButton]}

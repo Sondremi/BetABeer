@@ -1,7 +1,25 @@
 import { StyleSheet } from 'react-native';
 import { theme } from '../theme';
 
+export const settingsScreenTokens = {
+  inputPlaceholderTextColor: theme.colors.textMuted,
+};
+
 export const settingsStyles = StyleSheet.create({
+  pageContainer: {
+    padding: 0,
+  },
+  screenSection: {
+    paddingBottom: theme.spacing.huge,
+  },
+  sectionCard: {
+    marginBottom: theme.spacing.lg,
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.xl,
+  },
+  deleteSectionCard: {
+    marginBottom: theme.spacing.lg,
+  },
   backButton: {
     padding: theme.spacing.sm,
     borderRadius: theme.spacing.xl,
@@ -13,9 +31,6 @@ export const settingsStyles = StyleSheet.create({
     fontSize: theme.spacing.xl,
     color: theme.colors.background,
     fontWeight: 'bold',
-  },
-  headerPlaceholder: {
-    width: 40,
   },
   readOnlyText: {
     fontSize: theme.fonts.md,
@@ -59,5 +74,19 @@ export const settingsStyles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     gap: theme.spacing.xs,
+  },
+  compactInput: {
+    height: 40,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  pickerItem: {
+    color: theme.colors.text,
+  },
+  dangerHelperText: {
+    color: theme.colors.errorLight,
+    lineHeight: 20,
   },
 });
