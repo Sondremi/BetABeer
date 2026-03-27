@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -8,7 +9,7 @@ import { LineChart } from 'react-native-chart-kit';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/firebase/authService';
-import { auth, firestore } from '../services/firebase/FirebaseConfig';
+import { firestore } from '../services/firebase/FirebaseConfig';
 import { acceptGroupInvitation, createGroup, declineGroupInvitation, profileService } from '../services/profileService';
 import { profileStyles } from '../styles/components/profileStyles';
 import { globalStyles } from '../styles/globalStyles';
@@ -53,7 +54,6 @@ const DefaultProfilePicture = require('../../assets/images/default/default_profi
 const ImageMissing = require('../../assets/images/image_missing.png');
 const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
-const BeerIcon = require('../../assets/icons/noun-beer-7644526.png');
 
 const ProfileScreen: React.FC = () => {
   const { user, loading } = useAuth();
@@ -104,6 +104,8 @@ const ProfileScreen: React.FC = () => {
   const [userNames, setUserNames] = useState<{ [id: string]: string }>({});
   // Move Hook call to top level
   const [userInfo, setUserInfo] = useState<{
+    name?: string;
+    username?: string;
     weight?: number;
     gender?: 'male' | 'female';
     drinks?: DrinkEntry[];
@@ -128,21 +130,6 @@ const ProfileScreen: React.FC = () => {
     userInfo.weight,
     userInfo.gender
   );
-
-  useEffect(() => {
-    const fetchUserInfo = async () => {
-      const currenUser = auth.currentUser
-      if (currenUser) {
-        try {
-          const userData = await profileService.getUserData(currenUser.uid);
-          setUserInfo(userData);
-        } catch (error) {
-          console.error(error)
-        }
-      }
-    }
-    fetchUserInfo();
-  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -205,7 +192,7 @@ const ProfileScreen: React.FC = () => {
       }
     };
     fetchNames();
-  }, [groupInvitations]);
+  }, [groupInvitations, userNames]);
 
   const loadUserData = useCallback(async () => {
     try {
@@ -242,9 +229,17 @@ const ProfileScreen: React.FC = () => {
     }
   }, [router]);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadUserData();
+    }, [loadUserData])
+  );
+
   useEffect(() => {
-    loadUserData();
-  }, [loadUserData]);
+    if (userInfo.name) {
+      setDisplayName(userInfo.name);
+    }
+  }, [userInfo.name]);
 
   const getSizeOptions = (category: DrinkCategory | '') => {
     switch (category) {
@@ -576,8 +571,8 @@ const ProfileScreen: React.FC = () => {
         </Modal>
 
           {/* Name and username */}
-          <Text style={globalStyles.largeBoldText}>{user?.name || 'Navn'}</Text>
-          <Text style={globalStyles.secondaryText}>{user?.username || 'Brukernavn'}</Text>
+          <Text style={globalStyles.largeBoldText}>{userInfo.name || user?.name || 'Navn'}</Text>
+          <Text style={globalStyles.secondaryText}>{userInfo.username || user?.username || 'Brukernavn'}</Text>
         </View>
 
         { /* Blood Alcohol Level */ }
