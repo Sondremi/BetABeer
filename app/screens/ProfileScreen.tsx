@@ -2,52 +2,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
-import { Dimensions, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useAuth } from '../context/AuthContext';
+import { sendGroupInvitation } from '../services/groupService';
 import { authService } from '../services/firebase/authService';
 import { auth, firestore } from '../services/firebase/FirebaseConfig';
 import { acceptGroupInvitation, createGroup, declineGroupInvitation, profileService } from '../services/profileService';
-import { profileStyles } from '../styles/components/profileStyles';
+import { profileChartConfig, profileChartDataset, profileScreenTokens, profileStyles } from '../styles/components/profileStyles';
 import { globalStyles } from '../styles/globalStyles';
-import { theme } from '../styles/theme';
 import { DrinkCategory, DrinkEntry, Group, GroupInvitation } from '../types/drinkTypes';
+import { Friend } from '../types/userTypes';
 import { defaultProfileImageMap, defaultProfileImages } from '../utils/defaultProfileImages';
 import { showAlert } from '../utils/platformAlert';
-
-const useAnimatedBACText = (
-  drinks: DrinkEntry[] | undefined,
-  weight: number | undefined,
-  gender: 'male' | 'female' | undefined
-) => {
-  const currentBAC = drinks && weight && gender
-    ? profileService.calculateBAC(drinks, weight, gender, Date.now())
-    : 0;
-  const color = currentBAC < 1 ? ('#4CAF50') :
-                currentBAC <= 2 ? ('#F57C00') :
-                ('#FF0000');
-  const emoji = currentBAC < 1 ? '🥂' :
-                currentBAC <= 2 ? '🍻' :
-                currentBAC < 3 ? '🥴' : '💀'
-  const exclamationMarks = currentBAC > 2.5 ? '!'.repeat(Math.min(3, Math.floor((currentBAC - 2.5) / 0.1))) : '';
-  const isHighBAC = currentBAC >= 3;
-  const scale = useSharedValue(isHighBAC ? 1.2 : 1);
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: withSpring(scale.value) }],
-  }));
-  scale.value = isHighBAC ? 1.2 : 1; // Update scale on re-render
-
-  return {
-    currentBAC: currentBAC.toFixed(3),
-    color,
-    emoji,
-    exclamationMarks,
-    isHighBAC,
-    animatedStyle,
-  };
-};
 
 const DefaultProfilePicture = require('../../assets/images/default/default_profilepicture.png');
 const ImageMissing = require('../../assets/images/image_missing.png');
@@ -57,9 +25,11 @@ const BeerIcon = require('../../assets/icons/noun-beer-7644526.png');
 
 const ProfileScreen: React.FC = () => {
   const { user, loading } = useAuth();
+  const { width: windowWidth } = useWindowDimensions();
   const [profileImageModalVisible, setProfileImageModalVisible] = useState(false);
   const [selectedProfileImage, setSelectedProfileImage] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState('');
+  const [profileNameFocused, setProfileNameFocused] = useState(false);
 
   useEffect(() => {
     if (user && (user as any).profileImage) {
@@ -98,7 +68,11 @@ const ProfileScreen: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [createGroupModalVisible, setCreateGroupModalVisible] = useState(false);
   const [createGroupName, setCreateGroupName] = useState('');
+  const [createGroupNameFocused, setCreateGroupNameFocused] = useState(false);
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const [groupInviteCandidates, setGroupInviteCandidates] = useState<Friend[]>([]);
+  const [selectedInviteeIds, setSelectedInviteeIds] = useState<string[]>([]);
+  const [loadingGroupInviteCandidates, setLoadingGroupInviteCandidates] = useState(false);
   const [groupInvitations, setGroupInvitations] = useState<GroupInvitation[]>([]);
   const [handlingInvitation, setHandlingInvitation] = useState(false);
   const [userNames, setUserNames] = useState<{ [id: string]: string }>({});
@@ -123,11 +97,67 @@ const ProfileScreen: React.FC = () => {
     quantity: '',
     customAlcoholPercent: '',
   });
-  const { currentBAC, color, emoji, exclamationMarks, isHighBAC, animatedStyle } = useAnimatedBACText(
-    userInfo.drinks,
-    userInfo.weight,
-    userInfo.gender
-  );
+  const currentBAC = useMemo(() => {
+    if (!userInfo.drinks || !userInfo.weight || !userInfo.gender) return '0.000';
+    return profileService.calculateBAC(userInfo.drinks, userInfo.weight, userInfo.gender, Date.now()).toFixed(3);
+  }, [userInfo.drinks, userInfo.gender, userInfo.weight]);
+  const chartProjection = useMemo(() => {
+    if (!userInfo.weight || !userInfo.gender || !userInfo.drinks || userInfo.drinks.length === 0) {
+      return null;
+    }
+
+    const latestDrinkTimestamp = Math.max(...userInfo.drinks.map((d) => d.timestamp));
+    const fifteenMinuteMs = 15 * 60 * 1000;
+    const points = Array.from({ length: 21 }, (_, i) => {
+      const time = latestDrinkTimestamp + i * fifteenMinuteMs;
+      const value = profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
+      return { time, value };
+    });
+
+    const fullLabels = points.map((point) => new Date(point.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    // Keep x-axis readable on mobile by showing hourly clock labels.
+    const labels = points.map((_, index) => {
+      if (index === points.length - 2) return fullLabels[points.length - 1];
+      if (index === points.length - 1) return '';
+      if (index % 4 === 0) return fullLabels[index];
+      return '';
+    });
+    const values = points.map((point) => point.value);
+    const peak = Math.max(...values);
+    const peakIndex = values.findIndex((value) => value === peak);
+
+    let soberTimeLabel = '--:--';
+    const soberWithinProjectionIndex = values.findIndex((value, index) => index > 0 && value <= 0.001);
+    if (soberWithinProjectionIndex >= 0) {
+      soberTimeLabel = fullLabels[soberWithinProjectionIndex];
+    } else {
+      const maxLookaheadSteps = Math.floor((24 * 60) / 15);
+      for (let step = points.length; step <= maxLookaheadSteps; step += 1) {
+        const time = latestDrinkTimestamp + step * fifteenMinuteMs;
+        const value = profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
+        if (value <= 0.001) {
+          soberTimeLabel = new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          break;
+        }
+      }
+    }
+
+    return {
+      labels,
+      values,
+      peak,
+      peakTime: peakIndex >= 0 ? fullLabels[peakIndex] : '--:--',
+      soberTime: soberTimeLabel,
+      endBAC: values[values.length - 1] ?? 0,
+    };
+  }, [userInfo.drinks, userInfo.gender, userInfo.weight]);
+  const chartWidth = useMemo(() => {
+    const calculated = windowWidth - 116;
+
+    // Keep current mobile behavior, but clamp harder on wider screens/web so chart never spills outside card padding.
+    const maxWidth = Platform.OS === 'web' || windowWidth >= 768 ? 372 : 440;
+    return Math.max(280, Math.min(calculated, maxWidth));
+  }, [windowWidth]);
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -385,10 +415,20 @@ const ProfileScreen: React.FC = () => {
     try {
       const newGroup = await createGroup(user.id, trimmedGroupName);
       const groupWithImage: Group = { ...newGroup, image: ImageMissing };
+      const inviteTargets = selectedInviteeIds.filter((inviteeId) => inviteeId !== user.id);
+      const invitationResults = await Promise.allSettled(
+        inviteTargets.map((inviteeId) => sendGroupInvitation(inviteeId, groupWithImage))
+      );
+      const failedInvitations = invitationResults.filter((result) => result.status === 'rejected').length;
       
       await AsyncStorage.setItem('lastSelectedGroup', JSON.stringify(groupWithImage));
       setCreateGroupName('');
+      setSelectedInviteeIds([]);
       setCreateGroupModalVisible(false);
+
+      if (failedInvitations > 0) {
+        showAlert('Delvis fullført', `Gruppen ble opprettet, men ${failedInvitations} invitasjon(er) feilet.`);
+      }
       
       router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(groupWithImage) } });
     } catch (error) {
@@ -427,6 +467,56 @@ const ProfileScreen: React.FC = () => {
     }
   };
 
+  const loadGroupInviteCandidates = async () => {
+    if (!user) {
+      setGroupInviteCandidates([]);
+      return;
+    }
+
+    setLoadingGroupInviteCandidates(true);
+    try {
+      const userSnap = await getDoc(doc(firestore, 'users', user.id));
+      const friendIds = userSnap.exists() ? ((userSnap.data().friends || []) as string[]) : [];
+      if (!friendIds.length) {
+        setGroupInviteCandidates([]);
+        return;
+      }
+
+      const friendSnaps = await Promise.all(friendIds.map((friendId) => getDoc(doc(firestore, 'users', friendId))));
+      const friends = friendSnaps
+        .filter((snap) => snap.exists())
+        .map((snap) => {
+          const data = snap.data();
+          return {
+            id: snap.id,
+            name: data.name || 'Ukjent',
+            username: data.username || 'ukjent',
+            profilePicture: data.profileImage ? defaultProfileImageMap[data.profileImage] || DefaultProfilePicture : DefaultProfilePicture,
+          } as Friend;
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      setGroupInviteCandidates(friends);
+    } catch (error) {
+      console.error(error);
+      showAlert('Feil', 'Kunne ikke laste vennelisten');
+      setGroupInviteCandidates([]);
+    } finally {
+      setLoadingGroupInviteCandidates(false);
+    }
+  };
+
+  const toggleInvitee = (friendId: string) => {
+    setSelectedInviteeIds((prev) => (
+      prev.includes(friendId) ? prev.filter((id) => id !== friendId) : [...prev, friendId]
+    ));
+  };
+
+  useEffect(() => {
+    if (!createGroupModalVisible) return;
+    loadGroupInviteCandidates();
+  }, [createGroupModalVisible, user?.id]);
+
   if (isLoading) {
     return (
       <View style={[globalStyles.container, globalStyles.centerContent]}>
@@ -446,25 +536,25 @@ const ProfileScreen: React.FC = () => {
   );
 
   const renderInvitationItem = (item: GroupInvitation) => (
-    <View style={[globalStyles.listItemRow, { paddingVertical: 10 }]}>
-      <View style={{ flex: 1, paddingBottom: 0 }}>
+    <View style={[globalStyles.listItemRow, profileStyles.invitationItemRow]}>
+      <View style={profileStyles.invitationInfo}>
         <Text style={globalStyles.modalText}>{item.groupName}</Text>
         <Text style={globalStyles.secondaryText}>Fra: {userNames[item.fromUserId] || item.fromUserId}</Text>
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View style={profileStyles.invitationActionRow}>
         <TouchableOpacity
-          style={[globalStyles.selectionButton, { marginRight: theme.spacing.sm }]}
+          style={[globalStyles.selectionButton, profileStyles.invitationRejectButton, profileStyles.invitationAcceptButton]}
+          onPress={() => handleRejectInvitation(item)}
+          disabled={handlingInvitation}
+        >
+          <Text style={[globalStyles.selectionButtonText, profileStyles.invitationRejectButtonText]}>Avslå</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[globalStyles.selectionButton, profileStyles.invitationAcceptButton]}
           onPress={() => handleAcceptInvitation(item)}
           disabled={handlingInvitation}
         >
           <Text style={globalStyles.outlineButtonGoldText}>Godta</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[globalStyles.selectionButton, { backgroundColor: theme.colors.error }]}
-          onPress={() => handleRejectInvitation(item)}
-          disabled={handlingInvitation}
-        >
-          <Text style={[globalStyles.selectionButtonText, { color: theme.colors.background }]}>Avslå</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -482,7 +572,7 @@ const ProfileScreen: React.FC = () => {
     <KeyboardAvoidingView
       style={[
         Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container,
-        { padding: 0 }
+        profileStyles.pageContainer,
       ]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
@@ -490,35 +580,35 @@ const ProfileScreen: React.FC = () => {
         contentContainerStyle={globalStyles.fullWidthScrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Header with navigation buttons */}
-        <View style={globalStyles.header}>
-          <View style={profileStyles.headerButtons}>
-            <TouchableOpacity style={profileStyles.headerButton} onPress={navigateToSettings}>
+        {/* Profile content */}
+        <View style={[globalStyles.centeredSection, profileStyles.compactCenteredSection, profileStyles.heroSection]}>
+          <View style={[globalStyles.premiumCard, profileStyles.profileHeroCard]}>
+            <TouchableOpacity style={profileStyles.heroSettingsButton} onPress={navigateToSettings}>
               <Image source={SettingsIcon} style={globalStyles.primaryIcon} />
             </TouchableOpacity>
-          </View>
-        </View>
+            {/* Profile picture */}
+            <View style={profileStyles.profileImageContainer}>
+              <Image
+                source={
+                  (selectedProfileImage && defaultProfileImageMap[selectedProfileImage])
+                    ? defaultProfileImageMap[selectedProfileImage]
+                    : (user && (user as any).profileImage && defaultProfileImageMap[(user as any).profileImage])
+                      ? defaultProfileImageMap[(user as any).profileImage]
+                      : DefaultProfilePicture
+                }
+                style={[globalStyles.circularImage, profileStyles.profileImage]}
+              />
+              <TouchableOpacity
+                style={profileStyles.editProfileImageButton}
+                onPress={() => setProfileImageModalVisible(true)}
+              >
+                <Image source={PencilIcon} style={globalStyles.primaryIcon} />
+              </TouchableOpacity>
+            </View>
 
-        {/* Profile content */}
-        <View style={globalStyles.centeredSection}>
-          {/* Profile picture */}
-          <View style={profileStyles.profileImageContainer}>
-            <Image
-              source={
-                (selectedProfileImage && defaultProfileImageMap[selectedProfileImage])
-                  ? defaultProfileImageMap[selectedProfileImage]
-                  : (user && (user as any).profileImage && defaultProfileImageMap[(user as any).profileImage])
-                    ? defaultProfileImageMap[(user as any).profileImage]
-                    : DefaultProfilePicture
-              }
-              style={[globalStyles.circularImage, { width: 120, height: 120 }]}
-            />
-            <TouchableOpacity
-              style={profileStyles.editProfileImageButton}
-              onPress={() => setProfileImageModalVisible(true)}
-            >
-              <Image source={PencilIcon} style={globalStyles.primaryIcon} />
-            </TouchableOpacity>
+            {/* Name and username */}
+            <Text style={[globalStyles.largeBoldText, profileStyles.profileName]}>{user?.name || 'Navn'}</Text>
+            <Text style={[globalStyles.secondaryText, profileStyles.profileUsername]}>{user?.username || 'Brukernavn'}</Text>
           </View>
         {/* Modal to change profilepicture */}
         <Modal
@@ -528,33 +618,40 @@ const ProfileScreen: React.FC = () => {
           onRequestClose={() => setProfileImageModalVisible(false)}
         >
           <View style={globalStyles.modalContainer}> 
-            <View style={[globalStyles.modalContent, { padding: theme.spacing.md, borderRadius: theme.borderRadius.lg, maxHeight: 500 }]}> 
+            <View style={[globalStyles.modalContent, profileStyles.profileModalContent]}> 
               <Text style={globalStyles.modalTitle}>Velg profilbilde</Text>
-              <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <ScrollView contentContainerStyle={profileStyles.profileModalGrid}>
                 {defaultProfileImages.map((img) => (
                   <TouchableOpacity
                     key={img}
-                    style={{ margin: 8, borderWidth: selectedProfileImage === img ? 3 : 0, borderColor: theme.colors.primary, borderRadius: 60 }}
+                    style={[
+                      profileStyles.profileImageChoice,
+                      selectedProfileImage === img && profileStyles.profileImageChoiceSelected,
+                    ]}
                     onPress={() => setSelectedProfileImage(img)}
                   >
                     <Image
                       source={defaultProfileImageMap[img]}
-                      style={{ width: 60, height: 60, borderRadius: 30 }}
+                      style={profileStyles.profileImageChoiceImage}
                     />
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-              <View style={[globalStyles.inputGroup, { marginTop: theme.spacing.md, marginBottom: theme.spacing.md }]}> 
-                <Text style={globalStyles.label}>Name</Text>
-                <TextInput
-                  style={globalStyles.input}
-                  value={displayName}
-                  onChangeText={setDisplayName}
-                  placeholder="Your name"
-                  placeholderTextColor={theme.colors.textMuted}
-                  maxLength={40}
-                  autoCapitalize="words"
-                />
+              <View style={[globalStyles.inputGroup, profileStyles.profileNameGroup]}> 
+                <Text style={globalStyles.label}>Navn</Text>
+                <View style={[globalStyles.inputShellDark, profileNameFocused && globalStyles.inputShellFocusedGold]}>
+                  <TextInput
+                    style={[globalStyles.input, profileStyles.profileNameInput]}
+                    value={displayName}
+                    onChangeText={setDisplayName}
+                    placeholder="Your name"
+                    placeholderTextColor={profileScreenTokens.nameInputPlaceholderTextColor}
+                    maxLength={40}
+                    autoCapitalize="words"
+                    onFocus={() => setProfileNameFocused(true)}
+                    onBlur={() => setProfileNameFocused(false)}
+                  />
+                </View>
               </View>
               <View style={globalStyles.buttonRow}>
                 <TouchableOpacity style={globalStyles.cancelButton} onPress={() => setProfileImageModalVisible(false)}>
@@ -567,140 +664,134 @@ const ProfileScreen: React.FC = () => {
             </View>
           </View>
         </Modal>
-
-          {/* Name and username */}
-          <Text style={globalStyles.largeBoldText}>{user?.name || 'Navn'}</Text>
-          <Text style={globalStyles.secondaryText}>{user?.username || 'Brukernavn'}</Text>
         </View>
 
         { /* Blood Alcohol Level */ }
-        <View style={globalStyles.section}>
-          <View style={globalStyles.inputGroup}>
-            <Text style={globalStyles.sectionTitle}>Promillekalkulator</Text>
-            <TouchableOpacity
-              style={[globalStyles.primaryButtonShadow, (!userInfo.weight || !userInfo.gender) && globalStyles.disabledButton]}
-              onPress={() => setDrinkModalVisible(true)}
-              disabled={!userInfo.weight || !userInfo.gender}
-            >
-              <Text style={globalStyles.primaryButtonText}>Legg til drikke</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[globalStyles.dangerButton, (!userInfo.weight || !userInfo.gender) && globalStyles.disabledButton]}
-              onPress={handleResetDrinks}
-              disabled={!userInfo.weight || !userInfo.gender}
-            >
-              <Text style={globalStyles.dangerButtonText}>Nullstill drikker</Text>
-            </TouchableOpacity>
-          </View>
-          {userInfo.weight && userInfo.gender && userInfo.drinks && userInfo.drinks.length > 0 && (() => {
-            return (
-            <View style={[globalStyles.inputGroup, {marginBottom: theme.spacing.sm, marginTop: theme.spacing.xl}]}>
-              <Text style={globalStyles.sectionTitle}>Anslått promille de neste 3 timene</Text>
-              <LineChart
-                data={{
-                  labels: Array.from({ length: 7 }, (_, i) => {
-                    const time = Math.max(...userInfo.drinks!.map(d => d.timestamp)) + i * 0.5 * 60 * 60 * 1000;
-                    return new Date(time).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-                  }), // 0 to 3h, every 30min
-                  datasets: [
-                    {
-                      data: Array.from({ length: 7 }, (_, i) => {
-                        const time = Math.max(...userInfo.drinks!.map(d => d.timestamp)) + i * 0.5 * 60 * 60 * 1000;
-                        return profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
-                      }),
-                      color: () => theme.colors.primary,
-                      strokeWidth: 3,
-                    },
-                  ],
-                }}
-                width={Math.min(Dimensions.get('window').width - theme.spacing.md * 2, 420)} // Adjust for padding
-                height={240}
-                yAxisLabel=""
-                yAxisSuffix="‰"
-                chartConfig={{
-                  backgroundColor: theme.colors.background ?? '#000000',
-                  backgroundGradientFrom: theme.colors.background ?? '#000000',
-                  backgroundGradientTo: theme.colors.background ?? '#000000',
-                  decimalPlaces: 3,
-                  color: () => theme.colors.text ?? '#FFFFFF',
-                  labelColor: () => theme.colors.text ?? '#FFFFFF',
-                  style: { borderRadius: theme.borderRadius.md },
-                  propsForDots: { r: '6', strokeWidth: '2', stroke: theme.colors.primary },
-                  propsForLabels: { fontSize: 12 }
-                }}
-                bezier
-                style={{padding: theme.spacing.sm, marginTop: theme.spacing.sm }}
-              />
-              <Animated.Text
-                style={[
-                  globalStyles.label,
-                  {
-                    color,
-                    marginTop: theme.spacing.sm,
-                    fontWeight: isHighBAC ? 'bold' : 'normal',
-                    textAlign: 'center',
-                    flexWrap: 'wrap',
-                  },
-                  animatedStyle,
-                ]}
-              >        
-              Nåværende promille: {currentBAC}‰{exclamationMarks} {emoji}
-              </Animated.Text>
+        <View style={[globalStyles.section, profileStyles.compactSection]}>
+          <View style={[globalStyles.premiumCard, profileStyles.sectionCard, profileStyles.sectionCardSpacing]}>
+            <View style={globalStyles.inputGroup}>
+              <Text style={globalStyles.sectionTitle}>Promillekalkulator</Text>
+              <View style={profileStyles.bacActionRow}>
+                <TouchableOpacity
+                  style={[globalStyles.primaryButtonShadow, profileStyles.bacActionButton, (!userInfo.weight || !userInfo.gender) && globalStyles.disabledButton]}
+                  onPress={() => setDrinkModalVisible(true)}
+                  disabled={!userInfo.weight || !userInfo.gender}
+                >
+                  <Text style={[globalStyles.primaryButtonText, profileStyles.bacActionButtonText]}>Legg til drikke</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[globalStyles.dangerButton, profileStyles.bacResetButton, (!userInfo.weight || !userInfo.gender) && globalStyles.disabledButton]}
+                  onPress={handleResetDrinks}
+                  disabled={!userInfo.weight || !userInfo.gender}
+                >
+                  <Text style={globalStyles.dangerButtonText}>Nullstill drikker</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          );
-        })()}
-        </View>
-
-        {/* Group Invitations Section */}
-        <View style={globalStyles.section}>
-          <View style={profileStyles.groupsHeader}>
-            <Text style={globalStyles.sectionTitleLeft}>Gruppeinvitasjoner</Text>
-            {groupInvitations.length > 0 && (
-              <View style={profileStyles.invitationBadge}>
-                <Text style={profileStyles.invitationBadgeText}>{groupInvitations.length}</Text>
+            {chartProjection && (
+              <View style={[globalStyles.inputGroup, profileStyles.chartCard]}>
+                <Text style={globalStyles.sectionTitle}>Anslått promille de neste 5 timene</Text>
+                <View style={profileStyles.chartSummaryRow}>
+                  <View style={profileStyles.statPill}>
+                    <Text style={profileStyles.statLabel}>Promille nå</Text>
+                    <View style={profileStyles.statMainSlot}>
+                      <Text style={profileStyles.statValue}>{currentBAC}‰</Text>
+                    </View>
+                  </View>
+                  <View style={profileStyles.statPill}>
+                    <Text style={profileStyles.statLabel}>Høyeste {chartProjection.peakTime}</Text>
+                    <View style={profileStyles.statMainSlot}>
+                      <Text style={profileStyles.statValue}>{chartProjection.peak.toFixed(3)}‰</Text>
+                    </View>
+                  </View>
+                  <View style={profileStyles.statPill}>
+                    <Text style={profileStyles.statLabel}>Edru kl</Text>
+                    <View style={profileStyles.statMainSlot}>
+                      <Text style={profileStyles.statValue}>{chartProjection.soberTime}</Text>
+                    </View>
+                  </View>
+                </View>
+                <View style={[profileStyles.chartInteractiveShell, { width: chartWidth }]}>
+                  <LineChart
+                    data={{
+                      labels: chartProjection.labels,
+                      datasets: [
+                        { data: chartProjection.values, ...profileChartDataset },
+                      ],
+                    }}
+                    width={chartWidth}
+                    height={260}
+                    yAxisLabel=""
+                    yAxisSuffix="‰"
+                    fromZero
+                    chartConfig={profileChartConfig}
+                    bezier
+                    style={profileStyles.chart}
+                  />
+                </View>
               </View>
             )}
           </View>
-          {groupInvitations.length > 0 ? (
-            <View style={globalStyles.listContainer}>
-              {groupInvitations.map((item) => (
-                <View key={`${item.id}_${item.groupId}`} style={{ marginBottom: theme.spacing.sm }}>
-                  {renderInvitationItem(item)}
+        </View>
+
+        {/* Group Invitations Section */}
+        <View style={[globalStyles.section, profileStyles.compactSection]}>
+          <View style={[globalStyles.premiumCard, profileStyles.sectionCard, profileStyles.sectionCardSpacing]}>
+            <View style={profileStyles.groupsHeader}>
+              <Text style={globalStyles.sectionTitleLeft}>Gruppeinvitasjoner</Text>
+              {groupInvitations.length > 0 && (
+                <View style={profileStyles.invitationBadge}>
+                  <Text style={profileStyles.invitationBadgeText}>{groupInvitations.length}</Text>
                 </View>
-              ))}
+              )}
             </View>
-          ) : (
-            <Text style={globalStyles.emptyStateText}>Ingen invitasjoner</Text>
-          )}
+            {groupInvitations.length > 0 ? (
+              <View style={[globalStyles.listContainer, profileStyles.listContainerCard]}>
+                {groupInvitations.map((item) => (
+                  <View key={`${item.id}_${item.groupId}`} style={profileStyles.invitationItemSpacing}>
+                    {renderInvitationItem(item)}
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={globalStyles.emptyStateText}>Ingen invitasjoner</Text>
+            )}
+          </View>
         </View>
 
         {/* Groups section */}
         <View style={profileStyles.groupsSection}>
-          <View style={profileStyles.groupsHeader}>
-            <Text style={globalStyles.sectionTitleLeft}>Mine grupper</Text>
-            <TouchableOpacity
-              style={globalStyles.outlineButton}
-              onPress={() => {
-                setCreateGroupName('');
-                setCreateGroupModalVisible(true);
-              }}
-              disabled={creatingGroup}
-            >
-              <Text style={globalStyles.outlineButtonGoldText}>
-                {creatingGroup ? 'Oppretter...' : 'Opprett ny gruppe'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <View>
-            {Array.from({ length: Math.ceil(groups.length / 2) }, (_, rowIndex) => {
-              const rowItems = groups.slice(rowIndex * 2, rowIndex * 2 + 2);
-              return (
-                <View key={`group-row-${rowIndex}`} style={profileStyles.groupRow}>
-                  {rowItems.map((item) => renderGroupItem(item))}
-                  {rowItems.length === 1 && <View style={{ width: '48%' }} />}
-                </View>
-              );
-            })}
+          <View style={[globalStyles.premiumCard, profileStyles.sectionCard, profileStyles.sectionCardSpacing]}>
+            <View style={profileStyles.groupsHeaderAction}>
+              <Text style={globalStyles.sectionTitleLeft}>Mine grupper</Text>
+              <TouchableOpacity
+                style={[globalStyles.outlineButton, profileStyles.groupsHeaderActionButton]}
+                onPress={() => {
+                  setCreateGroupName('');
+                  setSelectedInviteeIds([]);
+                  setCreateGroupModalVisible(true);
+                }}
+                disabled={creatingGroup}
+              >
+                <Text
+                  style={[globalStyles.outlineButtonGoldText, profileStyles.groupsHeaderActionButtonText]}
+                  numberOfLines={1}
+                >
+                  {creatingGroup ? 'Oppretter...' : 'Opprett ny gruppe'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View>
+              {Array.from({ length: Math.ceil(groups.length / 2) }, (_, rowIndex) => {
+                const rowItems = groups.slice(rowIndex * 2, rowIndex * 2 + 2);
+                return (
+                  <View key={`group-row-${rowIndex}`} style={profileStyles.groupRow}>
+                    {rowItems.map((item) => renderGroupItem(item))}
+                    {rowItems.length === 1 && <View style={profileStyles.groupRowSpacer} />}
+                  </View>
+                );
+              })}
+            </View>
           </View>
           <Modal
             visible={createGroupModalVisible}
@@ -712,35 +803,81 @@ const ProfileScreen: React.FC = () => {
             }}
           >
             <View style={globalStyles.modalContainer}>
-              <View style={globalStyles.modalContent}>
+              <View style={[globalStyles.modalContent, profileStyles.createGroupModalContent]}>
                 <Text style={globalStyles.modalTitle}>Opprett gruppe</Text>
                 <View style={globalStyles.inputGroup}>
                   <Text style={globalStyles.label}>Gruppenavn</Text>
-                  <TextInput
-                    placeholder="Skriv gruppenavn"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    value={createGroupName}
-                    onChangeText={setCreateGroupName}
-                    style={globalStyles.input}
-                    maxLength={40}
-                  />
+                  <View style={profileStyles.createGroupRow}>
+                    <View style={[globalStyles.inputShellDark, profileStyles.createGroupInputShell, createGroupNameFocused && globalStyles.inputShellFocusedGold]}>
+                      <TextInput
+                        placeholder="Skriv gruppenavn"
+                        placeholderTextColor={profileScreenTokens.createGroupPlaceholderTextColor}
+                        value={createGroupName}
+                        onChangeText={setCreateGroupName}
+                        style={[globalStyles.input, profileStyles.createGroupInput]}
+                        maxLength={40}
+                        onFocus={() => setCreateGroupNameFocused(true)}
+                        onBlur={() => setCreateGroupNameFocused(false)}
+                      />
+                    </View>
+                    <TouchableOpacity
+                      style={[
+                        profileStyles.createGroupActionButton,
+                        (!createGroupName.trim() || creatingGroup) && globalStyles.disabledButton,
+                      ]}
+                      onPress={handleCreateGroup}
+                      disabled={creatingGroup || !createGroupName.trim()}
+                    >
+                      <Text style={profileStyles.createGroupActionButtonText}>Opprett</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <TouchableOpacity
-                  style={[
-                    globalStyles.selectionButton,
-                    { marginBottom: theme.spacing.sm },
-                    (!createGroupName.trim() || creatingGroup) && globalStyles.disabledButton,
-                  ]}
-                  onPress={handleCreateGroup}
-                  disabled={creatingGroup || !createGroupName.trim()}
-                >
-                  <Text style={globalStyles.selectionButtonText}>
-                    {creatingGroup ? 'Oppretter...' : 'Opprett gruppe'}
-                  </Text>
-                </TouchableOpacity>
+                <View style={globalStyles.inputGroup}>
+                  <Text style={globalStyles.label}>Inviter venner</Text>
+                  {loadingGroupInviteCandidates ? (
+                    <Text style={globalStyles.secondaryText}>Laster venner...</Text>
+                  ) : groupInviteCandidates.length === 0 ? (
+                    <Text style={globalStyles.secondaryText}>Du har ingen venner å invitere enda.</Text>
+                  ) : (
+                    <View>
+                      <View style={profileStyles.inviteBulkActionsRow}>
+                        <TouchableOpacity onPress={() => setSelectedInviteeIds(groupInviteCandidates.map((friend) => friend.id))}>
+                          <Text style={profileStyles.inviteBulkActionText}>Velg alle</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setSelectedInviteeIds([])}>
+                          <Text style={profileStyles.inviteBulkActionText}>Fjern alle</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <View style={profileStyles.inviteListBox}>
+                        <ScrollView nestedScrollEnabled style={profileStyles.inviteListScroll} contentContainerStyle={profileStyles.inviteListScrollContent}>
+                        {groupInviteCandidates.map((friend) => {
+                          const selected = selectedInviteeIds.includes(friend.id);
+                          return (
+                            <TouchableOpacity
+                              key={friend.id}
+                              style={[profileStyles.inviteListRow, selected && profileStyles.inviteListRowSelected]}
+                              onPress={() => toggleInvitee(friend.id)}
+                            >
+                              <Image source={friend.profilePicture} style={profileStyles.inviteListAvatar} />
+                              <View style={profileStyles.inviteListInfo}>
+                                <Text style={profileStyles.inviteListName}>{friend.name}</Text>
+                                <Text style={globalStyles.secondaryText}>@{friend.username}</Text>
+                              </View>
+                              <Text style={[profileStyles.inviteStatusText, selected && profileStyles.inviteStatusTextSelected]}>
+                                {selected ? 'Inviteres' : 'Trykk for å invitere'}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                        </ScrollView>
+                      </View>
+                    </View>
+                  )}
+                </View>
                 <View style={globalStyles.editButtonsContainer}>
                   <TouchableOpacity onPress={() => {
                     setCreateGroupName('');
+                    setSelectedInviteeIds([]);
                     setCreateGroupModalVisible(false);
                   }}>
                     <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
@@ -756,18 +893,18 @@ const ProfileScreen: React.FC = () => {
             onRequestClose={() => setDrinkModalVisible(false)}
           >
             <View style={globalStyles.modalContainer}>
-              <View style={[globalStyles.modalContent, { padding: theme.spacing.md, borderRadius: theme.borderRadius.lg }]}>
-                <ScrollView contentContainerStyle={{ paddingBottom: theme.spacing.md }} showsVerticalScrollIndicator={false}>
-                  <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.md }]}>
+              <View style={[globalStyles.modalContent, profileStyles.drinkModalContent]}> 
+                <ScrollView contentContainerStyle={profileStyles.drinkModalScroll} showsVerticalScrollIndicator={false}>
+                  <Text style={[globalStyles.modalTitle, profileStyles.drinkModalTitle]}> 
                     Legg til drikke
                   </Text>
 
-                  <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
+                  <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
                     <Text style={globalStyles.label}>Kategori</Text>
-                    <View style={globalStyles.pickerInput}>
+                    <View style={[globalStyles.pickerInput, profileStyles.pickerGlowShell]}>
                       <Picker
                         style={globalStyles.picker}
-                        itemStyle={{ color: theme.colors.text }}
+                        itemStyle={profileStyles.pickerItem}
                         selectedValue={drinkForm.category}
                         onValueChange={(value: DrinkCategory | '') =>
                           setDrinkForm({ ...drinkForm, category: value, sizeDl: '', alcoholPercent: '', customAlcoholPercent: '' })
@@ -783,12 +920,12 @@ const ProfileScreen: React.FC = () => {
 
                   {drinkForm.category && (
                     <>
-                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
+                      <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
                         <Text style={globalStyles.label}>Størrelse (dl)</Text>
-                        <View style={globalStyles.pickerInput}>
+                        <View style={[globalStyles.pickerInput, profileStyles.pickerGlowShell]}>
                           <Picker
                             style={globalStyles.picker}
-                            itemStyle={{ color: theme.colors.text }}
+                            itemStyle={profileStyles.pickerItem}
                             selectedValue={drinkForm.sizeDl}
                             onValueChange={(value: number | '') => setDrinkForm({ ...drinkForm, sizeDl: value })}
                           >
@@ -800,12 +937,12 @@ const ProfileScreen: React.FC = () => {
                         </View>
                       </View>
 
-                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
+                      <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
                         <Text style={globalStyles.label}>Alkoholprosent</Text>
-                        <View style={globalStyles.pickerInput}>
+                        <View style={[globalStyles.pickerInput, profileStyles.pickerGlowShell]}>
                           <Picker
                             style={globalStyles.picker}
-                            itemStyle={{ color: theme.colors.text }}
+                            itemStyle={profileStyles.pickerItem}
                             selectedValue={drinkForm.alcoholPercent}
                             onValueChange={(value: number | '' | 'custom') =>
                               setDrinkForm({ ...drinkForm, alcoholPercent: value, customAlcoholPercent: '' })
@@ -824,27 +961,27 @@ const ProfileScreen: React.FC = () => {
                       </View>
 
                       {drinkForm.alcoholPercent === 'custom' && (
-                        <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
+                        <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
                           <Text style={globalStyles.label}>Egendefinert alkoholprosent</Text>
                           <TextInput
-                            style={[globalStyles.input, { height: 40 }]}
+                            style={[globalStyles.input, profileStyles.customAlcoholInput]}
                             value={drinkForm.customAlcoholPercent}
                             onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercent: text })}
                             placeholder={
                               drinkForm.category === 'vin' ? '10–20%' : '22–70%'
                             }
-                            placeholderTextColor={theme.colors.textMuted}
+                            placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
                             keyboardType="numeric"
                           />
                         </View>
                       )}
 
-                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
+                      <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
                         <Text style={globalStyles.label}>Antall</Text>
-                        <View style={globalStyles.pickerInput}>
+                        <View style={[globalStyles.pickerInput, profileStyles.pickerGlowShell]}>
                           <Picker
                             style={globalStyles.picker}
-                            itemStyle={{ color: theme.colors.text }}
+                            itemStyle={profileStyles.pickerItem}
                             selectedValue={drinkForm.quantity}
                             onValueChange={(value: number | '') => setDrinkForm({ ...drinkForm, quantity: value })}
                           >
