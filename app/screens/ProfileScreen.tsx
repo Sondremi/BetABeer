@@ -21,10 +21,11 @@ import { showAlert } from '../utils/platformAlert';
 const useAnimatedBACText = (
   drinks: DrinkEntry[] | undefined,
   weight: number | undefined,
-  gender: 'male' | 'female' | undefined
+  gender: 'male' | 'female' | undefined,
+  currentTime: number
 ) => {
   const currentBAC = drinks && weight && gender
-    ? profileService.calculateBAC(drinks, weight, gender, Date.now())
+    ? profileService.calculateBAC(drinks, weight, gender, currentTime)
     : 0;
   const color = currentBAC < 1 ? ('#4CAF50') :
                 currentBAC <= 2 ? ('#F57C00') :
@@ -137,11 +138,26 @@ const ProfileScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [drinkModalVisible, setDrinkModalVisible] = useState(false);
   const [drinkForm, setDrinkForm] = useState<DrinkFormState>(INITIAL_DRINK_FORM);
+  const [bacCalculationTime, setBacCalculationTime] = useState(() => Date.now());
   const { currentBAC, color, emoji, exclamationMarks, isHighBAC, animatedStyle } = useAnimatedBACText(
     userInfo.drinks,
     userInfo.weight,
-    userInfo.gender
+    userInfo.gender,
+    bacCalculationTime
   );
+
+  useEffect(() => {
+    if (!userInfo.drinks?.length || !userInfo.weight || !userInfo.gender) {
+      return;
+    }
+
+    // Keep BAC display current as metabolism changes over time.
+    const intervalId = setInterval(() => {
+      setBacCalculationTime(Date.now());
+    }, 15000);
+
+    return () => clearInterval(intervalId);
+  }, [userInfo.drinks, userInfo.weight, userInfo.gender]);
 
   useEffect(() => {
     if (!user) return;
