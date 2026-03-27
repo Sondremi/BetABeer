@@ -20,6 +20,7 @@ import { showAlert } from '../utils/platformAlert';
 const DefaultProfilePicture = require('../../assets/images/default/default_profilepicture.png');
 const ImageMissing = require('../../assets/images/image_missing.png');
 const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png');
+const FriendsIcon = require('../../assets/icons/noun-people-2196504.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 const BeerIcon = require('../../assets/icons/noun-beer-7644526.png');
 
@@ -84,6 +85,8 @@ const ProfileScreen: React.FC = () => {
   }>({});
   const [isLoading, setIsLoading] = useState(true);
   const [drinkModalVisible, setDrinkModalVisible] = useState(false);
+  const [isBacExpanded, setIsBacExpanded] = useState(true);
+  const [isInvitationsExpanded, setIsInvitationsExpanded] = useState(true);
   const [drinkForm, setDrinkForm] = useState<{
     category: DrinkCategory | '';
     sizeDl: number | '';
@@ -185,7 +188,13 @@ const ProfileScreen: React.FC = () => {
 
     const unsubscribeGroups = onSnapshot(groupQuery, (groupSnapshot) => {
       const groupMap = new Map<string, Group>();
-      groupSnapshot.docs.forEach((docSnap) => {
+      const sortedGroupDocs = [...groupSnapshot.docs].sort((a, b) => {
+        const aCreatedAt = a.data().createdAt?.toMillis?.() ?? 0;
+        const bCreatedAt = b.data().createdAt?.toMillis?.() ?? 0;
+        return bCreatedAt - aCreatedAt;
+      });
+
+      sortedGroupDocs.forEach((docSnap) => {
         const groupData = docSnap.data();
         groupMap.set(docSnap.id, {
           id: docSnap.id,
@@ -315,6 +324,10 @@ const ProfileScreen: React.FC = () => {
 
   const navigateToSettings = () => {
     router.push('/settings');
+  };
+
+  const navigateToFriends = () => {
+    router.push('/friends');
   };
 
   const navigateToGroup = async (group: Group) => {
@@ -583,6 +596,9 @@ const ProfileScreen: React.FC = () => {
         {/* Profile content */}
         <View style={[globalStyles.centeredSection, profileStyles.compactCenteredSection, profileStyles.heroSection]}>
           <View style={[globalStyles.premiumCard, profileStyles.profileHeroCard]}>
+            <TouchableOpacity style={profileStyles.heroFriendsButton} onPress={navigateToFriends}>
+              <Image source={FriendsIcon} style={profileStyles.heroFriendsIcon} />
+            </TouchableOpacity>
             <TouchableOpacity style={profileStyles.heroSettingsButton} onPress={navigateToSettings}>
               <Image source={SettingsIcon} style={globalStyles.primaryIcon} />
             </TouchableOpacity>
@@ -669,26 +685,41 @@ const ProfileScreen: React.FC = () => {
         { /* Blood Alcohol Level */ }
         <View style={[globalStyles.section, profileStyles.compactSection]}>
           <View style={[globalStyles.premiumCard, profileStyles.sectionCard, profileStyles.sectionCardSpacing]}>
-            <View style={globalStyles.inputGroup}>
-              <Text style={globalStyles.sectionTitle}>Promillekalkulator</Text>
-              <View style={profileStyles.bacActionRow}>
-                <TouchableOpacity
-                  style={[globalStyles.primaryButtonShadow, profileStyles.bacActionButton, (!userInfo.weight || !userInfo.gender) && globalStyles.disabledButton]}
-                  onPress={() => setDrinkModalVisible(true)}
-                  disabled={!userInfo.weight || !userInfo.gender}
-                >
-                  <Text style={[globalStyles.primaryButtonText, profileStyles.bacActionButtonText]}>Legg til drikke</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[globalStyles.dangerButton, profileStyles.bacResetButton, (!userInfo.weight || !userInfo.gender) && globalStyles.disabledButton]}
-                  onPress={handleResetDrinks}
-                  disabled={!userInfo.weight || !userInfo.gender}
-                >
-                  <Text style={globalStyles.dangerButtonText}>Nullstill drikker</Text>
-                </TouchableOpacity>
-              </View>
+            <View style={[profileStyles.bacHeaderRow, !isBacExpanded && profileStyles.collapsedHeaderRow]}>
+              <Text style={globalStyles.sectionTitleLeft}>Promillekalkulator</Text>
+              <TouchableOpacity
+                style={[globalStyles.outlineButtonGold, profileStyles.bacToggleButton]}
+                onPress={() => setIsBacExpanded((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={isBacExpanded ? 'Minimer promillekalkulator' : 'Utvid promillekalkulator'}
+              >
+                <Text style={[globalStyles.outlineButtonGoldText, profileStyles.bacToggleButtonText]}>
+                  {isBacExpanded ? '▾' : '▸'}
+                </Text>
+              </TouchableOpacity>
             </View>
-            {chartProjection && (
+
+            {isBacExpanded && (
+              <View style={globalStyles.inputGroup}>
+                <View style={profileStyles.bacActionRow}>
+                  <TouchableOpacity
+                    style={[globalStyles.primaryButtonShadow, profileStyles.bacActionButton, (!userInfo.weight || !userInfo.gender) && globalStyles.disabledButton]}
+                    onPress={() => setDrinkModalVisible(true)}
+                    disabled={!userInfo.weight || !userInfo.gender}
+                  >
+                    <Text style={[globalStyles.primaryButtonText, profileStyles.bacActionButtonText]}>Legg til drikke</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[globalStyles.dangerButton, profileStyles.bacResetButton, (!userInfo.weight || !userInfo.gender) && globalStyles.disabledButton]}
+                    onPress={handleResetDrinks}
+                    disabled={!userInfo.weight || !userInfo.gender}
+                  >
+                    <Text style={globalStyles.dangerButtonText}>Nullstill drikker</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+            {isBacExpanded && chartProjection && (
               <View style={[globalStyles.inputGroup, profileStyles.chartCard]}>
                 <Text style={globalStyles.sectionTitle}>Anslått promille de neste 5 timene</Text>
                 <View style={profileStyles.chartSummaryRow}>
@@ -720,7 +751,7 @@ const ProfileScreen: React.FC = () => {
                       ],
                     }}
                     width={chartWidth}
-                    height={260}
+                    height={220}
                     yAxisLabel=""
                     yAxisSuffix="‰"
                     fromZero
@@ -737,15 +768,20 @@ const ProfileScreen: React.FC = () => {
         {/* Group Invitations Section */}
         <View style={[globalStyles.section, profileStyles.compactSection]}>
           <View style={[globalStyles.premiumCard, profileStyles.sectionCard, profileStyles.sectionCardSpacing]}>
-            <View style={profileStyles.groupsHeader}>
+            <View style={[profileStyles.groupsHeader, !isInvitationsExpanded && profileStyles.collapsedHeaderRow]}>
               <Text style={globalStyles.sectionTitleLeft}>Gruppeinvitasjoner</Text>
-              {groupInvitations.length > 0 && (
-                <View style={profileStyles.invitationBadge}>
-                  <Text style={profileStyles.invitationBadgeText}>{groupInvitations.length}</Text>
-                </View>
-              )}
+              <TouchableOpacity
+                style={[globalStyles.outlineButtonGold, profileStyles.bacToggleButton]}
+                onPress={() => setIsInvitationsExpanded((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={isInvitationsExpanded ? 'Minimer gruppeinvitasjoner' : 'Utvid gruppeinvitasjoner'}
+              >
+                <Text style={[globalStyles.outlineButtonGoldText, profileStyles.bacToggleButtonText]}>
+                  {isInvitationsExpanded ? '▾' : '▸'}
+                </Text>
+              </TouchableOpacity>
             </View>
-            {groupInvitations.length > 0 ? (
+            {isInvitationsExpanded && groupInvitations.length > 0 ? (
               <View style={[globalStyles.listContainer, profileStyles.listContainerCard]}>
                 {groupInvitations.map((item) => (
                   <View key={`${item.id}_${item.groupId}`} style={profileStyles.invitationItemSpacing}>
@@ -753,9 +789,9 @@ const ProfileScreen: React.FC = () => {
                   </View>
                 ))}
               </View>
-            ) : (
+            ) : isInvitationsExpanded ? (
               <Text style={globalStyles.emptyStateText}>Ingen invitasjoner</Text>
-            )}
+            ) : null}
           </View>
         </View>
 

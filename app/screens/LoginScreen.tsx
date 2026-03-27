@@ -258,54 +258,56 @@ const LoginScreen: React.FC = () => {
               end={{ x: 1, y: 1 }}
               style={loginStyles.authCardGradient}
             >
-            <View
-              style={loginStyles.modeSwitchContainer}
-              onLayout={(event) => setModeSwitchWidth(event.nativeEvent.layout.width)}
-            >
-              {modeSwitchWidth > 0 && (
-                <Animated.View
-                  style={[
-                    loginStyles.modeSwitchIndicator,
-                    {
-                      width: (modeSwitchWidth - 8) / 2,
-                      transform: [
-                        {
-                          translateX: modeAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0, (modeSwitchWidth - 8) / 2],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                />
-              )}
+              <View
+                style={loginStyles.modeSwitchContainer}
+                onLayout={(event) => setModeSwitchWidth(event.nativeEvent.layout.width)}
+              >
+                {modeSwitchWidth > 0 && (
+                  <Animated.View
+                    style={[
+                      loginStyles.modeSwitchIndicator,
+                      {
+                        width: modeSwitchWidth / 2,
+                        transform: [
+                          {
+                            translateX: modeAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0, modeSwitchWidth / 2],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  />
+                )}
 
-              <TouchableOpacity
-                style={[loginStyles.modeButton, isLoginMode && loginStyles.modeButtonActive]}
-                onPress={() => {
-                  if (!isLoginMode) {
-                    toggleMode();
-                  }
-                }}
-              >
-                <Text style={[loginStyles.modeButtonText, isLoginMode && loginStyles.modeButtonTextActive]}>
-                  Logg inn
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[loginStyles.modeButton, !isLoginMode && loginStyles.modeButtonActive]}
-                onPress={() => {
-                  if (isLoginMode) {
-                    toggleMode();
-                  }
-                }}
-              >
-                <Text style={[loginStyles.modeButtonText, !isLoginMode && loginStyles.modeButtonTextActive]}>
-                  Registrer deg
-                </Text>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity
+                  style={[loginStyles.modeButton, isLoginMode && loginStyles.modeButtonActive]}
+                  onPress={() => {
+                    if (!isLoginMode) {
+                      toggleMode();
+                    }
+                  }}
+                >
+                  <Text style={[loginStyles.modeButtonText, isLoginMode && loginStyles.modeButtonTextActive]}>
+                    Logg inn
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[loginStyles.modeButton, loginStyles.modeButtonDivider, !isLoginMode && loginStyles.modeButtonActive]}
+                  onPress={() => {
+                    if (isLoginMode) {
+                      toggleMode();
+                    }
+                  }}
+                >
+                  <Text style={[loginStyles.modeButtonText, !isLoginMode && loginStyles.modeButtonTextActive]}>
+                    Registrer deg
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={loginStyles.authCardBody}>
 
             {isLoginMode ? (
               <View style={[globalStyles.inputGroup, loginStyles.formInputGroup]}>
@@ -483,6 +485,7 @@ const LoginScreen: React.FC = () => {
                 />
               </LinearGradient>
             </TouchableOpacity>
+            </View>
             </LinearGradient>
           </View>
         </View>

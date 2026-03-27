@@ -15,6 +15,7 @@ const routes = [
 ] as const;
 
 type RouteName = typeof routes[number]['name'];
+const SHOW_TAB_BAR = false;
 
 export default function TabLayout() {
   const router = useRouter();
@@ -78,7 +79,7 @@ export default function TabLayout() {
         headerShown: false,
         tabBarShowLabel: false,
       }}
-      tabBar={(props) => <CustomTabBar {...props} />}
+      tabBar={(props) => (SHOW_TAB_BAR ? <CustomTabBar {...props} /> : null)}
     >
       <Tabs.Screen name="groups" options={{ title: 'Grupper' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profil' }} />

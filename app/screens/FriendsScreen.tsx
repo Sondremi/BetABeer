@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -18,6 +19,7 @@ const AcceptIcon = require('../../assets/icons/noun-add-2037478.png');
 const RejectIcon = require('../../assets/icons/noun-delete-7938028.png');
 
 const FriendsScreen = () => {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Friend[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
@@ -254,6 +256,10 @@ const FriendsScreen = () => {
     }
   };
 
+  const handleBack = () => {
+    router.replace('/profile');
+  };
+
   const renderFriend = ({ item }: { item: FriendWithPending }) => (
     <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing, friendsStyles.friendRow]}>
       <Image source={item.profilePicture} style={[globalStyles.circularImage, friendsStyles.friendImage]} />
@@ -275,7 +281,10 @@ const FriendsScreen = () => {
     >
       <ScrollView contentContainerStyle={globalStyles.fullWidthScrollContent} keyboardShouldPersistTaps="handled">
         {/* Header */}
-        <View style={globalStyles.header}>
+        <View style={[globalStyles.header, friendsStyles.headerRow]}>
+          <TouchableOpacity style={friendsStyles.backButton} onPress={handleBack}>
+            <Text style={friendsStyles.backButtonText}>←</Text>
+          </TouchableOpacity>
           <Text style={[globalStyles.headerTitle, friendsStyles.headerTitle]}>Venner</Text>
         </View>
 
