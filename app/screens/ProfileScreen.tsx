@@ -3,7 +3,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Dimensions, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -21,19 +21,20 @@ import { showAlert } from '../utils/platformAlert';
 const useAnimatedBACText = (
   drinks: DrinkEntry[] | undefined,
   weight: number | undefined,
-  gender: 'male' | 'female' | undefined
+  gender: 'male' | 'female' | undefined,
+  currentTime: number
 ) => {
-  const currentBAC = drinks && weight && gender
-    ? profileService.calculateBAC(drinks, weight, gender, Date.now())
+  const currentBACValue = drinks && weight && gender
+    ? profileService.calculateBAC(drinks, weight, gender, currentTime)
     : 0;
-  const color = currentBAC < 1 ? ('#4CAF50') :
-                currentBAC <= 2 ? ('#F57C00') :
+  const color = currentBACValue < 1 ? ('#4CAF50') :
+                currentBACValue <= 2 ? ('#F57C00') :
                 ('#FF0000');
-  const emoji = currentBAC < 1 ? '🥂' :
-                currentBAC <= 2 ? '🍻' :
-                currentBAC < 3 ? '🥴' : '💀'
-  const exclamationMarks = currentBAC > 2.5 ? '!'.repeat(Math.min(3, Math.floor((currentBAC - 2.5) / 0.1))) : '';
-  const isHighBAC = currentBAC >= 3;
+  const emoji = currentBACValue < 1 ? '🥂' :
+                currentBACValue <= 2 ? '🍻' :
+                currentBACValue < 3 ? '🥴' : '💀'
+  const exclamationMarks = currentBACValue > 2.5 ? '!'.repeat(Math.min(3, Math.floor((currentBACValue - 2.5) / 0.1))) : '';
+  const isHighBAC = currentBACValue >= 3;
   const scale = useSharedValue(isHighBAC ? 1.2 : 1);
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: withSpring(scale.value) }],
@@ -41,7 +42,8 @@ const useAnimatedBACText = (
   scale.value = isHighBAC ? 1.2 : 1; // Update scale on re-render
 
   return {
-    currentBAC: currentBAC.toFixed(3),
+    currentBACValue,
+    currentBAC: currentBACValue.toFixed(3),
     color,
     emoji,
     exclamationMarks,
@@ -54,6 +56,36 @@ const DefaultProfilePicture = require('../../assets/images/default/default_profi
 const ImageMissing = require('../../assets/images/image_missing.png');
 const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
+
+type DrinkFormState = {
+  category: DrinkCategory | 'custom' | '';
+  sizeDl: number | '';
+  alcoholPercent: number | '' | 'custom';
+  quantity: number | '';
+  customAlcoholPercent: string;
+  customDrinkName: string;
+  customSizeDl: string;
+  customAlcoholPercentManual: string;
+  customQuantity: string;
+};
+
+type BACEstimatorDrinkOption = {
+  key: string;
+  label: string;
+  template: Omit<DrinkEntry, 'timestamp' | 'quantity'>;
+};
+
+const INITIAL_DRINK_FORM: DrinkFormState = {
+  category: '',
+  sizeDl: '',
+  alcoholPercent: '',
+  quantity: '',
+  customAlcoholPercent: '',
+  customDrinkName: '',
+  customSizeDl: '',
+  customAlcoholPercentManual: '',
+  customQuantity: '',
+};
 
 const ProfileScreen: React.FC = () => {
   const { user, loading } = useAuth();
@@ -109,27 +141,159 @@ const ProfileScreen: React.FC = () => {
     weight?: number;
     gender?: 'male' | 'female';
     drinks?: DrinkEntry[];
+    bacHighscoreAllTime?: number;
+    bacHighscoreUpdatedAt?: number;
   }>({});
   const [isLoading, setIsLoading] = useState(true);
   const [drinkModalVisible, setDrinkModalVisible] = useState(false);
-  const [drinkForm, setDrinkForm] = useState<{
-    category: DrinkCategory | '';
-    sizeDl: number | '';
-    alcoholPercent: number | '' | 'custom';
-    quantity: number | '';
-    customAlcoholPercent: string;
-  }>({
-    category: '',
-    sizeDl: '',
-    alcoholPercent: '',
-    quantity: '',
-    customAlcoholPercent: '',
-  });
-  const { currentBAC, color, emoji, exclamationMarks, isHighBAC, animatedStyle } = useAnimatedBACText(
+  const [drinkForm, setDrinkForm] = useState<DrinkFormState>(INITIAL_DRINK_FORM);
+  const [bacCalculationTime, setBacCalculationTime] = useState(() => Date.now());
+  const [selectedEstimatorDrinkKey, setSelectedEstimatorDrinkKey] = useState<string>('');
+  const { currentBAC, currentBACValue, color, emoji, exclamationMarks, isHighBAC, animatedStyle } = useAnimatedBACText(
     userInfo.drinks,
     userInfo.weight,
-    userInfo.gender
+    userInfo.gender,
+    bacCalculationTime
   );
+
+  const estimatorDrinkOptions = useMemo<BACEstimatorDrinkOption[]>(() => {
+    const drinks = userInfo.drinks || [];
+    const unique = new Map<string, BACEstimatorDrinkOption>();
+
+    drinks.forEach((drink) => {
+      const namePart = drink.name?.trim() || '';
+      const key = `${namePart}|${drink.category}|${drink.sizeDl}|${drink.alcoholPercent}`;
+      if (unique.has(key)) return;
+
+      const baseLabel = `${drink.sizeDl} dl ${drink.category} (${drink.alcoholPercent}%)`;
+      const label = namePart ? `${namePart} - ${baseLabel}` : baseLabel;
+
+      unique.set(key, {
+        key,
+        label,
+        template: {
+          name: namePart || undefined,
+          category: drink.category,
+          sizeDl: drink.sizeDl,
+          alcoholPercent: drink.alcoholPercent,
+        },
+      });
+    });
+
+    return Array.from(unique.values());
+  }, [userInfo.drinks]);
+
+  useEffect(() => {
+    if (!estimatorDrinkOptions.length) {
+      setSelectedEstimatorDrinkKey('');
+      return;
+    }
+
+    const selectionStillExists = estimatorDrinkOptions.some((option) => option.key === selectedEstimatorDrinkKey);
+    if (!selectedEstimatorDrinkKey || !selectionStillExists) {
+      setSelectedEstimatorDrinkKey(estimatorDrinkOptions[0].key);
+    }
+  }, [estimatorDrinkOptions, selectedEstimatorDrinkKey]);
+
+  const selectedEstimatorOption = useMemo(
+    () => estimatorDrinkOptions.find((option) => option.key === selectedEstimatorDrinkKey),
+    [estimatorDrinkOptions, selectedEstimatorDrinkKey]
+  );
+
+  const estimatedAdditionalDrinksToBeatHighscore = useMemo(() => {
+    if (!userInfo.drinks?.length || !userInfo.weight || !userInfo.gender) {
+      return null;
+    }
+
+    const highscore = userInfo.bacHighscoreAllTime ?? 0;
+    if (highscore <= 0 || !selectedEstimatorOption) {
+      return null;
+    }
+
+    const now = bacCalculationTime;
+    const threshold = highscore + 0.0005;
+    const timeStepMs = 5 * 60 * 1000;
+    const horizonMs = 6 * 60 * 60 * 1000;
+
+    const getProjectedPeakBAC = (drinks: DrinkEntry[]) => {
+      let peak = 0;
+      for (let offset = 0; offset <= horizonMs; offset += timeStepMs) {
+        const pointInTime = now + offset;
+        const bac = profileService.calculateBAC(drinks, userInfo.weight!, userInfo.gender!, pointInTime);
+        if (bac > peak) {
+          peak = bac;
+        }
+      }
+      return peak;
+    };
+
+    const baselinePeak = getProjectedPeakBAC(userInfo.drinks);
+    if (baselinePeak > threshold) {
+      return 0;
+    }
+
+    const maxAdditionalServings = 50;
+    for (let servings = 1; servings <= maxAdditionalServings; servings += 1) {
+      const addedDrinks: DrinkEntry[] = Array.from({ length: servings }, () => ({
+        ...selectedEstimatorOption.template,
+        quantity: 1,
+        timestamp: now,
+      }));
+
+      const projectedPeak = getProjectedPeakBAC([...userInfo.drinks, ...addedDrinks]);
+      if (projectedPeak > threshold) {
+        return servings;
+      }
+    }
+
+    return null;
+  }, [
+    userInfo.drinks,
+    userInfo.weight,
+    userInfo.gender,
+    userInfo.bacHighscoreAllTime,
+    selectedEstimatorOption,
+    bacCalculationTime,
+  ]);
+
+  useEffect(() => {
+    const persistHighscoreIfNeeded = async () => {
+      if (!user?.id || !userInfo.weight || !userInfo.gender) return;
+      if (!userInfo.drinks?.length) return;
+      if (currentBACValue <= 0) return;
+
+      const existingHighscore = userInfo.bacHighscoreAllTime ?? 0;
+      const epsilon = 0.0005;
+      if (currentBACValue <= existingHighscore + epsilon) return;
+
+      const roundedHighscore = Number(currentBACValue.toFixed(3));
+      try {
+        await profileService.updateBACHighscore(user.id, roundedHighscore);
+        setUserInfo(prev => ({
+          ...prev,
+          bacHighscoreAllTime: roundedHighscore,
+          bacHighscoreUpdatedAt: Date.now(),
+        }));
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    persistHighscoreIfNeeded();
+  }, [currentBACValue, user?.id, userInfo.weight, userInfo.gender, userInfo.drinks, userInfo.bacHighscoreAllTime]);
+
+  useEffect(() => {
+    if (!userInfo.drinks?.length || !userInfo.weight || !userInfo.gender) {
+      return;
+    }
+
+    // Keep BAC display current as metabolism changes over time.
+    const intervalId = setInterval(() => {
+      setBacCalculationTime(Date.now());
+    }, 15000);
+
+    return () => clearInterval(intervalId);
+  }, [userInfo.drinks, userInfo.weight, userInfo.gender]);
 
   useEffect(() => {
     if (!user) return;
@@ -254,6 +418,15 @@ const ProfileScreen: React.FC = () => {
     }
   };
 
+  const getSizeOptionLabel = (category: DrinkCategory | 'custom' | '', size: number) => {
+    if (category === 'sprit') {
+      if (size === 0.4) return `${size} dl (shot)`;
+      if (size === 0.5) return `${size} dl (stor shot)`;
+    }
+
+    return `${size} dl`;
+  };
+
   const getAlcoholPercentOptions = (category: DrinkCategory | '') => {
     switch (category) {
       case 'øl':
@@ -267,9 +440,18 @@ const ProfileScreen: React.FC = () => {
     }
   };
 
+  const inferCategoryFromAlcoholPercent = (alcoholPercent: number): DrinkCategory => {
+    if (alcoholPercent < 8) return 'øl';
+    if (alcoholPercent < 22) return 'vin';
+    return 'sprit';
+  };
+
+  const parseNumericInput = (value: string): number => parseFloat(value.replace(',', '.'));
+
   const validateCustomAlcoholPercent = () => {
+    if (drinkForm.category === 'custom') return true;
     if (drinkForm.alcoholPercent !== 'custom') return true;
-    const value = parseFloat(drinkForm.customAlcoholPercent);
+    const value = parseNumericInput(drinkForm.customAlcoholPercent);
     if (isNaN(value)) {
       showAlert('Feil', 'Ugyldig alkoholprosent');
       return false;
@@ -299,36 +481,70 @@ const ProfileScreen: React.FC = () => {
   };
 
   const handleAddDrink = async () => {
-    if (!drinkForm.category) {
-      showAlert('Feil', 'Velg en drikkekategori');
-      return;
+    let drink: DrinkEntry;
+
+    if (drinkForm.category !== 'custom') {
+      if (!drinkForm.category) {
+        showAlert('Feil', 'Velg en drikkekategori');
+        return;
+      }
+      if (!drinkForm.sizeDl) {
+        showAlert('Feil', 'Velg en størrelse');
+        return;
+      }
+      if (!drinkForm.alcoholPercent) {
+        showAlert('Feil', 'Velg en alkoholprosent');
+        return;
+      }
+      if (!validateCustomAlcoholPercent()) {
+        return;
+      }
+      if (!drinkForm.quantity) {
+        showAlert('Feil', 'Velg antall');
+        return;
+      }
+
+      const alcoholPercent =
+        drinkForm.alcoholPercent === 'custom'
+          ? parseNumericInput(drinkForm.customAlcoholPercent)
+          : parseFloat(drinkForm.alcoholPercent.toString());
+
+      drink = {
+        category: drinkForm.category,
+        sizeDl: parseFloat(drinkForm.sizeDl.toString()),
+        alcoholPercent,
+        quantity: parseInt(drinkForm.quantity.toString(), 10),
+        timestamp: Date.now(),
+      };
+    } else {
+      const sizeDl = parseNumericInput(drinkForm.customSizeDl);
+      const alcoholPercent = parseNumericInput(drinkForm.customAlcoholPercentManual);
+      const quantity = parseInt(drinkForm.customQuantity, 10);
+
+      if (isNaN(alcoholPercent) || alcoholPercent <= 0 || alcoholPercent > 100) {
+        showAlert('Feil', 'Alkoholprosent må være mellom 0 og 100');
+        return;
+      }
+      if (isNaN(sizeDl) || sizeDl <= 0) {
+        showAlert('Feil', 'Størrelse må være større enn 0');
+        return;
+      }
+      if (isNaN(quantity) || quantity <= 0) {
+        showAlert('Feil', 'Antall må være et heltall større enn 0');
+        return;
+      }
+
+      const trimmedName = drinkForm.customDrinkName.trim();
+      drink = {
+        name: trimmedName || undefined,
+        category: inferCategoryFromAlcoholPercent(alcoholPercent),
+        sizeDl,
+        alcoholPercent,
+        quantity,
+        timestamp: Date.now(),
+      };
     }
-    if (!drinkForm.sizeDl) {
-      showAlert('Feil', 'Velg en størrelse');
-      return;
-    }
-    if (!drinkForm.alcoholPercent) {
-      showAlert('Feil', 'Velg en alkoholprosent');
-      return;
-    }
-    if (!validateCustomAlcoholPercent()) {
-      return;
-    }
-    if (!drinkForm.quantity) {
-      showAlert('Feil', 'Velg antall');
-      return;
-    }
-    const alcoholPercent =
-      drinkForm.alcoholPercent === 'custom'
-        ? parseFloat(drinkForm.customAlcoholPercent)
-        : parseFloat(drinkForm.alcoholPercent.toString());
-    const drink: DrinkEntry = {
-      category: drinkForm.category,
-      sizeDl: parseFloat(drinkForm.sizeDl.toString()),
-      alcoholPercent,
-      quantity: parseInt(drinkForm.quantity.toString(), 10),
-      timestamp: Date.now(),
-    };
+
     try {
       const currentUser = authService.getCurrentUser();
       if (currentUser) {
@@ -341,13 +557,7 @@ const ProfileScreen: React.FC = () => {
       showAlert('Feil', 'Kunne ikke legge til drikke');
     }
     setDrinkModalVisible(false);
-    setDrinkForm({
-      category: '',
-      sizeDl: '',
-      alcoholPercent: '',
-      quantity: '',
-      customAlcoholPercent: '',
-    });
+    setDrinkForm(INITIAL_DRINK_FORM);
   };
 
   const handleResetDrinks = () => {
@@ -648,6 +858,44 @@ const ProfileScreen: React.FC = () => {
               >        
               Nåværende promille: {currentBAC}‰{exclamationMarks} {emoji}
               </Animated.Text>
+              <Text style={[globalStyles.secondaryText, { textAlign: 'center', marginTop: theme.spacing.xs }]}>
+                All-time høyeste promille: {(userInfo.bacHighscoreAllTime ?? 0).toFixed(3)}‰
+              </Text>
+
+              {(userInfo.bacHighscoreAllTime ?? 0) > 0 && estimatorDrinkOptions.length > 0 && (
+                <View style={{ marginTop: theme.spacing.md }}>
+                  <Text style={[globalStyles.label, { textAlign: 'left' }]}>Scenario (kun for innsikt)</Text>
+                  <Text style={[globalStyles.secondaryText, { textAlign: 'left', marginBottom: theme.spacing.xs }]}>Velg en drikke du allerede har registrert</Text>
+                  <View style={globalStyles.pickerInput}>
+                    <Picker
+                      style={globalStyles.picker}
+                      itemStyle={{ color: theme.colors.text }}
+                      selectedValue={selectedEstimatorDrinkKey}
+                      onValueChange={(value: string) => setSelectedEstimatorDrinkKey(value)}
+                    >
+                      {estimatorDrinkOptions.map((option) => (
+                        <Picker.Item key={option.key} label={option.label} value={option.key} />
+                      ))}
+                    </Picker>
+                  </View>
+
+                  {estimatedAdditionalDrinksToBeatHighscore === 0 && (
+                    <Text style={[globalStyles.secondaryText, { marginTop: theme.spacing.xs, textAlign: 'left' }]}>Du ligger allerede over tidligere topp med nåværende registrering.</Text>
+                  )}
+                  {typeof estimatedAdditionalDrinksToBeatHighscore === 'number' && estimatedAdditionalDrinksToBeatHighscore > 0 && (
+                    <Text style={[globalStyles.secondaryText, { marginTop: theme.spacing.xs, textAlign: 'left' }]}>
+                      Modellen anslår at omtrent {estimatedAdditionalDrinksToBeatHighscore} til av valgt drikke måtte vært lagt til for å passere historisk topp.
+                    </Text>
+                  )}
+                  {estimatedAdditionalDrinksToBeatHighscore === null && (
+                    <Text style={[globalStyles.secondaryText, { marginTop: theme.spacing.xs, textAlign: 'left' }]}>Ingen tydelig passering funnet i modellen innenfor 50 ekstra enheter av valgt drikke.</Text>
+                  )}
+
+                  <Text style={[globalStyles.secondaryText, { marginTop: theme.spacing.xs, fontStyle: 'italic', textAlign: 'left' }]}>
+                    Dette er en matematisk modell for risikoforståelse, ikke en anbefaling om å drikke mer.
+                  </Text>
+                </View>
+              )}
             </View>
           );
         })()}
@@ -764,99 +1012,160 @@ const ProfileScreen: React.FC = () => {
                     Legg til drikke
                   </Text>
 
-                  <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
+                  <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
                     <Text style={globalStyles.label}>Kategori</Text>
                     <View style={globalStyles.pickerInput}>
                       <Picker
                         style={globalStyles.picker}
                         itemStyle={{ color: theme.colors.text }}
                         selectedValue={drinkForm.category}
-                        onValueChange={(value: DrinkCategory | '') =>
-                          setDrinkForm({ ...drinkForm, category: value, sizeDl: '', alcoholPercent: '', customAlcoholPercent: '' })
+                        onValueChange={(value: DrinkCategory | 'custom' | '') =>
+                          setDrinkForm({ ...INITIAL_DRINK_FORM, category: value })
                         }
                       >
                         <Picker.Item label="Velg kategori" value="" />
                         <Picker.Item label="Øl" value="øl" />
                         <Picker.Item label="Vin" value="vin" />
                         <Picker.Item label="Sprit" value="sprit" />
+                        <Picker.Item label="Egendefinert" value="custom" />
                       </Picker>
                     </View>
                   </View>
 
                   {drinkForm.category && (
                     <>
-                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
-                        <Text style={globalStyles.label}>Størrelse (dl)</Text>
-                        <View style={globalStyles.pickerInput}>
-                          <Picker
-                            style={globalStyles.picker}
-                            itemStyle={{ color: theme.colors.text }}
-                            selectedValue={drinkForm.sizeDl}
-                            onValueChange={(value: number | '') => setDrinkForm({ ...drinkForm, sizeDl: value })}
-                          >
-                            <Picker.Item label="Velg størrelse" value="" />
-                            {getSizeOptions(drinkForm.category).map(size => (
-                              <Picker.Item key={size} label={`${size} dl`} value={size} />
-                            ))}
-                          </Picker>
-                        </View>
-                      </View>
+                      {drinkForm.category !== 'custom' && (
+                        <>
+                          <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
+                            <Text style={globalStyles.label}>Størrelse (dl)</Text>
+                            <View style={globalStyles.pickerInput}>
+                              <Picker
+                                style={globalStyles.picker}
+                                itemStyle={{ color: theme.colors.text }}
+                                selectedValue={drinkForm.sizeDl}
+                                onValueChange={(value: number | '') => setDrinkForm({ ...drinkForm, sizeDl: value })}
+                              >
+                                <Picker.Item label="Velg størrelse" value="" />
+                                {getSizeOptions(drinkForm.category).map(size => (
+                                  <Picker.Item
+                                    key={size}
+                                    label={getSizeOptionLabel(drinkForm.category, size)}
+                                    value={size}
+                                  />
+                                ))}
+                              </Picker>
+                            </View>
+                          </View>
 
-                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
-                        <Text style={globalStyles.label}>Alkoholprosent</Text>
-                        <View style={globalStyles.pickerInput}>
-                          <Picker
-                            style={globalStyles.picker}
-                            itemStyle={{ color: theme.colors.text }}
-                            selectedValue={drinkForm.alcoholPercent}
-                            onValueChange={(value: number | '' | 'custom') =>
-                              setDrinkForm({ ...drinkForm, alcoholPercent: value, customAlcoholPercent: '' })
-                            }
-                          >
-                            <Picker.Item label="Velg alkoholprosent" value="" />
-                            {getAlcoholPercentOptions(drinkForm.category).map(percent => (
-                              <Picker.Item
-                                key={percent}
-                                label={percent === 'custom' ? 'Egendefinert' : `${percent}%`}
-                                value={percent}
+                          <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
+                            <Text style={globalStyles.label}>Alkoholprosent</Text>
+                            <View style={globalStyles.pickerInput}>
+                              <Picker
+                                style={globalStyles.picker}
+                                itemStyle={{ color: theme.colors.text }}
+                                selectedValue={drinkForm.alcoholPercent}
+                                onValueChange={(value: number | '' | 'custom') =>
+                                  setDrinkForm({ ...drinkForm, alcoholPercent: value, customAlcoholPercent: '' })
+                                }
+                              >
+                                <Picker.Item label="Velg alkoholprosent" value="" />
+                                {getAlcoholPercentOptions(drinkForm.category).map(percent => (
+                                  <Picker.Item
+                                    key={percent}
+                                    label={percent === 'custom' ? 'Egendefinert' : `${percent}%`}
+                                    value={percent}
+                                  />
+                                ))}
+                              </Picker>
+                            </View>
+                          </View>
+
+                          {drinkForm.alcoholPercent === 'custom' && (
+                            <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
+                              <Text style={globalStyles.label}>Egendefinert alkoholprosent</Text>
+                              <TextInput
+                                style={[globalStyles.input, { height: 40 }]}
+                                value={drinkForm.customAlcoholPercent}
+                                onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercent: text })}
+                                placeholder={
+                                  drinkForm.category === 'vin' ? '10-20%' : '22-70%'
+                                }
+                                placeholderTextColor={theme.colors.textMuted}
+                                keyboardType="numeric"
                               />
-                            ))}
-                          </Picker>
-                        </View>
-                      </View>
+                            </View>
+                          )}
 
-                      {drinkForm.alcoholPercent === 'custom' && (
-                        <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
-                          <Text style={globalStyles.label}>Egendefinert alkoholprosent</Text>
-                          <TextInput
-                            style={[globalStyles.input, { height: 40 }]}
-                            value={drinkForm.customAlcoholPercent}
-                            onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercent: text })}
-                            placeholder={
-                              drinkForm.category === 'vin' ? '10–20%' : '22–70%'
-                            }
-                            placeholderTextColor={theme.colors.textMuted}
-                            keyboardType="numeric"
-                          />
-                        </View>
+                          <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
+                            <Text style={globalStyles.label}>Antall</Text>
+                            <View style={globalStyles.pickerInput}>
+                              <Picker
+                                style={globalStyles.picker}
+                                itemStyle={{ color: theme.colors.text }}
+                                selectedValue={drinkForm.quantity}
+                                onValueChange={(value: number | '') => setDrinkForm({ ...drinkForm, quantity: value })}
+                              >
+                                <Picker.Item label="Velg antall" value="" />
+                                {Array.from({ length: 20 }, (_, i) => i + 1).map(num => (
+                                  <Picker.Item key={num} label={`${num}`} value={num} />
+                                ))}
+                              </Picker>
+                            </View>
+                          </View>
+                        </>
                       )}
 
-                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}>
-                        <Text style={globalStyles.label}>Antall</Text>
-                        <View style={globalStyles.pickerInput}>
-                          <Picker
-                            style={globalStyles.picker}
-                            itemStyle={{ color: theme.colors.text }}
-                            selectedValue={drinkForm.quantity}
-                            onValueChange={(value: number | '') => setDrinkForm({ ...drinkForm, quantity: value })}
-                          >
-                            <Picker.Item label="Velg antall" value="" />
-                            {Array.from({ length: 20 }, (_, i) => i + 1).map(num => (
-                              <Picker.Item key={num} label={`${num}`} value={num} />
-                            ))}
-                          </Picker>
-                        </View>
+                      {drinkForm.category === 'custom' && (
+                        <>
+                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
+                        <Text style={globalStyles.label}>Navn (valgfritt)</Text>
+                        <TextInput
+                          style={globalStyles.input}
+                          value={drinkForm.customDrinkName}
+                          onChangeText={(text) => setDrinkForm({ ...drinkForm, customDrinkName: text })}
+                          placeholder="F.eks. Hjemmelaget vodka redubull"
+                          placeholderTextColor={theme.colors.textMuted}
+                          maxLength={40}
+                        />
                       </View>
+
+                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
+                        <Text style={globalStyles.label}>Alkoholprosent</Text>
+                        <TextInput
+                          style={[globalStyles.input, { height: 40 }]}
+                          value={drinkForm.customAlcoholPercentManual}
+                          onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercentManual: text })}
+                          placeholder="F.eks. 6.5"
+                          placeholderTextColor={theme.colors.textMuted}
+                          keyboardType="numeric"
+                        />
+                      </View>
+
+                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
+                        <Text style={globalStyles.label}>Størrelse (dl)</Text>
+                        <TextInput
+                          style={[globalStyles.input, { height: 40 }]}
+                          value={drinkForm.customSizeDl}
+                          onChangeText={(text) => setDrinkForm({ ...drinkForm, customSizeDl: text })}
+                          placeholder="F.eks. 4.5"
+                          placeholderTextColor={theme.colors.textMuted}
+                          keyboardType="numeric"
+                        />
+                      </View>
+
+                      <View style={[globalStyles.inputGroup, { marginBottom: theme.spacing.sm }]}> 
+                        <Text style={globalStyles.label}>Antall</Text>
+                        <TextInput
+                          style={[globalStyles.input, { height: 40 }]}
+                          value={drinkForm.customQuantity}
+                          onChangeText={(text) => setDrinkForm({ ...drinkForm, customQuantity: text })}
+                          placeholder="F.eks. 2"
+                          placeholderTextColor={theme.colors.textMuted}
+                          keyboardType="number-pad"
+                        />
+                      </View>
+                        </>
+                      )}
                     </>
                   )}
 

@@ -127,6 +127,8 @@ export const profileService = {
     weight?: number;
     gender?: 'male' | 'female';
     drinks?: DrinkEntry[];
+    bacHighscoreAllTime?: number;
+    bacHighscoreUpdatedAt?: number;
   }> {
     const userRef = doc(firestore, 'users', userId);
     const userDoc = await getDoc(userRef);
@@ -155,9 +157,19 @@ export const profileService = {
         weight: normalizedWeight,
         gender: normalizedGender,
         drinks,
+        bacHighscoreAllTime: typeof data.bacHighscoreAllTime === 'number' ? data.bacHighscoreAllTime : undefined,
+        bacHighscoreUpdatedAt: typeof data.bacHighscoreUpdatedAt === 'number' ? data.bacHighscoreUpdatedAt : undefined,
       };
     }
     return {};
+  },
+
+  async updateBACHighscore(userId: string, bacHighscoreAllTime: number): Promise<void> {
+    const userRef = doc(firestore, 'users', userId);
+    await updateDoc(userRef, {
+      bacHighscoreAllTime,
+      bacHighscoreUpdatedAt: Date.now(),
+    });
   },
 
   async addDrink(userId: string, drink: DrinkEntry): Promise<void> {
