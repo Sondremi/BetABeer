@@ -137,7 +137,9 @@ export const profileService = {
       const drinks = (data.drinks || []) as DrinkEntry[];
       const normalizedWeight = typeof data.weight === 'number' ? data.weight : undefined;
       const normalizedGender = data.gender === 'male' || data.gender === 'female' ? data.gender : undefined;
-      const latestDrinkTimestamp = drinks.length > 0 ? Math.max(...drinks.map(drink => drink.timestamp)) : null;
+      const latestDrinkTimestamp = drinks.length > 0
+        ? Math.max(...drinks.map((drink) => drink.endTimestamp ?? drink.timestamp))
+        : null;
       const twentyFourHoursMs = 24 * 60 * 60 * 1000;
 
       if (latestDrinkTimestamp && Date.now() - latestDrinkTimestamp >= twentyFourHoursMs) {
@@ -192,14 +194,39 @@ export const profileService = {
     if (drinks.length === 0) return 0;
 
     let totalBAC = 0;
-    drinks.forEach(drink => {
-        const alcoholGrams = drink.sizeDl * drink.alcoholPercent * 0.8 * drink.quantity;
-        const timeSinceDrinkMs = currentTime - drink.timestamp;
-        const absopedGrams = Math.min(alcoholGrams, alcoholGrams * (timeSinceDrinkMs / absorptionTimeMs));
-        const hoursSinceDrink = timeSinceDrinkMs / (1000 * 60 * 60);
-        const bacContribution = (absopedGrams / (weight * bodyWaterPercentage)) - (metabolismRate * Math.max(0, hoursSinceDrink - (absorptionTimeMs / (1000 * 60 * 60))));
-        totalBAC += Math.max(0, bacContribution);
-    })
+    drinks.forEach((drink) => {
+      const alcoholGrams = drink.sizeDl * drink.alcoholPercent * 0.8 * drink.quantity;
+      const consumptionStart = drink.timestamp;
+      const consumptionEnd = drink.endTimestamp && drink.endTimestamp > consumptionStart
+        ? drink.endTimestamp
+        : consumptionStart;
+      const consumptionDurationMs = Math.max(0, consumptionEnd - consumptionStart);
+      const timeSinceStartMs = currentTime - consumptionStart;
+
+      if (timeSinceStartMs <= 0) {
+        return;
+      }
+
+      const consumedRatio = consumptionDurationMs > 0
+        ? Math.min(1, timeSinceStartMs / consumptionDurationMs)
+        : 1;
+      const consumedGrams = alcoholGrams * consumedRatio;
+
+      const effectiveAbsorptionMs = absorptionTimeMs + (consumptionDurationMs * 0.5);
+      const absorbedGrams = Math.min(
+        consumedGrams,
+        consumedGrams * (timeSinceStartMs / Math.max(effectiveAbsorptionMs, 1))
+      );
+
+      const hoursSinceStart = timeSinceStartMs / (1000 * 60 * 60);
+      const absorptionDelayHours = effectiveAbsorptionMs / (1000 * 60 * 60);
+
+      const bacContribution =
+        (absorbedGrams / (weight * bodyWaterPercentage)) -
+        (metabolismRate * Math.max(0, hoursSinceStart - absorptionDelayHours));
+
+      totalBAC += Math.max(0, bacContribution);
+    });
     return Number(totalBAC.toFixed(3));
   }
 };

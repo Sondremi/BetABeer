@@ -35,6 +35,8 @@ type DrinkFormState = {
   customSizeUnit: 'cl' | 'dl' | 'l';
   customAlcoholPercentManual: string;
   customQuantity: string;
+  consumedAtTime: string;
+  consumedUntilTime: string;
 };
 
 type BACEstimatorDrinkOption = {
@@ -43,7 +45,14 @@ type BACEstimatorDrinkOption = {
   template: Omit<DrinkEntry, 'timestamp' | 'quantity'>;
 };
 
-const INITIAL_DRINK_FORM: DrinkFormState = {
+const getCurrentTimeInput = () => {
+  const now = new Date();
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+const createInitialDrinkForm = (): DrinkFormState => ({
   category: '',
   sizeDl: '',
   sizeUnit: 'dl',
@@ -55,7 +64,9 @@ const INITIAL_DRINK_FORM: DrinkFormState = {
   customSizeUnit: 'dl',
   customAlcoholPercentManual: '',
   customQuantity: '',
-};
+  consumedAtTime: getCurrentTimeInput(),
+  consumedUntilTime: '',
+});
 
 const ProfileScreen: React.FC = () => {
   const { user, loading } = useAuth();
@@ -124,7 +135,7 @@ const ProfileScreen: React.FC = () => {
   const [drinkModalVisible, setDrinkModalVisible] = useState(false);
   const [isBacExpanded, setIsBacExpanded] = useState(true);
   const [isInvitationsExpanded, setIsInvitationsExpanded] = useState(true);
-  const [drinkForm, setDrinkForm] = useState<DrinkFormState>(INITIAL_DRINK_FORM);
+  const [drinkForm, setDrinkForm] = useState<DrinkFormState>(() => createInitialDrinkForm());
   const [bacCalculationTime, setBacCalculationTime] = useState(() => Date.now());
   const [selectedEstimatorDrinkKey, setSelectedEstimatorDrinkKey] = useState<string>('');
   const currentBACValue = useMemo(() => {
@@ -138,7 +149,7 @@ const ProfileScreen: React.FC = () => {
       return null;
     }
 
-    const latestDrinkTimestamp = Math.max(...userInfo.drinks.map((d) => d.timestamp));
+    const latestDrinkTimestamp = Math.max(...userInfo.drinks.map((d) => d.endTimestamp ?? d.timestamp));
     const fifteenMinuteMs = 15 * 60 * 1000;
     const points = Array.from({ length: 21 }, (_, i) => {
       const time = latestDrinkTimestamp + i * fifteenMinuteMs;
@@ -449,11 +460,11 @@ const ProfileScreen: React.FC = () => {
   const getSizeOptions = (category: DrinkCategory | '') => {
     switch (category) {
       case 'øl':
-        return [3.3, 5, 'custom'] as const;
+        return [3.3, 4, 5, 'custom'] as const;
       case 'vin':
-        return [1.25, 1.5, 1.75, 3.75, 7.5, 'custom'] as const;
+        return [1.2, 7.5, 'custom'] as const;
       case 'sprit':
-        return [0.4, 0.5, 3.5, 5, 7, 'custom'] as const;
+        return [0.2, 0.4, 5, 'custom'] as const;
       default:
         return [] as const;
     }
@@ -461,9 +472,19 @@ const ProfileScreen: React.FC = () => {
 
   const getSizeOptionLabel = (category: DrinkCategory | 'custom' | '', size: number | 'custom') => {
     if (size === 'custom') return 'Egendefinert';
+    if (category === 'øl') {
+      if (size === 3.3) return '0,33 L';
+      if (size === 4) return '0,4 L';
+      if (size === 5) return '0,5 L';
+    }
+    if (category === 'vin') {
+      if (size === 1.2) return '12 cl (Glass)';
+      if (size === 7.5) return '0,75 L';
+    }
     if (category === 'sprit') {
-      if (size === 0.4) return `${size} dl (shot)`;
-      if (size === 0.5) return `${size} dl (stor shot)`;
+      if (size === 0.2) return '2 cl';
+      if (size === 0.4) return '4 cl';
+      if (size === 5) return '5 dl';
     }
 
     return `${size} dl`;
@@ -476,13 +497,27 @@ const ProfileScreen: React.FC = () => {
       case 'vin':
         return [10, 12, 14, 'custom'];
       case 'sprit':
-        return [22, 30, 40, 60, 'custom'];
+        return [22, 40, 60, 'custom'];
       default:
         return [];
     }
   };
 
-  const getCustomAlcoholPercentOptions = () => [4.7, 12, 20, 40, 'custom'] as const;
+  const getCustomSizeOptions = () => [3.3, 4, 5, 1.2, 7.5, 0.2, 0.4, 'custom'] as const;
+
+  const getCustomSizeOptionLabel = (size: number | 'custom') => {
+    if (size === 'custom') return 'Egendefinert';
+    if (size === 3.3) return '0,33 L';
+    if (size === 4) return '0,4 L';
+    if (size === 5) return '0,5 L / 5 dl';
+    if (size === 1.2) return '12 cl (Glass)';
+    if (size === 7.5) return '0,75 L';
+    if (size === 0.2) return '2 cl';
+    if (size === 0.4) return '4 cl';
+    return `${size} dl`;
+  };
+
+  const getCustomAlcoholPercentOptions = () => [4.7, 12, 22, 40, 'custom'] as const;
 
   const inferCategoryFromAlcoholPercent = (alcoholPercent: number): DrinkCategory => {
     if (alcoholPercent < 8) return 'øl';
@@ -496,13 +531,46 @@ const ProfileScreen: React.FC = () => {
     return value;
   };
 
-  const DRINK_PICKER_HELP_TEXT = 'Velg fra listen eller bruk egendefinert';
   const DRINK_NUMBER_PLACEHOLDER = 'Skriv verdi';
   const DRINK_TEXT_PLACEHOLDER = 'Skriv type/navn';
-  const DRINK_NUMBER_HELP_TEXT = 'Kun tall større enn 0';
-  const DRINK_INTEGER_HELP_TEXT = 'Kun heltall større enn 0';
 
   const parseNumericInput = (value: string): number => parseFloat(value.replace(',', '.'));
+  const hasMaxOneDecimal = (value: string): boolean => /^\d+(?:[.,]\d{1})?$/.test(value.trim());
+  const isValidTimeInput = (value: string): boolean => /^([01]\d|2[0-3]):([0-5]\d)$/.test(value.trim());
+
+  const parseTimeToTimestamp = (timeValue: string): number | null => {
+    if (!isValidTimeInput(timeValue)) return null;
+    const [hours, minutes] = timeValue.split(':').map((part) => parseInt(part, 10));
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    return date.getTime();
+  };
+
+  const resolveSelectedDrinkSizeDl = (): number | null => {
+    if (drinkForm.category === 'custom') {
+      if (drinkForm.sizeDl && drinkForm.sizeDl !== 'custom') {
+        return Number(drinkForm.sizeDl);
+      }
+      const customValue = parseNumericInput(drinkForm.customSizeValue);
+      if (isNaN(customValue) || customValue <= 0) return null;
+      return convertSizeToDl(customValue, drinkForm.customSizeUnit);
+    }
+    if (drinkForm.sizeDl === 'custom') {
+      const customValue = parseNumericInput(drinkForm.customSizeValue);
+      if (isNaN(customValue) || customValue <= 0) return null;
+      return convertSizeToDl(customValue, drinkForm.sizeUnit);
+    }
+    if (typeof drinkForm.sizeDl === 'number') return drinkForm.sizeDl;
+    return null;
+  };
+
+  const allowsEndTimeForSelection = (): boolean => {
+    const sizeDl = resolveSelectedDrinkSizeDl();
+    if (!sizeDl || !drinkForm.category) return false;
+    if (drinkForm.category === 'vin') return sizeDl >= 7.5;
+    if (drinkForm.category === 'sprit') return sizeDl >= 5;
+    return sizeDl >= 5;
+  };
 
   const validateCustomAlcoholPercent = () => {
     if (drinkForm.category === 'custom') return true;
@@ -530,18 +598,36 @@ const ProfileScreen: React.FC = () => {
   const canSaveDrink = useMemo(() => {
     if (!drinkForm.category) return false;
 
+    if (!isValidTimeInput(drinkForm.consumedAtTime)) return false;
+    if (drinkForm.consumedUntilTime.trim()) {
+      if (!allowsEndTimeForSelection()) return false;
+      if (!isValidTimeInput(drinkForm.consumedUntilTime)) return false;
+      const start = parseTimeToTimestamp(drinkForm.consumedAtTime);
+      const end = parseTimeToTimestamp(drinkForm.consumedUntilTime);
+      if (!start || !end || end < start) return false;
+    }
+
     const quantityValue = drinkForm.quantity === 'custom'
-      ? parseInt(drinkForm.customQuantity, 10)
+      ? parseNumericInput(drinkForm.customQuantity)
       : Number(drinkForm.quantity);
-    if (!Number.isInteger(quantityValue) || quantityValue <= 0) return false;
+    if (isNaN(quantityValue) || quantityValue <= 0) return false;
+    if (drinkForm.quantity === 'custom' && !hasMaxOneDecimal(drinkForm.customQuantity)) return false;
 
     if (drinkForm.category === 'custom') {
-      const sizeValue = parseNumericInput(drinkForm.customSizeValue);
+      if (!drinkForm.customDrinkName.trim()) return false;
+      if (!drinkForm.sizeDl) return false;
+
+      const sizeValue = drinkForm.sizeDl === 'custom'
+        ? parseNumericInput(drinkForm.customSizeValue)
+        : Number(drinkForm.sizeDl);
       const alcoholPercent = drinkForm.alcoholPercent === 'custom'
         ? parseNumericInput(drinkForm.customAlcoholPercentManual)
         : Number(drinkForm.alcoholPercent);
+
       if (isNaN(sizeValue) || sizeValue <= 0) return false;
+      if (drinkForm.sizeDl === 'custom' && !hasMaxOneDecimal(drinkForm.customSizeValue)) return false;
       if (!drinkForm.alcoholPercent) return false;
+      if (drinkForm.alcoholPercent === 'custom' && !hasMaxOneDecimal(drinkForm.customAlcoholPercentManual)) return false;
       if (isNaN(alcoholPercent) || alcoholPercent <= 0 || alcoholPercent > 100) return false;
       return true;
     }
@@ -551,10 +637,12 @@ const ProfileScreen: React.FC = () => {
     if (drinkForm.sizeDl === 'custom') {
       const customSizeValue = parseNumericInput(drinkForm.customSizeValue);
       if (isNaN(customSizeValue) || customSizeValue <= 0) return false;
+      if (!hasMaxOneDecimal(drinkForm.customSizeValue)) return false;
     }
 
     if (drinkForm.alcoholPercent === 'custom') {
       const value = parseNumericInput(drinkForm.customAlcoholPercent);
+      if (!hasMaxOneDecimal(drinkForm.customAlcoholPercent)) return false;
       if (isNaN(value)) return false;
       if (drinkForm.category === 'vin' && (value < 10 || value > 20)) return false;
       if (drinkForm.category === 'sprit' && (value < 22 || value > 70)) return false;
@@ -584,12 +672,40 @@ const ProfileScreen: React.FC = () => {
   const handleAddDrink = async () => {
     let drink: DrinkEntry;
     const quantity = drinkForm.quantity === 'custom'
-      ? parseInt(drinkForm.customQuantity, 10)
-      : parseInt(String(drinkForm.quantity), 10);
+      ? parseNumericInput(drinkForm.customQuantity)
+      : parseFloat(String(drinkForm.quantity));
 
-    if (!Number.isInteger(quantity) || quantity <= 0) {
-      showAlert('Feil', 'Antall må være et heltall større enn 0');
+    if (isNaN(quantity) || quantity <= 0) {
+      showAlert('Feil', 'Antall må være et tall større enn 0');
       return;
+    }
+    if (drinkForm.quantity === 'custom' && !hasMaxOneDecimal(drinkForm.customQuantity)) {
+      showAlert('Feil', 'Antall kan ha maks ett desimal');
+      return;
+    }
+
+    const startTimestamp = parseTimeToTimestamp(drinkForm.consumedAtTime);
+    if (!startTimestamp) {
+      showAlert('Feil', 'Ugyldig starttid. Bruk format HH:MM');
+      return;
+    }
+
+    let endTimestamp: number | undefined;
+    if (drinkForm.consumedUntilTime.trim()) {
+      if (!allowsEndTimeForSelection()) {
+        showAlert('Feil', 'Sluttid kan bare settes for store enheter');
+        return;
+      }
+      const parsedEnd = parseTimeToTimestamp(drinkForm.consumedUntilTime);
+      if (!parsedEnd) {
+        showAlert('Feil', 'Ugyldig sluttid. Bruk format HH:MM');
+        return;
+      }
+      if (parsedEnd < startTimestamp) {
+        showAlert('Feil', 'Sluttid må være etter starttid');
+        return;
+      }
+      endTimestamp = parsedEnd;
     }
 
     if (drinkForm.category !== 'custom') {
@@ -616,6 +732,10 @@ const ProfileScreen: React.FC = () => {
           showAlert('Feil', 'Størrelse må være et tall større enn 0');
           return;
         }
+        if (!hasMaxOneDecimal(drinkForm.customSizeValue)) {
+          showAlert('Feil', 'Størrelse kan ha maks ett desimal');
+          return;
+        }
         sizeDl = convertSizeToDl(customSizeValue, drinkForm.sizeUnit);
       } else {
         sizeDl = parseFloat(drinkForm.sizeDl.toString());
@@ -631,14 +751,29 @@ const ProfileScreen: React.FC = () => {
         sizeDl,
         alcoholPercent,
         quantity,
-        timestamp: Date.now(),
+        timestamp: startTimestamp,
+        endTimestamp,
       };
     } else {
-      const sizeValue = parseNumericInput(drinkForm.customSizeValue);
+      const trimmedName = drinkForm.customDrinkName.trim();
+      if (!trimmedName) {
+        showAlert('Feil', 'Type/navn er påkrevd for egendefinert kategori');
+        return;
+      }
+      if (!drinkForm.sizeDl) {
+        showAlert('Feil', 'Velg en størrelse');
+        return;
+      }
+
+      const sizeValue = drinkForm.sizeDl === 'custom'
+        ? parseNumericInput(drinkForm.customSizeValue)
+        : Number(drinkForm.sizeDl);
       const alcoholPercent = drinkForm.alcoholPercent === 'custom'
         ? parseNumericInput(drinkForm.customAlcoholPercentManual)
         : parseFloat(String(drinkForm.alcoholPercent));
-      const sizeDl = convertSizeToDl(sizeValue, drinkForm.customSizeUnit);
+      const sizeDl = drinkForm.sizeDl === 'custom'
+        ? convertSizeToDl(sizeValue, drinkForm.customSizeUnit)
+        : Number(drinkForm.sizeDl);
 
       if (!drinkForm.alcoholPercent) {
         showAlert('Feil', 'Velg en alkoholprosent');
@@ -652,15 +787,23 @@ const ProfileScreen: React.FC = () => {
         showAlert('Feil', 'Størrelse må være større enn 0');
         return;
       }
+      if (drinkForm.sizeDl === 'custom' && !hasMaxOneDecimal(drinkForm.customSizeValue)) {
+        showAlert('Feil', 'Størrelse kan ha maks ett desimal');
+        return;
+      }
+      if (drinkForm.alcoholPercent === 'custom' && !hasMaxOneDecimal(drinkForm.customAlcoholPercentManual)) {
+        showAlert('Feil', 'Alkoholprosent kan ha maks ett desimal');
+        return;
+      }
 
-      const trimmedName = drinkForm.customDrinkName.trim();
       drink = {
-        name: trimmedName || undefined,
+        name: trimmedName,
         category: inferCategoryFromAlcoholPercent(alcoholPercent),
         sizeDl,
         alcoholPercent,
         quantity,
-        timestamp: Date.now(),
+        timestamp: startTimestamp,
+        endTimestamp,
       };
     }
 
@@ -676,7 +819,7 @@ const ProfileScreen: React.FC = () => {
       showAlert('Feil', 'Kunne ikke legge til drikke');
     }
     setDrinkModalVisible(false);
-    setDrinkForm(INITIAL_DRINK_FORM);
+    setDrinkForm(createInitialDrinkForm());
   };
 
   const handleResetDrinks = () => {
@@ -1223,10 +1366,18 @@ const ProfileScreen: React.FC = () => {
           >
             <View style={globalStyles.modalContainer}>
               <View style={[globalStyles.modalContent, profileStyles.drinkModalContent]}> 
-                <ScrollView contentContainerStyle={profileStyles.drinkModalScroll} showsVerticalScrollIndicator={false}>
-                  <Text style={[globalStyles.modalTitle, profileStyles.drinkModalTitle]}> 
-                    Legg til drikke
-                  </Text>
+                <Text style={[globalStyles.modalTitle, profileStyles.drinkModalTitle]}> 
+                  Velg drikke
+                </Text>
+
+                <View style={profileStyles.drinkFormScrollBox}>
+                  <ScrollView
+                    style={profileStyles.drinkModalScroll}
+                    contentContainerStyle={profileStyles.drinkModalScrollContent}
+                    showsVerticalScrollIndicator
+                    nestedScrollEnabled
+                    keyboardShouldPersistTaps="handled"
+                  >
 
                   <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
                     <Text style={globalStyles.label}>Kategori</Text>
@@ -1236,17 +1387,16 @@ const ProfileScreen: React.FC = () => {
                         itemStyle={profileStyles.pickerItem}
                         selectedValue={drinkForm.category}
                         onValueChange={(value: DrinkCategory | 'custom' | '') =>
-                          setDrinkForm({ ...INITIAL_DRINK_FORM, category: value })
+                          setDrinkForm({ ...createInitialDrinkForm(), category: value })
                         }
                       >
                         <Picker.Item label="Velg kategori" value="" />
-                        <Picker.Item label="Øl" value="øl" />
+                        <Picker.Item label="Øl / Cider / Selzer" value="øl" />
                         <Picker.Item label="Vin" value="vin" />
                         <Picker.Item label="Sprit" value="sprit" />
                         <Picker.Item label="Egendefinert" value="custom" />
                       </Picker>
                     </View>
-                    <Text style={profileStyles.fieldHelperText}>{DRINK_PICKER_HELP_TEXT}</Text>
                   </View>
 
                   {drinkForm.category && (
@@ -1272,7 +1422,6 @@ const ProfileScreen: React.FC = () => {
                                 ))}
                               </Picker>
                             </View>
-                            <Text style={profileStyles.fieldHelperText}>{DRINK_PICKER_HELP_TEXT}</Text>
                           </View>
 
                           {drinkForm.sizeDl === 'custom' && (
@@ -1286,7 +1435,7 @@ const ProfileScreen: React.FC = () => {
                                     onChangeText={(text) => setDrinkForm({ ...drinkForm, customSizeValue: text })}
                                       placeholder={DRINK_NUMBER_PLACEHOLDER}
                                     placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                                    keyboardType="numeric"
+                                    keyboardType="decimal-pad"
                                   />
                                 </View>
                                 <View style={[globalStyles.pickerInput, profileStyles.unitPickerShell, profileStyles.pickerGlowShell]}>
@@ -1302,7 +1451,6 @@ const ProfileScreen: React.FC = () => {
                                   </Picker>
                                 </View>
                               </View>
-                              <Text style={profileStyles.fieldHelperText}>{DRINK_NUMBER_HELP_TEXT}</Text>
                             </View>
                           )}
 
@@ -1327,7 +1475,6 @@ const ProfileScreen: React.FC = () => {
                                 ))}
                               </Picker>
                             </View>
-                            <Text style={profileStyles.fieldHelperText}>{DRINK_PICKER_HELP_TEXT}</Text>
                           </View>
 
                           {drinkForm.alcoholPercent === 'custom' && (
@@ -1340,10 +1487,9 @@ const ProfileScreen: React.FC = () => {
                                   onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercent: text })}
                                   placeholder={DRINK_NUMBER_PLACEHOLDER}
                                   placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                                  keyboardType="numeric"
+                                  keyboardType="decimal-pad"
                                 />
                               </View>
-                              <Text style={profileStyles.fieldHelperText}>{DRINK_NUMBER_HELP_TEXT}</Text>
                             </View>
                           )}
 
@@ -1363,7 +1509,6 @@ const ProfileScreen: React.FC = () => {
                                 <Picker.Item label="Egendefinert" value={'custom'} />
                           </Picker>
                         </View>
-                        <Text style={profileStyles.fieldHelperText}>{DRINK_PICKER_HELP_TEXT}</Text>
                           </View>
 
                           {drinkForm.quantity === 'custom' && (
@@ -1376,10 +1521,9 @@ const ProfileScreen: React.FC = () => {
                                   onChangeText={(text) => setDrinkForm({ ...drinkForm, customQuantity: text })}
                                   placeholder={DRINK_NUMBER_PLACEHOLDER}
                                   placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                                  keyboardType="number-pad"
+                                  keyboardType="decimal-pad"
                                 />
                               </View>
-                              <Text style={profileStyles.fieldHelperText}>{DRINK_INTEGER_HELP_TEXT}</Text>
                             </View>
                           )}
                         </>
@@ -1399,8 +1543,60 @@ const ProfileScreen: React.FC = () => {
                             maxLength={40}
                           />
                         </View>
-                        <Text style={profileStyles.fieldHelperText}>Valgfritt felt</Text>
                       </View>
+
+                      <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                        <Text style={globalStyles.label}>Størrelse</Text>
+                        <View style={[globalStyles.pickerInput, profileStyles.pickerGlowShell]}>
+                          <Picker
+                            style={globalStyles.picker}
+                            itemStyle={profileStyles.pickerItem}
+                            selectedValue={drinkForm.sizeDl}
+                            onValueChange={(value: number | '' | 'custom') =>
+                              setDrinkForm({ ...drinkForm, sizeDl: value, customSizeValue: '' })
+                            }
+                          >
+                            <Picker.Item label="Velg størrelse" value="" />
+                            {getCustomSizeOptions().map((size) => (
+                              <Picker.Item
+                                key={size}
+                                label={getCustomSizeOptionLabel(size)}
+                                value={size}
+                              />
+                            ))}
+                          </Picker>
+                        </View>
+                      </View>
+
+                      {drinkForm.sizeDl === 'custom' && (
+                        <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                          <Text style={globalStyles.label}>Egendefinert størrelse</Text>
+                          <View style={profileStyles.unitInputRow}>
+                            <View style={[globalStyles.inputShellDark, profileStyles.unitInputShell, profileStyles.pickerGlowShell]}>
+                              <TextInput
+                                style={[globalStyles.input, profileStyles.compactNumberInput]}
+                                value={drinkForm.customSizeValue}
+                                onChangeText={(text) => setDrinkForm({ ...drinkForm, customSizeValue: text })}
+                                placeholder={DRINK_NUMBER_PLACEHOLDER}
+                                placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
+                                keyboardType="decimal-pad"
+                              />
+                            </View>
+                            <View style={[globalStyles.pickerInput, profileStyles.unitPickerShell, profileStyles.pickerGlowShell]}>
+                              <Picker
+                                style={globalStyles.picker}
+                                itemStyle={profileStyles.pickerItem}
+                                selectedValue={drinkForm.customSizeUnit}
+                                onValueChange={(value: 'cl' | 'dl' | 'l') => setDrinkForm({ ...drinkForm, customSizeUnit: value })}
+                              >
+                                <Picker.Item label="cl" value="cl" />
+                                <Picker.Item label="dl" value="dl" />
+                                <Picker.Item label="l" value="l" />
+                              </Picker>
+                            </View>
+                          </View>
+                        </View>
+                      )}
 
                       <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
                         <Text style={globalStyles.label}>Alkoholprosent</Text>
@@ -1421,7 +1617,6 @@ const ProfileScreen: React.FC = () => {
                             ))}
                           </Picker>
                         </View>
-                        <Text style={profileStyles.fieldHelperText}>{DRINK_PICKER_HELP_TEXT}</Text>
                       </View>
 
                       {drinkForm.alcoholPercent === 'custom' && (
@@ -1434,41 +1629,11 @@ const ProfileScreen: React.FC = () => {
                               onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercentManual: text })}
                               placeholder={DRINK_NUMBER_PLACEHOLDER}
                               placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                              keyboardType="numeric"
+                              keyboardType="decimal-pad"
                             />
                           </View>
-                          <Text style={profileStyles.fieldHelperText}>{DRINK_NUMBER_HELP_TEXT}</Text>
                         </View>
                       )}
-
-                      <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
-                        <Text style={globalStyles.label}>Størrelse</Text>
-                        <View style={profileStyles.unitInputRow}>
-                          <View style={[globalStyles.inputShellDark, profileStyles.unitInputShell, profileStyles.pickerGlowShell]}>
-                            <TextInput
-                              style={[globalStyles.input, profileStyles.compactNumberInput]}
-                              value={drinkForm.customSizeValue}
-                              onChangeText={(text) => setDrinkForm({ ...drinkForm, customSizeValue: text })}
-                              placeholder={DRINK_NUMBER_PLACEHOLDER}
-                              placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                              keyboardType="numeric"
-                            />
-                          </View>
-                          <View style={[globalStyles.pickerInput, profileStyles.unitPickerShell, profileStyles.pickerGlowShell]}>
-                            <Picker
-                              style={globalStyles.picker}
-                              itemStyle={profileStyles.pickerItem}
-                              selectedValue={drinkForm.customSizeUnit}
-                              onValueChange={(value: 'cl' | 'dl' | 'l') => setDrinkForm({ ...drinkForm, customSizeUnit: value })}
-                            >
-                              <Picker.Item label="cl" value="cl" />
-                              <Picker.Item label="dl" value="dl" />
-                              <Picker.Item label="l" value="l" />
-                            </Picker>
-                          </View>
-                        </View>
-                        <Text style={profileStyles.fieldHelperText}>{DRINK_NUMBER_HELP_TEXT}</Text>
-                      </View>
 
                       <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
                         <Text style={globalStyles.label}>Antall</Text>
@@ -1486,7 +1651,6 @@ const ProfileScreen: React.FC = () => {
                             <Picker.Item label="Egendefinert" value={'custom'} />
                           </Picker>
                         </View>
-                        <Text style={profileStyles.fieldHelperText}>{DRINK_PICKER_HELP_TEXT}</Text>
                       </View>
 
                       {drinkForm.quantity === 'custom' && (
@@ -1499,10 +1663,9 @@ const ProfileScreen: React.FC = () => {
                               onChangeText={(text) => setDrinkForm({ ...drinkForm, customQuantity: text })}
                               placeholder={DRINK_NUMBER_PLACEHOLDER}
                               placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                              keyboardType="number-pad"
+                              keyboardType="decimal-pad"
                             />
                           </View>
-                          <Text style={profileStyles.fieldHelperText}>{DRINK_INTEGER_HELP_TEXT}</Text>
                         </View>
                       )}
                         </>
@@ -1510,6 +1673,41 @@ const ProfileScreen: React.FC = () => {
                     </>
                   )}
 
+                  {drinkForm.category && (
+                    <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                      <Text style={globalStyles.label}>Tidspunkt drukket (start)</Text>
+                      <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
+                        <TextInput
+                          style={[globalStyles.input, profileStyles.compactNumberInput]}
+                          value={drinkForm.consumedAtTime}
+                          onChangeText={(text) => setDrinkForm({ ...drinkForm, consumedAtTime: text })}
+                          placeholder="HH:MM"
+                          placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
+                          keyboardType="numbers-and-punctuation"
+                        />
+                      </View>
+                    </View>
+                  )}
+
+                  {drinkForm.category && allowsEndTimeForSelection() && (
+                    <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                      <Text style={globalStyles.label}>Sluttidspunkt (valgfritt)</Text>
+                      <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
+                        <TextInput
+                          style={[globalStyles.input, profileStyles.compactNumberInput]}
+                          value={drinkForm.consumedUntilTime}
+                          onChangeText={(text) => setDrinkForm({ ...drinkForm, consumedUntilTime: text })}
+                          placeholder="HH:MM"
+                          placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
+                          keyboardType="numbers-and-punctuation"
+                        />
+                      </View>
+                    </View>
+                  )}
+
+                  </ScrollView>
+                </View>
+                <View style={profileStyles.drinkModalActions}>
                   <View style={globalStyles.buttonRow}>
                     <TouchableOpacity
                       style={globalStyles.cancelButton}
@@ -1525,7 +1723,7 @@ const ProfileScreen: React.FC = () => {
                       <Text style={globalStyles.saveButtonTextAlt}>Lagre</Text>
                     </TouchableOpacity>
                   </View>
-                </ScrollView>
+                </View>
               </View>
             </View>
           </Modal>

@@ -36,6 +36,29 @@ export const sendGroupInvitation = async (toUserId: string, group: Group) => {
   return docRef.id;
 };
 
+export const cancelGroupInvitation = async (invitationId: string) => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error('Bruker ikke autorisert');
+  }
+
+  const invitationRef = doc(firestore, GROUP_INVITATIONS_COLLECTION, invitationId);
+  const invitationSnap = await getDoc(invitationRef);
+  if (!invitationSnap.exists()) {
+    throw new Error('Invitasjonen finnes ikke');
+  }
+
+  const invitationData = invitationSnap.data();
+  if (invitationData.fromUserId !== currentUser.uid) {
+    throw new Error('Du kan bare angre invitasjoner du har sendt');
+  }
+  if (invitationData.status !== 'pending') {
+    throw new Error('Kun ventende invitasjoner kan angres');
+  }
+
+  await deleteDoc(invitationRef);
+};
+
 export const removeFriendFromGroup = async (friendId: string, groupId: string) => {
     const currentUser = auth.currentUser;
     if (!currentUser) {

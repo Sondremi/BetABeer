@@ -6,7 +6,7 @@ import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInp
 import { useAuth } from '../context/AuthContext';
 import { firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, cancelFriendRequest, getIncomingRequest, getOutgoingRequest, sendFriendRequest } from '../services/friendService';
-import { deleteGroup, distributeDrinks, exitGroup, registerConsumedDrinks, removeFriendFromGroup, sendGroupInvitation } from '../services/groupService';
+import { cancelGroupInvitation, deleteGroup, distributeDrinks, exitGroup, registerConsumedDrinks, removeFriendFromGroup, sendGroupInvitation } from '../services/groupService';
 import { createGroup, getGroupInvitation, updateGroupName } from '../services/profileService';
 import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
@@ -20,6 +20,11 @@ import { showAlert } from '../utils/platformAlert';
 const ImageMissing = require('../../assets/images/image_missing.png');
 const DefaultProfilePicture = require('../../assets/images/default/default_profilepicture.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
+
+type SentGroupInvitation = {
+  id: string;
+  toUserId: string;
+};
 
 const GroupScreen = () => {
   const params = useLocalSearchParams();
@@ -57,6 +62,7 @@ const GroupScreen = () => {
   const [editMenuModalVisible, setEditMenuModalVisible] = useState(false);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [pendingFriendRequests, setPendingFriendRequests] = useState<FriendRequest[]>([]);
+  const [incomingFriendRequests, setIncomingFriendRequests] = useState<FriendRequest[]>([]);
   const [inviting, setInviting] = useState(false);
   const [sendingFriendRequest, setSendingFriendRequest] = useState(false);
   const [distributeModalVisible, setDistributeModalVisible] = useState(false);
@@ -76,7 +82,7 @@ const GroupScreen = () => {
   const [createGroupModalVisible, setCreateGroupModalVisible] = useState(false);
   const [createGroupName, setCreateGroupName] = useState('');
   const [creatingGroup, setCreatingGroup] = useState(false);
-  const [sentInvitationUserIds, setSentInvitationUserIds] = useState<string[]>([]);
+  const [sentGroupInvitations, setSentGroupInvitations] = useState<SentGroupInvitation[]>([]);
   const [betTitleFocused, setBetTitleFocused] = useState(false);
   const [editBetTitleFocused, setEditBetTitleFocused] = useState(false);
   const [createGroupNameFocused, setCreateGroupNameFocused] = useState(false);
@@ -328,8 +334,12 @@ const GroupScreen = () => {
     
     const fetchPendingRequests = async () => {
       try {
-        const requests = await getOutgoingRequest(user.id);
-        setPendingFriendRequests(requests);
+        const [outgoingRequests, incomingRequests] = await Promise.all([
+          getOutgoingRequest(user.id),
+          getIncomingRequest(user.id),
+        ]);
+        setPendingFriendRequests(outgoingRequests);
+        setIncomingFriendRequests(incomingRequests);
       } catch (error) {
         console.error('Error fetching pending friend requests:', error);
       }
@@ -350,14 +360,14 @@ const GroupScreen = () => {
           where('status', '==', 'pending')
         );
         const sentInvitationSnapshot = await getDocs(sentInvitationQuery);
-        const invitedUserIds = Array.from(
-          new Set(
-            sentInvitationSnapshot.docs
-              .map((docSnap) => docSnap.data().toUserId)
-              .filter((id): id is string => typeof id === 'string')
-          )
-        );
-        setSentInvitationUserIds(invitedUserIds);
+        const pendingInvitations = sentInvitationSnapshot.docs
+          .map((docSnap) => {
+            const toUserId = docSnap.data().toUserId;
+            if (typeof toUserId !== 'string') return null;
+            return { id: docSnap.id, toUserId } as SentGroupInvitation;
+          })
+          .filter((invitation): invitation is SentGroupInvitation => Boolean(invitation));
+        setSentGroupInvitations(pendingInvitations);
       } catch (error) {
         console.error('Error fetching sent group invitations:', error);
       }
@@ -397,8 +407,14 @@ const GroupScreen = () => {
     setMembersModalVisible(true);
     setMembersLoading(true);
     try {
-      const requestsPromise = getOutgoingRequest(user.id)
-        .then(setPendingFriendRequests)
+      const requestsPromise = Promise.all([
+        getOutgoingRequest(user.id),
+        getIncomingRequest(user.id),
+      ])
+        .then(([outgoingRequests, incomingRequests]) => {
+          setPendingFriendRequests(outgoingRequests);
+          setIncomingFriendRequests(incomingRequests);
+        })
         .catch((error) => {
           console.error('Error fetching pending friend requests:', error);
         });
@@ -413,14 +429,14 @@ const GroupScreen = () => {
                 where('status', '==', 'pending')
               );
               const sentInvitationSnapshot = await getDocs(sentInvitationQuery);
-              const invitedUserIds = Array.from(
-                new Set(
-                  sentInvitationSnapshot.docs
-                    .map((docSnap) => docSnap.data().toUserId)
-                    .filter((id): id is string => typeof id === 'string')
-                )
-              );
-              setSentInvitationUserIds(invitedUserIds);
+              const pendingInvitations = sentInvitationSnapshot.docs
+                .map((docSnap) => {
+                  const toUserId = docSnap.data().toUserId;
+                  if (typeof toUserId !== 'string') return null;
+                  return { id: docSnap.id, toUserId } as SentGroupInvitation;
+                })
+                .filter((invitation): invitation is SentGroupInvitation => Boolean(invitation));
+              setSentGroupInvitations(pendingInvitations);
             } catch (error) {
               console.error('Error fetching sent group invitations:', error);
             }
@@ -527,16 +543,32 @@ const GroupScreen = () => {
 
       if (existingRequest) {
         await acceptFriendRequest(existingRequest.id, existingRequest.fromUserId, existingRequest.toUserId);
-        showAlert('Suksess', `Du og ${member.name} er nå venner`);
+        setIncomingFriendRequests((prev) => prev.filter((request) => request.id !== existingRequest.id));
       } else {
         await sendFriendRequest(member.id);
         const updatedRequests = await getOutgoingRequest(user.id);
         setPendingFriendRequests(updatedRequests);
-        showAlert('Suksess', `Vennerequest sendt til ${member.name}`);
       }
     } catch (error) {
       console.error('Error handling friend request:', error);
       showAlert('Feil', (error as Error).message || 'Kunne ikke håndtere vennerequest');
+    } finally {
+      setSendingFriendRequest(false);
+    }
+  };
+
+  const handleAcceptIncomingFriendRequest = async (member: Friend) => {
+    if (!user?.id) return;
+    const incomingRequest = incomingFriendRequests.find((request) => request.fromUserId === member.id);
+    if (!incomingRequest?.id) return;
+
+    setSendingFriendRequest(true);
+    try {
+      await acceptFriendRequest(incomingRequest.id, incomingRequest.fromUserId, incomingRequest.toUserId);
+      setIncomingFriendRequests((prev) => prev.filter((request) => request.id !== incomingRequest.id));
+    } catch (error) {
+      console.error('Error accepting friend request:', error);
+      showAlert('Feil', (error as Error).message || 'Kunne ikke godta vennerequest');
     } finally {
       setSendingFriendRequest(false);
     }
@@ -568,11 +600,41 @@ const GroupScreen = () => {
     setInviting(true);
     try {
       await sendGroupInvitation(friend.id, selectedGroup);
-      setSentInvitationUserIds(prev => prev.includes(friend.id) ? prev : [...prev, friend.id]);
-      showAlert('Invitasjon sendt', `Invitasjon sendt til ${friend.name}`);
+      const sentInvitationQuery = query(
+        collection(firestore, 'group_invitations'),
+        where('fromUserId', '==', user.id),
+        where('groupId', '==', selectedGroup.id),
+        where('toUserId', '==', friend.id),
+        where('status', '==', 'pending')
+      );
+      const sentInvitationSnapshot = await getDocs(sentInvitationQuery);
+      const sentInvitation = sentInvitationSnapshot.docs[0];
+      if (sentInvitation) {
+        setSentGroupInvitations((prev) => {
+          const withoutExisting = prev.filter((invitation) => invitation.toUserId !== friend.id);
+          return [...withoutExisting, { id: sentInvitation.id, toUserId: friend.id }];
+        });
+      }
     } catch(error) {
       console.error(error);
       showAlert('Feil', `Kunne ikke sende invitasjon til ${friend.name}: ${(error as Error).message}`)
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleCancelSentGroupInvitation = async (friend: Friend) => {
+    if (!user?.id || !selectedGroup?.id) return;
+    const sentInvitation = sentGroupInvitations.find((invitation) => invitation.toUserId === friend.id);
+    if (!sentInvitation?.id) return;
+
+    setInviting(true);
+    try {
+      await cancelGroupInvitation(sentInvitation.id);
+      setSentGroupInvitations((prev) => prev.filter((invitation) => invitation.id !== sentInvitation.id));
+    } catch (error) {
+      console.error('Error cancelling group invitation:', error);
+      showAlert('Feil', (error as Error).message || 'Kunne ikke angre gruppeinvitasjon');
     } finally {
       setInviting(false);
     }
@@ -587,7 +649,6 @@ const GroupScreen = () => {
         memberCount: prev.memberCount - 1
       } : prev);
       setMemberData((prev) => prev.filter(member => member.id !== friend.id));
-      showAlert('Suksess', `${friend.name} ble fjernet fra gruppen`);
     } catch (error) {
       console.error('Error removing friend:', error);
       showAlert('Feil', 'Kunne ikke fjerne medlem fra gruppe');
@@ -1273,8 +1334,10 @@ const GroupScreen = () => {
     const isCurrentUserCreator = user?.id === selectedGroup?.createdBy;
     const isCurrentUser = user?.id === item.id;
     const isFriend = friends.some(friend => friend.id === item.id);
-    const pendingRequest = pendingFriendRequests.find(request => request.toUserId === item.id);
-    const hasPendingRequest = Boolean(pendingRequest);
+    const outgoingRequest = pendingFriendRequests.find((request) => request.toUserId === item.id);
+    const incomingRequest = incomingFriendRequests.find((request) => request.fromUserId === item.id);
+    const hasOutgoingRequest = Boolean(outgoingRequest);
+    const hasIncomingRequest = Boolean(incomingRequest);
 
     return (
       <View style={groupStyles.memberRow}>
@@ -1296,7 +1359,7 @@ const GroupScreen = () => {
           </TouchableOpacity>
         )}
         {/* Show add friend button for non-friends who haven't received a request */}
-        {!isFriend && !hasPendingRequest && !isCurrentUser && !isCurrentUserCreator && (
+        {!isFriend && !hasOutgoingRequest && !hasIncomingRequest && !isCurrentUser && !isCurrentUserCreator && (
           <TouchableOpacity
             style={[globalStyles.outlineButtonGold, groupStyles.memberActionButton, groupStyles.memberActionButtonWithGap]}
             onPress={() => handleSendFriendRequest(item)}
@@ -1305,7 +1368,16 @@ const GroupScreen = () => {
             <Text style={[globalStyles.outlineButtonGoldText, groupStyles.memberActionText]}>Legg til venn</Text>
           </TouchableOpacity>
         )}
-        {!isFriend && hasPendingRequest && !isCurrentUser && !isCurrentUserCreator && (
+        {!isFriend && hasIncomingRequest && !isCurrentUser && !isCurrentUserCreator && (
+          <TouchableOpacity
+            style={[globalStyles.outlineButtonGold, groupStyles.memberActionButton, groupStyles.memberActionButtonWithGap]}
+            onPress={() => handleAcceptIncomingFriendRequest(item)}
+            disabled={sendingFriendRequest}
+          >
+            <Text style={[globalStyles.outlineButtonGoldText, groupStyles.memberActionText]}>Godta</Text>
+          </TouchableOpacity>
+        )}
+        {!isFriend && hasOutgoingRequest && !isCurrentUser && !isCurrentUserCreator && (
           <TouchableOpacity
             style={[globalStyles.outlineButtonGold, groupStyles.memberActionButton, groupStyles.memberActionButtonWithGap]}
             onPress={() => handleCancelPendingFriendRequest(item)}
@@ -1319,7 +1391,7 @@ const GroupScreen = () => {
   };
 
   const renderFriendItem = ({ item }: { item: Friend }) => {
-    const invitationSent = sentInvitationUserIds.includes(item.id);
+    const invitationSent = sentGroupInvitations.some((invitation) => invitation.toUserId === item.id);
     return (
       <View style={groupStyles.memberRow}>
         <Image source={item.profilePicture} style={[globalStyles.circularImage, groupStyles.memberAvatar]} />
@@ -1333,11 +1405,11 @@ const GroupScreen = () => {
             groupStyles.memberActionButton,
             invitationSent && { backgroundColor: theme.colors.surface, borderColor: theme.colors.primary },
           ]}
-          onPress={() => !invitationSent && handleInviteFriend(item)}
-          disabled={inviting || invitationSent}
+          onPress={() => (invitationSent ? handleCancelSentGroupInvitation(item) : handleInviteFriend(item))}
+          disabled={inviting}
         >
           <Text style={[globalStyles.outlineButtonGoldText, groupStyles.memberActionText, { color: invitationSent ? theme.colors.primary : undefined }]}> 
-            {invitationSent ? 'Invitert' : 'Inviter'}
+            {invitationSent ? 'Angre' : 'Inviter'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -1906,20 +1978,6 @@ const GroupScreen = () => {
           </View>
         </View>
 
-        {selectedGroup?.createdBy === user?.id && (
-          <View style={groupStyles.groupTopControlArea}>
-            <View style={groupStyles.groupTopControlBottomRow}>
-              <TouchableOpacity
-                onPress={handleDeleteGroup}
-                disabled={deleting}
-                style={[groupStyles.groupTopDangerLinkButton, deleting && globalStyles.disabledButton]}
-              >
-                <Text style={groupStyles.groupTopDangerLinkText}>Slett gruppe</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
         <View style={groupStyles.actionCard}>
 
           <View style={groupStyles.actionGridRow}>
@@ -1955,14 +2013,16 @@ const GroupScreen = () => {
           </View>
         </View>
 
-        {selectedGroup && user && selectedGroup.createdBy !== user.id && (
+        {selectedGroup && user && (
           <View style={groupStyles.groupBottomExitArea}>
             <TouchableOpacity
-              onPress={handleExitGroup}
+              onPress={selectedGroup.createdBy === user.id ? handleDeleteGroup : handleExitGroup}
               disabled={deleting}
               style={[groupStyles.groupBottomExitButton, deleting && globalStyles.disabledButton]}
             >
-              <Text style={groupStyles.groupBottomExitButtonText}>Forlat gruppe</Text>
+              <Text style={groupStyles.groupBottomExitButtonText}>
+                {selectedGroup.createdBy === user.id ? 'Slett gruppe' : 'Forlat gruppe'}
+              </Text>
             </TouchableOpacity>
           </View>
         )}

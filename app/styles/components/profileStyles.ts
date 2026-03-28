@@ -449,9 +449,24 @@ export const profileStyles = StyleSheet.create({
   drinkModalContent: {
     padding: theme.spacing.md,
     borderRadius: theme.borderRadius.lg,
+    maxHeight: theme.sizes.sheetMaxHeight,
+  },
+  drinkFormScrollBox: {
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderListCard,
+    backgroundColor: theme.colors.backgroundListCardAlt,
+    padding: theme.spacing.sm,
+    maxHeight: theme.sizes.sheetMaxHeight - 180,
   },
   drinkModalScroll: {
+    maxHeight: '100%',
+  },
+  drinkModalScrollContent: {
     paddingBottom: theme.spacing.md,
+  },
+  drinkModalActions: {
+    marginTop: theme.spacing.md,
   },
   drinkModalTitle: {
     marginBottom: theme.spacing.md,
@@ -481,11 +496,6 @@ export const profileStyles = StyleSheet.create({
   },
   unitPickerShell: {
     width: 96,
-  },
-  fieldHelperText: {
-    marginTop: theme.spacing.xs,
-    color: theme.colors.textSecondary,
-    fontSize: theme.fonts.xs,
   },
   pickerItem: {
     color: theme.colors.text,

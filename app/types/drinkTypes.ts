@@ -11,6 +11,7 @@ export interface DrinkEntry {
   alcoholPercent: number;
   quantity: number;
   timestamp: number; // Unix timestamp
+  endTimestamp?: number; // Optional end of consumption period
 }
 
 export interface DrinkTransaction {
