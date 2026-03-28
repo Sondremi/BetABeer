@@ -1,13 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, getFirestore, increment, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, cancelFriendRequest, getIncomingRequest, getOutgoingRequest, sendFriendRequest } from '../services/friendService';
 import { cancelGroupInvitation, deleteGroup, distributeDrinks, exitGroup, registerConsumedDrinks, removeFriendFromGroup, sendGroupInvitation } from '../services/groupService';
-import { createGroup, getGroupInvitation, updateGroupName } from '../services/profileService';
+import { createGroup, getGroupInvitation, profileService, updateGroupName } from '../services/profileService';
 import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
@@ -24,6 +24,10 @@ const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 type SentGroupInvitation = {
   id: string;
   toUserId: string;
+};
+
+type GroupLeaderboardMemberStats = MemberDrinkStats & {
+  currentBAC: number;
 };
 
 const GroupScreen = () => {
@@ -72,8 +76,8 @@ const GroupScreen = () => {
   const [memberData, setMemberData] = useState<Friend[]>([]);
   const [membersModalVisible, setMembersModalVisible] = useState(false);
   const [cachedUsernames, setCachedUsernames] = useState<{ [key: string]: string }>({});
-  const [leaderboardView, setLeaderboardView] = useState<'betsWon' | 'drinkStats'>('betsWon');
-  const [leaderboardData, setLeaderboardData] = useState<MemberDrinkStats[]>([]);
+  const [leaderboardView, setLeaderboardView] = useState<'betsWon' | 'drinkStats' | 'bac'>('betsWon');
+  const [leaderboardData, setLeaderboardData] = useState<GroupLeaderboardMemberStats[]>([]);
   const [userDrinksToDistribute, setUserDrinksToDistribute] = useState<MemberDrinkStats['drinksToDistribute']>({});
   const [distributingDrinks, setDistributingDrinks] = useState(false);
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
@@ -116,6 +120,10 @@ const GroupScreen = () => {
       }))
   );
   const hasAvailableDrinks = availableDistributionEntries.length > 0;
+  const bacLeaderboardData = useMemo(
+    () => [...leaderboardData].sort((a, b) => b.currentBAC - a.currentBAC),
+    [leaderboardData]
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -1062,23 +1070,31 @@ const GroupScreen = () => {
     }
   };
 
-  const getLeaderboardData = async (): Promise<MemberDrinkStats[]> => {
+  const getLeaderboardData = async (): Promise<GroupLeaderboardMemberStats[]> => {
     if (!selectedGroup || !selectedGroup.members) return [];
 
     const usernames = await fetchMemberUsernames(selectedGroup.members);
-    const memberStats: { [userId: string]: MemberDrinkStats } = {};
+    const memberStats: { [userId: string]: GroupLeaderboardMemberStats } = {};
 
     await Promise.all(
       selectedGroup.members.map(async (userId: string) => {
         try {
           const userDoc = await getDoc(doc(firestore, 'users', userId));
           const userData = userDoc.exists() ? userDoc.data() : {};
+          const hasBacData =
+            Array.isArray(userData.drinks) &&
+            typeof userData.weight === 'number' &&
+            (userData.gender === 'male' || userData.gender === 'female');
+          const currentBAC = hasBacData
+            ? profileService.calculateBAC(userData.drinks, userData.weight, userData.gender, Date.now())
+            : 0;
           
           memberStats[userId] = {
             userId,
             username: usernames[userId] || 'Ukjent',
             betsWon: 0,
             betsLost: 0,
+            currentBAC,
             profilePicture: userData.profileImage ? 
               defaultProfileImageMap[userData.profileImage] || DefaultProfilePicture 
               : DefaultProfilePicture,
@@ -1094,6 +1110,7 @@ const GroupScreen = () => {
             username: usernames[userId] || 'Ukjent',
             betsWon: 0,
             betsLost: 0,
+            currentBAC: 0,
             profilePicture: DefaultProfilePicture,
             drinksToConsume: {},
             drinksConsumed: {},
@@ -2563,7 +2580,7 @@ const GroupScreen = () => {
           <View style={[globalStyles.modalContent, groupStyles.leaderboardModalContent]}> 
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
               <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.sm, fontSize: 18, fontWeight: '600', color: theme.colors.text }]}>
-                {leaderboardView === 'betsWon' ? 'Bet Statistikk' : 'Drikke Statistikk'}
+                {leaderboardView === 'betsWon' ? 'Bet Statistikk' : leaderboardView === 'drinkStats' ? 'Drikke Statistikk' : 'BAC Leaderboard'}
               </Text>
               {leaderboardLoading && (
                 <Text style={groupStyles.modalLoadingText}>Laster...</Text>
@@ -2592,6 +2609,21 @@ const GroupScreen = () => {
                     { color: leaderboardView === 'drinkStats' ? theme.colors.background : theme.colors.primary, fontSize: 14 }
                   ]}>
                     Drikke
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    globalStyles.outlineButtonGold,
+                    groupStyles.leaderboardToggleButton,
+                    leaderboardView === 'bac' && groupStyles.leaderboardToggleActive,
+                  ]}
+                  onPress={() => setLeaderboardView('bac')}
+                >
+                  <Text style={[
+                    globalStyles.outlineButtonGoldText,
+                    { color: leaderboardView === 'bac' ? theme.colors.background : theme.colors.primary, fontSize: 14 }
+                  ]}>
+                    BAC
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -2636,6 +2668,76 @@ const GroupScreen = () => {
                             </View>
                           );
                         })()}
+                      </View>
+                    </View>
+                  ) : leaderboardView === 'bac' ? (
+                    <View>
+                      <Text style={groupStyles.modalSectionSubtitle}>
+                        Medlemmer sortert på nåværende BAC (høyest først)
+                      </Text>
+                      <View style={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}> 
+                        {bacLeaderboardData.map((member, idx) => (
+                          <View
+                            key={member.userId}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              borderWidth: 1,
+                              borderColor: theme.colors.border,
+                              borderRadius: theme.borderRadius.md,
+                              backgroundColor: theme.colors.surface,
+                              paddingVertical: 10,
+                              paddingHorizontal: 12,
+                              marginBottom: 8,
+                            }}
+                          >
+                            <View
+                              style={{
+                                paddingHorizontal: 10,
+                                paddingVertical: 4,
+                                borderRadius: 999,
+                                backgroundColor: theme.colors.primary + '1F',
+                                borderWidth: 1,
+                                borderColor: theme.colors.primary + '55',
+                                marginRight: 10,
+                                minWidth: 46,
+                                alignItems: 'center',
+                              }}
+                            >
+                              <Text style={{ fontSize: 12, color: theme.colors.primary, fontWeight: '700' }}>#{idx + 1}</Text>
+                            </View>
+
+                            <Image
+                              source={member.profilePicture || DefaultProfilePicture}
+                              style={[globalStyles.circularImage, { width: 42, height: 42, marginRight: 10 }]}
+                            />
+
+                            <View style={{ flex: 1, marginRight: 10 }}>
+                              <Text style={[groupStyles.wagerUser, { fontSize: 14, color: theme.colors.text }]} numberOfLines={1}>
+                                {member.username}
+                              </Text>
+                              <Text style={[globalStyles.secondaryText, { fontSize: 11, color: theme.colors.textSecondary }]}> 
+                                {member.betsWon} vunnet • {member.betsLost} tapt
+                              </Text>
+                            </View>
+
+                            <View
+                              style={{
+                                minWidth: 84,
+                                borderRadius: theme.borderRadius.md,
+                                borderWidth: 1,
+                                borderColor: theme.colors.border,
+                                backgroundColor: theme.colors.background,
+                                paddingVertical: 6,
+                                paddingHorizontal: 8,
+                                alignItems: 'center',
+                              }}
+                            >
+                              <Text style={{ fontSize: 10, color: theme.colors.textSecondary, letterSpacing: 0.4 }}>BAC</Text>
+                              <Text style={{ fontSize: 16, color: theme.colors.text, fontWeight: '700' }}>{member.currentBAC.toFixed(3)}</Text>
+                            </View>
+                          </View>
+                        ))}
                       </View>
                     </View>
                   ) : (
