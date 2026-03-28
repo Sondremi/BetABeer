@@ -4,26 +4,28 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Animated,
-  Image,
-  KeyboardAvoidingView,
-  Linking,
-  Platform,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Animated,
+    Image,
+    KeyboardAvoidingView,
+    Linking,
+    Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { authService } from '../services/firebase/authService';
 import { sendFriendRequest } from '../services/friendService';
+import { consumePendingGroupInviteId, parseGroupInviteIdFromParams, parseGroupInviteIdFromUrl } from '../services/groupInviteLinkService';
+import { joinGroupFromInviteLink } from '../services/groupService';
 import { globalStyles } from '../styles/globalStyles';
 import { showAlert } from '../utils/platformAlert';
 
 const LoginScreen: React.FC = () => {
   const router = useRouter();
-  const params = useLocalSearchParams<{ inviter?: string | string[] }>();
+  const params = useLocalSearchParams<{ inviter?: string | string[]; groupInvite?: string | string[] }>();
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [formData, setFormData] = useState({
     username: '',
@@ -37,6 +39,7 @@ const LoginScreen: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [activeField, setActiveField] = useState<string | null>(null);
   const [inviterId, setInviterId] = useState<string | null>(null);
+  const [groupInviteId, setGroupInviteId] = useState<string | null>(null);
   const [modeSwitchWidth, setModeSwitchWidth] = useState(0);
   const shineAnim = useRef(new Animated.Value(-1)).current;
   const modeAnim = useRef(new Animated.Value(0)).current;
@@ -78,7 +81,12 @@ const LoginScreen: React.FC = () => {
     if (typeof paramInviter === 'string' && paramInviter.trim()) {
       setInviterId(paramInviter.trim());
     }
-  }, [params.inviter]);
+
+    const paramGroupInviteId = parseGroupInviteIdFromParams(params.groupInvite);
+    if (paramGroupInviteId) {
+      setGroupInviteId(paramGroupInviteId);
+    }
+  }, [params.inviter, params.groupInvite]);
 
   useEffect(() => {
     const parseInviterFromUrl = (url: string | null | undefined) => {
@@ -101,6 +109,10 @@ const LoginScreen: React.FC = () => {
         if (parsedInviter) {
           setInviterId(parsedInviter);
         }
+        const parsedGroupInviteId = parseGroupInviteIdFromUrl(url);
+        if (parsedGroupInviteId) {
+          setGroupInviteId(parsedGroupInviteId);
+        }
       })
       .catch((error) => {
         console.error('Failed to parse initial invite URL:', error);
@@ -111,6 +123,10 @@ const LoginScreen: React.FC = () => {
       if (parsedInviter) {
         setInviterId(parsedInviter);
       }
+      const parsedGroupInviteId = parseGroupInviteIdFromUrl(url);
+      if (parsedGroupInviteId) {
+        setGroupInviteId(parsedGroupInviteId);
+      }
     });
 
     return () => {
@@ -118,6 +134,40 @@ const LoginScreen: React.FC = () => {
       subscription.remove();
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const hydratePendingGroupInvite = async () => {
+      try {
+        const pendingGroupInviteId = await consumePendingGroupInviteId();
+        if (!isMounted || !pendingGroupInviteId) return;
+        setGroupInviteId((prev) => prev || pendingGroupInviteId);
+      } catch (error) {
+        console.error('Failed to hydrate pending group invite:', error);
+      }
+    };
+
+    hydratePendingGroupInvite();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const tryAutoJoinGroupFromInvite = async () => {
+    if (!groupInviteId) return;
+
+    try {
+      const result = await joinGroupFromInviteLink(groupInviteId);
+      if (result.status === 'joined') {
+        showAlert('Suksess', `Du ble med i gruppen "${result.group.name}".`);
+      }
+    } catch (error) {
+      console.error('Invite-link group join failed:', error);
+      showAlert('Gruppelenke', (error as Error).message || 'Kunne ikke bli med i gruppen fra lenken.');
+    }
+  };
 
   const validateForm = async () => {
     if (isLoginMode) {
@@ -207,6 +257,7 @@ const LoginScreen: React.FC = () => {
 
     try {
       await authService.loginUser(formData.email, formData.password);
+      await tryAutoJoinGroupFromInvite();
       setIsLoading(false);
       router.replace('/(tabs)/profile');
     } catch (error) {
@@ -232,6 +283,8 @@ const LoginScreen: React.FC = () => {
           console.error('Invite-link friend request failed:', inviteError);
         }
       }
+
+      await tryAutoJoinGroupFromInvite();
 
       setIsLoading(false);
       router.replace('/(tabs)/profile');
