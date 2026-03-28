@@ -1,4 +1,4 @@
-import { createUserWithEmailAndPassword, onAuthStateChanged as firebaseOnAuthStateChanged, sendEmailVerification, signInWithEmailAndPassword, signOut, verifyBeforeUpdateEmail } from 'firebase/auth';
+import { createUserWithEmailAndPassword, onAuthStateChanged as firebaseOnAuthStateChanged, sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { auth } from './FirebaseConfig';
 
@@ -153,6 +153,39 @@ export const authService = {
       }
 
       throw new Error('Kunne ikke starte e-postendring');
+    }
+  },
+
+  requestPasswordReset: async (email) => {
+    try {
+      const normalizedEmail = normalizeValue(email);
+      if (!normalizedEmail) {
+        throw new Error('invalid-email');
+      }
+
+      await sendPasswordResetEmail(auth, normalizedEmail);
+      return { status: 'sent' };
+    } catch (error) {
+      console.error('Request password reset error:', error);
+
+      if (error && typeof error === 'object' && 'code' in error) {
+        const errorCode = String(error.code);
+        if (errorCode === 'auth/invalid-email') {
+          throw new Error('Ugyldig e-postadresse');
+        }
+        if (errorCode === 'auth/user-not-found') {
+          throw new Error('Fant ingen bruker med denne e-postadressen');
+        }
+        if (errorCode === 'auth/too-many-requests') {
+          throw new Error('For mange forsøk. Prøv igjen litt senere');
+        }
+      }
+
+      if (error instanceof Error && error.message === 'invalid-email') {
+        throw new Error('E-postadresse er påkrevd');
+      }
+
+      throw new Error('Kunne ikke sende passord-reset e-post');
     }
   },
 

@@ -306,6 +306,31 @@ const LoginScreen: React.FC = () => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    const trimmedEmail = formData.email.trim();
+    if (!trimmedEmail) {
+      showAlert('Glemt passord', 'Skriv inn e-postadressen din først, så sender vi deg en reset-lenke.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      showAlert('Feil', 'Ugyldig e-postadresse');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      await authService.requestPasswordReset(trimmedEmail);
+      showAlert('E-post sendt', `Vi har sendt en passord-reset lenke til ${trimmedEmail}.`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Kunne ikke sende reset-lenke.';
+      showAlert('Feil', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       username: '',
@@ -559,6 +584,12 @@ const LoginScreen: React.FC = () => {
                   </TouchableOpacity>
                 </View>
               </View>
+            )}
+
+            {isLoginMode && (
+              <TouchableOpacity onPress={handleForgotPassword} disabled={isLoading} style={{ alignSelf: 'flex-end', marginTop: -2, marginBottom: 14 }}>
+                <Text style={{ color: loginScreenTokens.iconTint, fontSize: 13, fontWeight: '600' }}>Glemt passord?</Text>
+              </TouchableOpacity>
             )}
 
             <TouchableOpacity

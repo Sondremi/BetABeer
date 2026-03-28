@@ -1,8 +1,10 @@
 import { Picker } from '@react-native-picker/picker';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/firebase/authService';
 import { firestore } from '../services/firebase/FirebaseConfig';
 import { settingsScreenTokens, settingsStyles } from '../styles/components/settingsStyles';
@@ -12,6 +14,7 @@ import { showAlert } from '../utils/platformAlert';
 
 const SettingsScreen = () => {
   const router = useRouter();
+  const { user } = useAuth();
 
   const [userInfo, setUserInfo] = useState({
     id: '',
@@ -25,13 +28,10 @@ const SettingsScreen = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedInfo, setEditedInfo] = useState(userInfo);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSendingPasswordReset, setIsSendingPasswordReset] = useState(false);
   const [focusedField, setFocusedField] = useState<'' | 'name' | 'email' | 'weight'>('');
 
-  useEffect(() => {
-    loadUserData();
-  }, []);
-
-  const loadUserData = async () => {
+  const loadUserData = useCallback(async () => {
     try {
       const currentUser = authService.getCurrentUser();
       if (currentUser) {
@@ -41,16 +41,28 @@ const SettingsScreen = () => {
           if (userData) {
             const userInfoData = {
               id: currentUser.uid,
-              username: userData.username || '',
-              name: userData.name || '',
-              email: userData.email || '',
+              username: userData.username || user?.username || '',
+              name: userData.name || user?.name || '',
+              email: userData.email || currentUser.email || user?.email || '',
               weight: typeof userData.weight === 'number' ? userData.weight : undefined,
               gender: userData.gender === 'male' || userData.gender === 'female' ? userData.gender : undefined,
             };
             setUserInfo(userInfoData);
             setEditedInfo(userInfoData);
+            return;
           }
         }
+
+        const fallbackUserInfo = {
+          id: currentUser.uid,
+          username: user?.username || '',
+          name: user?.name || '',
+          email: currentUser.email || user?.email || '',
+          weight: undefined as number | undefined,
+          gender: undefined as Gender | undefined,
+        };
+        setUserInfo(fallbackUserInfo);
+        setEditedInfo(fallbackUserInfo);
       }
     } catch (error) {
       console.error(error);
@@ -58,7 +70,17 @@ const SettingsScreen = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.email, user?.name, user?.username]);
+
+  useEffect(() => {
+    loadUserData();
+  }, [loadUserData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUserData();
+    }, [loadUserData])
+  );
 
   const validateEditedData = () => {
     if (!editedInfo.name.trim()) {
@@ -251,6 +273,27 @@ const SettingsScreen = () => {
     );
   };
 
+  const handleSendPasswordReset = async () => {
+    const currentAuthUser = authService.getCurrentUser();
+    const targetEmail = String(currentAuthUser?.email || userInfo.email || '').trim();
+
+    if (!targetEmail) {
+      showAlert('Feil', 'Fant ingen e-postadresse å sende reset-lenke til');
+      return;
+    }
+
+    try {
+      setIsSendingPasswordReset(true);
+      await authService.requestPasswordReset(targetEmail);
+      showAlert('E-post sendt', `Vi har sendt en passord-reset lenke til ${targetEmail}.`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Kunne ikke sende passord-reset e-post';
+      showAlert('Feil', errorMessage);
+    } finally {
+      setIsSendingPasswordReset(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={[globalStyles.container, globalStyles.centerContent]}>
@@ -415,6 +458,23 @@ const SettingsScreen = () => {
                 </TouchableOpacity>
               )}
             </View>
+          </View>
+
+          {/* Password reset section */}
+          <View style={[globalStyles.premiumCard, settingsStyles.sectionCard]}>
+            <Text style={globalStyles.sectionTitle}>Passord</Text>
+            <Text style={[globalStyles.mutedText, settingsStyles.dangerHelperText, { color: '#B0B0B0' }]}> 
+              Send e-post for å tilbakestille passordet ditt.
+            </Text>
+            <TouchableOpacity
+              style={[globalStyles.outlineButton, (isLoading || isSendingPasswordReset) && globalStyles.disabledButton]}
+              onPress={handleSendPasswordReset}
+              disabled={isLoading || isSendingPasswordReset}
+            >
+              <Text style={globalStyles.outlineButtonGoldText}>
+                {isSendingPasswordReset ? 'Sender...' : 'Tilbakestill passord'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Log out Section */}

@@ -72,13 +72,14 @@ export const AuthProvider = ({ children }) => {
         }
       } else {
         setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     let userDocUnsubscribe = null;
     let currentUid = null;
     const unsubscribe = authService.onAuthStateChanged(async (firebaseUser) => {
+      setLoading(true);
       await fetchAndSetUser(firebaseUser);
       if (userDocUnsubscribe) {
         userDocUnsubscribe();
@@ -87,6 +88,7 @@ export const AuthProvider = ({ children }) => {
       if (firebaseUser) {
         currentUid = firebaseUser.uid;
         const userDocRef = doc(firestore, 'users', currentUid);
+        let hasResolvedInitialSnapshot = false;
         userDocUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const userData = docSnap.data();
@@ -109,10 +111,21 @@ export const AuthProvider = ({ children }) => {
               profileImage: null,
             });
           }
+
+          if (!hasResolvedInitialSnapshot) {
+            hasResolvedInitialSnapshot = true;
+            setLoading(false);
+          }
         }, (error) => {
           console.error('Feil ved onSnapshot for brukerdata: ', error);
           setUser((prev) => prev);
+          if (!hasResolvedInitialSnapshot) {
+            hasResolvedInitialSnapshot = true;
+            setLoading(false);
+          }
         });
+      } else {
+        setLoading(false);
       }
     });
 
