@@ -440,6 +440,36 @@ export const profileStyles = StyleSheet.create({
     borderRadius: theme.borderRadius.lg,
     maxHeight: theme.sizes.maxDialogHeight,
   },
+  onboardingModalContent: {
+    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+    maxWidth: theme.sizes.heroCardMaxWidth,
+  },
+  onboardingTitle: {
+    color: theme.colors.primary,
+  },
+  onboardingTextBox: {
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderListCard,
+    backgroundColor: theme.colors.backgroundListCardAlt,
+    maxHeight: 220,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  onboardingTextScroll: {
+    maxHeight: '100%',
+  },
+  onboardingTextScrollContent: {
+    paddingVertical: theme.spacing.sm,
+  },
+  onboardingBodyText: {
+    textAlign: 'left',
+    alignSelf: 'stretch',
+  },
+  onboardingInfoText: {
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
   profileModalGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

@@ -72,6 +72,8 @@ const ProfileScreen: React.FC = () => {
   const { user, loading } = useAuth();
   const { width: windowWidth } = useWindowDimensions();
   const [profileImageModalVisible, setProfileImageModalVisible] = useState(false);
+  const [onboardingModalVisible, setOnboardingModalVisible] = useState(false);
+  const [onboardingStorageKey, setOnboardingStorageKey] = useState<string | null>(null);
   const [selectedProfileImage, setSelectedProfileImage] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [profileNameFocused, setProfileNameFocused] = useState(false);
@@ -444,18 +446,8 @@ const ProfileScreen: React.FC = () => {
           const hasShownAlert = await AsyncStorage.getItem(alertStorageKey);
 
           if (!hasShownAlert) {
-            showAlert(
-              'Mangler informasjon',
-              'Du må angi vekt og kjønn i innstillingene for å bruke promillekalkulatoren.',
-              [
-                {
-                  text: 'Gå til innstillinger',
-                  onPress: () => router.push('/settings'),
-                },
-                { text: 'Avbryt', style: 'cancel' },
-              ]
-            );
-            await AsyncStorage.setItem(alertStorageKey, 'true');
+            setOnboardingStorageKey(alertStorageKey);
+            setOnboardingModalVisible(true);
           }
         }
       }
@@ -680,6 +672,22 @@ const ProfileScreen: React.FC = () => {
 
   const navigateToFriends = () => {
     router.push('/friends');
+  };
+
+  const dismissOnboarding = async () => {
+    setOnboardingModalVisible(false);
+    if (!onboardingStorageKey) return;
+
+    try {
+      await AsyncStorage.setItem(onboardingStorageKey, 'true');
+    } catch (error) {
+      console.error('Failed to persist onboarding dismissal:', error);
+    }
+  };
+
+  const goToSettingsFromOnboarding = async () => {
+    await dismissOnboarding();
+    router.push('/settings');
   };
 
   const navigateToGroup = async (group: Group) => {
@@ -1141,6 +1149,37 @@ const ProfileScreen: React.FC = () => {
           </View>
         </Modal>
         </View>
+        <Modal
+          visible={onboardingModalVisible}
+          animationType="fade"
+          transparent
+          onRequestClose={dismissOnboarding}
+        >
+          <View style={globalStyles.modalContainer}>
+            <View style={[globalStyles.modalContent, profileStyles.onboardingModalContent]}>
+              <Text style={[globalStyles.modalTitle, profileStyles.onboardingTitle]}>Velkommen til BetABeer</Text>
+              <Text style={[globalStyles.modalText, profileStyles.onboardingBodyText]}>
+                BetABeer er en sosial drikkelek-app der du lager bets med venner og betaler med slurker, shots eller chugs.{"\n"}
+                {"\n"}
+                Slik kommer du i gang:{"\n"}
+                1. Legg til venner og bli med i eller lag en gruppe med dem.{"\n"}
+                2. Opprett bets på akkurat hva dere vil og bett på det du mener er riktig alternativ 🍺{"\n"}
+                3. Følg live resultater og statistikk over hvem som vinner mest og drikker mest.{"\n"}
+              </Text>
+              <Text style={[globalStyles.modalText, profileStyles.onboardingInfoText]}>
+                For å bruke promillekalkulatoren må du legge inn vekt og kjønn i innstillinger.
+              </Text>
+              <View style={globalStyles.buttonRow}>
+                <TouchableOpacity style={globalStyles.cancelButton} onPress={dismissOnboarding}>
+                  <Text style={globalStyles.cancelButtonText}>OK</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={globalStyles.saveButton} onPress={goToSettingsFromOnboarding}>
+                  <Text style={globalStyles.saveButtonTextAlt}>Gå til innstillinger</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         { /* Blood Alcohol Level */ }
         <View style={[globalStyles.section, profileStyles.compactSection]}>
