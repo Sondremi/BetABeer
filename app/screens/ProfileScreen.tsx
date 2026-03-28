@@ -147,7 +147,8 @@ const ProfileScreen: React.FC = () => {
     if (!userInfo.drinks || !userInfo.weight || !userInfo.gender) return 0;
     return profileService.calculateBAC(userInfo.drinks, userInfo.weight, userInfo.gender, bacCalculationTime);
   }, [userInfo.drinks, userInfo.weight, userInfo.gender, bacCalculationTime]);
-  const currentBAC = currentBACValue.toFixed(3);
+  const roundedCurrentBACValue = Number(currentBACValue.toFixed(3));
+  const currentBAC = roundedCurrentBACValue.toFixed(3);
   const hasBacRequiredInfo = useMemo(
     () => typeof userInfo.weight === 'number' && userInfo.weight > 0 && Boolean(userInfo.gender),
     [userInfo.weight, userInfo.gender]
@@ -161,9 +162,14 @@ const ProfileScreen: React.FC = () => {
     if (bacCalculationTime - latestDrinkTimestamp >= twentyFourHoursMs) {
       return null;
     }
+
+    if (roundedCurrentBACValue <= 0) {
+      return null;
+    }
+
     const fifteenMinuteMs = 15 * 60 * 1000;
-    const points = Array.from({ length: 21 }, (_, i) => {
-      const time = latestDrinkTimestamp + i * fifteenMinuteMs;
+    const points = Array.from({ length: 13 }, (_, i) => {
+      const time = bacCalculationTime + i * fifteenMinuteMs;
       const value = profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
       return { time, value };
     });
@@ -208,7 +214,7 @@ const ProfileScreen: React.FC = () => {
       soberTime: soberTimeLabel,
       endBAC: values[values.length - 1] ?? 0,
     };
-  }, [userInfo.drinks, userInfo.gender, userInfo.weight, bacCalculationTime, twentyFourHoursMs, soberBacThreshold]);
+  }, [userInfo.drinks, userInfo.gender, userInfo.weight, bacCalculationTime, twentyFourHoursMs, soberBacThreshold, roundedCurrentBACValue]);
   const chartWidth = useMemo(() => {
     const calculated = windowWidth - 116;
 
@@ -1261,7 +1267,7 @@ const ProfileScreen: React.FC = () => {
             )}
             {isBacExpanded && chartProjection && (
               <View style={[globalStyles.inputGroup, profileStyles.chartCard]}>
-                <Text style={globalStyles.sectionTitle}>Anslått promille de neste 5 timene</Text>
+                <Text style={globalStyles.sectionTitle}>Anslått promille de neste 3 timene</Text>
                 <View style={profileStyles.chartSummaryRow}>
                   <View style={profileStyles.statPill}>
                     <Text style={profileStyles.statLabel}>Promille nå</Text>

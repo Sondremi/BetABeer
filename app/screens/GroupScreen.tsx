@@ -2002,7 +2002,7 @@ const GroupScreen = () => {
               <Text style={[globalStyles.outlineButtonGoldText, groupStyles.actionGridButtonText]}>Medlemmer</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openLeaderboardModal}>
-              <Text style={[globalStyles.outlineButtonGoldText, groupStyles.actionGridButtonText]}>Vinnere</Text>
+              <Text style={[globalStyles.outlineButtonGoldText, groupStyles.actionGridButtonText]}>Ledertavler</Text>
             </TouchableOpacity>
           </View>
           <View style={groupStyles.actionGridRow}>
