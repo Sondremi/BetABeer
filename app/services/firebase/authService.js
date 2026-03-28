@@ -1,4 +1,4 @@
-import { createUserWithEmailAndPassword, onAuthStateChanged as firebaseOnAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { createUserWithEmailAndPassword, onAuthStateChanged as firebaseOnAuthStateChanged, sendEmailVerification, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { auth } from './FirebaseConfig';
 
@@ -16,6 +16,14 @@ export const authService = {
         userData.password
       );
       const user = userCredential.user;
+
+      try {
+        await sendEmailVerification(user);
+      } catch (verificationError) {
+        // Do not block account creation if verification email fails.
+        console.error('Send verification email error:', verificationError);
+      }
+
       await setDoc(doc(firestore, 'users', user.uid), {
         username: trimmedUsername,
         usernameLower: normalizeValue(trimmedUsername),
