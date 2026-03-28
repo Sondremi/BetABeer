@@ -142,6 +142,7 @@ const ProfileScreen: React.FC = () => {
   const [bacCalculationTime, setBacCalculationTime] = useState(() => Date.now());
   const [selectedEstimatorDrinkKey, setSelectedEstimatorDrinkKey] = useState<string>('');
   const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+  const soberBacThreshold = 0.2;
   const currentBACValue = useMemo(() => {
     if (!userInfo.drinks || !userInfo.weight || !userInfo.gender) return 0;
     return profileService.calculateBAC(userInfo.drinks, userInfo.weight, userInfo.gender, bacCalculationTime);
@@ -178,17 +179,21 @@ const ProfileScreen: React.FC = () => {
     const values = points.map((point) => point.value);
     const peak = Math.max(...values);
     const peakIndex = values.findIndex((value) => value === peak);
+    const soberSearchStartIndex = Math.max(1, peakIndex + 1);
 
     let soberTimeLabel = '--:--';
-    const soberWithinProjectionIndex = values.findIndex((value, index) => index > 0 && value <= 0.001);
+    const soberWithinProjectionIndex = values.findIndex(
+      (value, index) => index >= soberSearchStartIndex && value <= soberBacThreshold
+    );
     if (soberWithinProjectionIndex >= 0) {
       soberTimeLabel = fullLabels[soberWithinProjectionIndex];
     } else {
       const maxLookaheadSteps = Math.floor((24 * 60) / 15);
-      for (let step = points.length; step <= maxLookaheadSteps; step += 1) {
+      const lookaheadStartStep = Math.max(points.length, soberSearchStartIndex);
+      for (let step = lookaheadStartStep; step <= maxLookaheadSteps; step += 1) {
         const time = latestDrinkTimestamp + step * fifteenMinuteMs;
         const value = profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
-        if (value <= 0.001) {
+        if (value <= soberBacThreshold) {
           soberTimeLabel = new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           break;
         }
@@ -203,7 +208,7 @@ const ProfileScreen: React.FC = () => {
       soberTime: soberTimeLabel,
       endBAC: values[values.length - 1] ?? 0,
     };
-  }, [userInfo.drinks, userInfo.gender, userInfo.weight, bacCalculationTime, twentyFourHoursMs]);
+  }, [userInfo.drinks, userInfo.gender, userInfo.weight, bacCalculationTime, twentyFourHoursMs, soberBacThreshold]);
   const chartWidth = useMemo(() => {
     const calculated = windowWidth - 116;
 
@@ -1271,7 +1276,7 @@ const ProfileScreen: React.FC = () => {
                     </View>
                   </View>
                   <View style={profileStyles.statPill}>
-                    <Text style={profileStyles.statLabel}>Edru kl</Text>
+                    <Text style={profileStyles.statLabel}>0.2‰ Cirka kl</Text>
                     <View style={profileStyles.statMainSlot}>
                       <Text style={profileStyles.statValue}>{chartProjection.soberTime}</Text>
                     </View>
