@@ -2,10 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, getFirestore, increment, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, cancelFriendRequest, getIncomingRequest, getOutgoingRequest, sendFriendRequest } from '../services/friendService';
+import { buildGroupInviteLink } from '../services/groupInviteLinkService';
 import { cancelGroupInvitation, deleteGroup, distributeDrinks, exitGroup, registerConsumedDrinks, removeFriendFromGroup, sendGroupInvitation } from '../services/groupService';
 import { createGroup, getGroupInvitation, profileService, updateGroupName } from '../services/profileService';
 import { groupStyles } from '../styles/components/groupStyles';
@@ -737,6 +738,25 @@ const GroupScreen = () => {
       showAlert('Feil', 'Kunne ikke opprette gruppe');
     } finally {
       setCreatingGroup(false);
+    }
+  };
+
+  const handleShareGroupInviteLink = async () => {
+    if (!selectedGroup) {
+      showAlert('Feil', 'Ingen gruppe valgt');
+      return;
+    }
+
+    try {
+      const inviteLink = buildGroupInviteLink(selectedGroup.id);
+      await Share.share({
+        title: 'Inviter til gruppe',
+        message: `Bli med i gruppen "${selectedGroup.name}" på BetABeer: ${inviteLink}`,
+        url: inviteLink,
+      });
+    } catch (error) {
+      console.error('Error sharing group invite link:', error);
+      showAlert('Feil', 'Kunne ikke dele gruppelenke');
     }
   };
 
@@ -1708,7 +1728,7 @@ const GroupScreen = () => {
             <Text style={groupStyles.modalSectionTitle}>{selectedSectionTitle}</Text>
             {selectedDetailView === 'consume' && isOwnUser && (
               <Text style={[globalStyles.secondaryText, groupStyles.consumeHelperText]}>
-                Trykk "Drikk" for å registrere at du har drukket én av valgt type.
+                Trykk &quot;Drikk&quot; for å registrere at du har drukket én av valgt type.
               </Text>
             )}
             <ScrollView
@@ -1996,6 +2016,13 @@ const GroupScreen = () => {
         </View>
 
         <View style={groupStyles.actionCard}>
+          <TouchableOpacity
+            style={[globalStyles.outlineButtonGold, groupStyles.groupInviteLinkButton]}
+            onPress={handleShareGroupInviteLink}
+            disabled={!selectedGroup}
+          >
+            <Text style={[globalStyles.outlineButtonGoldText, groupStyles.groupInviteLinkButtonText]}>Inviter via lenke</Text>
+          </TouchableOpacity>
 
           <View style={groupStyles.actionGridRow}>
             <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openMembersModal}>

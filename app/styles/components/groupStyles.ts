@@ -134,6 +134,15 @@ export const groupStyles = StyleSheet.create({
     marginTop: theme.spacing.md,
     marginBottom: theme.spacing.md,
   },
+  groupInviteLinkButton: {
+    marginBottom: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  groupInviteLinkButtonText: {
+    fontSize: theme.fonts.sm,
+    fontWeight: '700',
+  },
   actionGridRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

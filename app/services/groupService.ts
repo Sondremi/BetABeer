@@ -1,8 +1,13 @@
-import { addDoc, arrayRemove, collection, deleteDoc, doc, getDoc, getDocs, increment, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, increment, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { DrinkType, Group, MeasureType, MemberDrinkStats } from '../types/drinkTypes';
 import { auth, firestore } from './firebase/FirebaseConfig';
 
 const GROUP_INVITATIONS_COLLECTION = 'group_invitations';
+
+export type JoinGroupFromLinkResult = {
+  status: 'joined' | 'already-member';
+  group: Group;
+};
 
 export const sendGroupInvitation = async (toUserId: string, group: Group) => {
   const currentUser = auth.currentUser;
@@ -145,6 +150,55 @@ export const deleteGroup = async (groupId: string) => {
         console.error(error);
         throw new Error('Kunne ikke slette gruppe');
     }
+};
+
+export const joinGroupFromInviteLink = async (groupId: string): Promise<JoinGroupFromLinkResult> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error('Bruker ikke autorisert');
+  }
+
+  const trimmedGroupId = String(groupId || '').trim();
+  if (!trimmedGroupId) {
+    throw new Error('Ugyldig gruppelenke');
+  }
+
+  const groupRef = doc(firestore, 'groups', trimmedGroupId);
+  const userRef = doc(firestore, 'users', currentUser.uid);
+  const [groupSnap, userSnap] = await Promise.all([getDoc(groupRef), getDoc(userRef)]);
+
+  if (!groupSnap.exists()) {
+    throw new Error('Gruppen finnes ikke');
+  }
+  if (!userSnap.exists()) {
+    throw new Error('Brukerprofil finnes ikke');
+  }
+
+  const groupData = groupSnap.data();
+  const groupMembers = Array.isArray(groupData.members) ? groupData.members : [];
+  const userGroups = Array.isArray(userSnap.data().groups) ? userSnap.data().groups : [];
+  const alreadyMember = groupMembers.includes(currentUser.uid) || userGroups.includes(trimmedGroupId);
+
+  if (!alreadyMember) {
+    await Promise.all([
+      updateDoc(groupRef, { members: arrayUnion(currentUser.uid) }),
+      updateDoc(userRef, { groups: arrayUnion(trimmedGroupId) }),
+    ]);
+  }
+
+  const normalizedGroup: Group = {
+    id: trimmedGroupId,
+    name: groupData.name || groupData.groupName || groupData.group_name || 'Gruppenavn',
+    memberCount: alreadyMember ? groupMembers.length : groupMembers.length + 1,
+    image: 'image_missing',
+    createdBy: groupData.createdBy || '',
+    members: alreadyMember ? groupMembers : [...groupMembers, currentUser.uid],
+  };
+
+  return {
+    status: alreadyMember ? 'already-member' : 'joined',
+    group: normalizedGroup,
+  };
 };
 
 export const distributeDrinks = async (
