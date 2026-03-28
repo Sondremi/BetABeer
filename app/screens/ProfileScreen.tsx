@@ -141,18 +141,25 @@ const ProfileScreen: React.FC = () => {
   const [drinkForm, setDrinkForm] = useState<DrinkFormState>(() => createInitialDrinkForm());
   const [bacCalculationTime, setBacCalculationTime] = useState(() => Date.now());
   const [selectedEstimatorDrinkKey, setSelectedEstimatorDrinkKey] = useState<string>('');
+  const twentyFourHoursMs = 24 * 60 * 60 * 1000;
   const currentBACValue = useMemo(() => {
     if (!userInfo.drinks || !userInfo.weight || !userInfo.gender) return 0;
     return profileService.calculateBAC(userInfo.drinks, userInfo.weight, userInfo.gender, bacCalculationTime);
   }, [userInfo.drinks, userInfo.weight, userInfo.gender, bacCalculationTime]);
   const currentBAC = currentBACValue.toFixed(3);
-  const hasBacRequiredInfo = Boolean(userInfo.weight && userInfo.gender);
+  const hasBacRequiredInfo = useMemo(
+    () => typeof userInfo.weight === 'number' && userInfo.weight > 0 && Boolean(userInfo.gender),
+    [userInfo.weight, userInfo.gender]
+  );
   const chartProjection = useMemo(() => {
     if (!userInfo.weight || !userInfo.gender || !userInfo.drinks || userInfo.drinks.length === 0) {
       return null;
     }
 
     const latestDrinkTimestamp = Math.max(...userInfo.drinks.map((d) => d.endTimestamp ?? d.timestamp));
+    if (bacCalculationTime - latestDrinkTimestamp >= twentyFourHoursMs) {
+      return null;
+    }
     const fifteenMinuteMs = 15 * 60 * 1000;
     const points = Array.from({ length: 21 }, (_, i) => {
       const time = latestDrinkTimestamp + i * fifteenMinuteMs;
@@ -196,7 +203,7 @@ const ProfileScreen: React.FC = () => {
       soberTime: soberTimeLabel,
       endBAC: values[values.length - 1] ?? 0,
     };
-  }, [userInfo.drinks, userInfo.gender, userInfo.weight]);
+  }, [userInfo.drinks, userInfo.gender, userInfo.weight, bacCalculationTime, twentyFourHoursMs]);
   const chartWidth = useMemo(() => {
     const calculated = windowWidth - 116;
 
@@ -248,6 +255,16 @@ const ProfileScreen: React.FC = () => {
     () => estimatorDrinkOptions.find((option) => option.key === selectedEstimatorDrinkKey),
     [estimatorDrinkOptions, selectedEstimatorDrinkKey]
   );
+
+  const highscoreUpdatedLabel = useMemo(() => {
+    if (!userInfo.bacHighscoreUpdatedAt) return 'Ikke satt';
+    return new Date(userInfo.bacHighscoreUpdatedAt).toLocaleString([], {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }, [userInfo.bacHighscoreUpdatedAt]);
 
   const estimatedAdditionalDrinksToBeatHighscore = useMemo(() => {
     if (!userInfo.drinks?.length || !userInfo.weight || !userInfo.gender) {
@@ -343,6 +360,24 @@ const ProfileScreen: React.FC = () => {
 
     return () => clearInterval(intervalId);
   }, [userInfo.drinks, userInfo.weight, userInfo.gender]);
+
+  useEffect(() => {
+    const clearExpiredDrinks = async () => {
+      if (!user?.id || !userInfo.drinks?.length) return;
+
+      const latestDrinkTimestamp = Math.max(...userInfo.drinks.map((d) => d.endTimestamp ?? d.timestamp));
+      if (bacCalculationTime - latestDrinkTimestamp < twentyFourHoursMs) return;
+
+      try {
+        await profileService.resetDrinks(user.id);
+        setUserInfo((prev) => ({ ...prev, drinks: [] }));
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    clearExpiredDrinks();
+  }, [user?.id, userInfo.drinks, bacCalculationTime, twentyFourHoursMs]);
 
   useEffect(() => {
     if (!user) return;
@@ -457,7 +492,7 @@ const ProfileScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [router]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -609,7 +644,7 @@ const ProfileScreen: React.FC = () => {
     return true;
   };
 
-  const canSaveDrink = useMemo(() => {
+  const canSaveDrink = (() => {
     if (!drinkForm.category) return false;
 
     if (!isValidTimeInput(drinkForm.consumedAtTime)) return false;
@@ -628,7 +663,6 @@ const ProfileScreen: React.FC = () => {
     if (drinkForm.quantity === 'custom' && !hasMaxOneDecimal(drinkForm.customQuantity)) return false;
 
     if (drinkForm.category === 'custom') {
-      if (!drinkForm.customDrinkName.trim()) return false;
       if (!drinkForm.sizeDl) return false;
 
       const sizeValue = drinkForm.sizeDl === 'custom'
@@ -664,7 +698,7 @@ const ProfileScreen: React.FC = () => {
     }
 
     return true;
-  }, [drinkForm]);
+  })();
 
   const navigateToSettings = () => {
     router.push('/settings');
@@ -782,14 +816,10 @@ const ProfileScreen: React.FC = () => {
         alcoholPercent,
         quantity,
         timestamp: startTimestamp,
-        endTimestamp,
+        ...(typeof endTimestamp === 'number' ? { endTimestamp } : {}),
       };
     } else {
       const trimmedName = drinkForm.customDrinkName.trim();
-      if (!trimmedName) {
-        showAlert('Feil', 'Type/navn er påkrevd for egendefinert kategori');
-        return;
-      }
       if (!drinkForm.sizeDl) {
         showAlert('Feil', 'Velg en størrelse');
         return;
@@ -827,13 +857,13 @@ const ProfileScreen: React.FC = () => {
       }
 
       drink = {
-        name: trimmedName,
+        ...(trimmedName ? { name: trimmedName } : {}),
         category: inferCategoryFromAlcoholPercent(alcoholPercent),
         sizeDl,
         alcoholPercent,
         quantity,
         timestamp: startTimestamp,
-        endTimestamp,
+        ...(typeof endTimestamp === 'number' ? { endTimestamp } : {}),
       };
     }
 
@@ -846,7 +876,8 @@ const ProfileScreen: React.FC = () => {
       }
     } catch (error) {
       console.error(error);
-      showAlert('Feil', 'Kunne ikke legge til drikke');
+      const errorMessage = error instanceof Error ? error.message : 'Kunne ikke legge til drikke';
+      showAlert('Feil', `Kunne ikke legge til drikke: ${errorMessage}`);
     }
     setDrinkModalVisible(false);
     setDrinkForm(createInitialDrinkForm());
@@ -941,7 +972,7 @@ const ProfileScreen: React.FC = () => {
     }
   };
 
-  const loadGroupInviteCandidates = async () => {
+  const loadGroupInviteCandidates = useCallback(async () => {
     if (!user) {
       setGroupInviteCandidates([]);
       return;
@@ -978,7 +1009,7 @@ const ProfileScreen: React.FC = () => {
     } finally {
       setLoadingGroupInviteCandidates(false);
     }
-  };
+  }, [user]);
 
   const toggleInvitee = (friendId: string) => {
     setSelectedInviteeIds((prev) => (
@@ -989,7 +1020,7 @@ const ProfileScreen: React.FC = () => {
   useEffect(() => {
     if (!createGroupModalVisible) return;
     loadGroupInviteCandidates();
-  }, [createGroupModalVisible, user?.id]);
+  }, [createGroupModalVisible, loadGroupInviteCandidates]);
 
   if (isLoading) {
     return (
@@ -1264,6 +1295,57 @@ const ProfileScreen: React.FC = () => {
                     style={profileStyles.chart}
                   />
                 </View>
+              </View>
+            )}
+            {isBacExpanded && hasBacRequiredInfo && (
+              <View style={[globalStyles.inputGroup, profileStyles.chartCard]}>
+                <Text style={globalStyles.sectionTitle}>Promille-highscore</Text>
+                <View style={profileStyles.chartSummaryRow}>
+                  <View style={profileStyles.statPill}>
+                    <Text style={profileStyles.statLabel}>All-time</Text>
+                    <View style={profileStyles.statMainSlot}>
+                      <Text style={profileStyles.statValue}>
+                        {userInfo.bacHighscoreAllTime ? `${userInfo.bacHighscoreAllTime.toFixed(3)}‰` : '0.000‰'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={profileStyles.statPill}>
+                    <Text style={profileStyles.statLabel}>Oppdatert</Text>
+                    <View style={profileStyles.statMainSlot}>
+                      <Text style={profileStyles.statValue}>{highscoreUpdatedLabel}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {userInfo.bacHighscoreAllTime && userInfo.bacHighscoreAllTime > 0 && estimatorDrinkOptions.length > 0 ? (
+                  <>
+                    <View style={[globalStyles.inputGroup, { marginBottom: 0 }]}> 
+                      <Text style={globalStyles.label}>Hva vil du drikke?</Text>
+                      <View style={globalStyles.pickerInput}>
+                        <Picker
+                          style={globalStyles.picker}
+                          selectedValue={selectedEstimatorDrinkKey}
+                          onValueChange={(value: string) => setSelectedEstimatorDrinkKey(value)}
+                        >
+                          {estimatorDrinkOptions.map((option) => (
+                            <Picker.Item key={option.key} label={option.label} value={option.key} />
+                          ))}
+                        </Picker>
+                      </View>
+                    </View>
+                    <Text style={globalStyles.secondaryText}>
+                      {estimatedAdditionalDrinksToBeatHighscore === 0
+                        ? 'Du ligger allerede over highscorespennet med dagens drikking.'
+                        : typeof estimatedAdditionalDrinksToBeatHighscore === 'number'
+                          ? `Du trenger omtrent ${estimatedAdditionalDrinksToBeatHighscore} enheter av valgt drikke for å slå highscores.`
+                          : 'Vi klarte ikke å beregne et nøyaktig antall innenfor beregningsvinduet.'}
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={globalStyles.secondaryText}>
+                    Legg til drikkehistorikk for å få forslag til hvor mye du trenger for å slå highscores.
+                  </Text>
+                )}
               </View>
             )}
           </View>
