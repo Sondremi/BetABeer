@@ -135,8 +135,23 @@ export const profileService = {
     if (userDoc.exists()) {
       const data = userDoc.data();
       const drinks = (data.drinks || []) as DrinkEntry[];
-      const normalizedWeight = typeof data.weight === 'number' ? data.weight : undefined;
-      const normalizedGender = data.gender === 'male' || data.gender === 'female' ? data.gender : undefined;
+      const normalizedWeight = (() => {
+        if (typeof data.weight === 'number') return data.weight;
+        if (typeof data.weight === 'string') {
+          const parsed = parseFloat(data.weight.replace(',', '.'));
+          return Number.isFinite(parsed) ? parsed : undefined;
+        }
+        return undefined;
+      })();
+      const normalizedGender = (() => {
+        if (typeof data.gender !== 'string') return undefined;
+        const value = data.gender.trim().toLowerCase();
+        if (value === 'male' || value === 'mann' || value === 'm') return 'male';
+        if (value === 'female' || value === 'dame' || value === 'kvinne' || value === 'f') return 'female';
+        return undefined;
+      })();
+      const normalizedHighscore = typeof data.bacHighscoreAllTime === 'number' ? data.bacHighscoreAllTime : undefined;
+      const normalizedHighscoreUpdatedAt = typeof data.bacHighscoreUpdatedAt === 'number' ? data.bacHighscoreUpdatedAt : undefined;
       const latestDrinkTimestamp = drinks.length > 0
         ? Math.max(...drinks.map((drink) => drink.endTimestamp ?? drink.timestamp))
         : null;
@@ -150,6 +165,8 @@ export const profileService = {
           weight: normalizedWeight,
           gender: normalizedGender,
           drinks: [],
+          bacHighscoreAllTime: normalizedHighscore,
+          bacHighscoreUpdatedAt: normalizedHighscoreUpdatedAt,
         };
       }
 
@@ -159,8 +176,8 @@ export const profileService = {
         weight: normalizedWeight,
         gender: normalizedGender,
         drinks,
-        bacHighscoreAllTime: typeof data.bacHighscoreAllTime === 'number' ? data.bacHighscoreAllTime : undefined,
-        bacHighscoreUpdatedAt: typeof data.bacHighscoreUpdatedAt === 'number' ? data.bacHighscoreUpdatedAt : undefined,
+        bacHighscoreAllTime: normalizedHighscore,
+        bacHighscoreUpdatedAt: normalizedHighscoreUpdatedAt,
       };
     }
     return {};
