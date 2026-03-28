@@ -1,6 +1,31 @@
 import { StyleSheet } from 'react-native';
 import { theme } from './theme';
 
+const outlineButtonBase = {
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  justifyContent: 'center' as const,
+  paddingVertical: theme.spacing.lg,
+  paddingHorizontal: theme.spacing.xl,
+  backgroundColor: theme.colors.surface,
+  borderRadius: theme.borderRadius.md,
+  borderWidth: 2,
+  borderColor: theme.colors.primary,
+  marginBottom: theme.spacing.md,
+};
+
+const tabBarBase = {
+  flexDirection: 'row' as const,
+  height: 78,
+  backgroundColor: theme.colors.backgroundTabBar,
+  borderTopWidth: 1,
+  borderTopColor: theme.colors.borderTabBar,
+  paddingHorizontal: theme.spacing.md,
+  paddingTop: theme.spacing.sm,
+  paddingBottom: theme.spacing.md,
+  gap: theme.spacing.sm,
+};
+
 export const globalStyles = StyleSheet.create({
   // Containers
   container: {
@@ -14,6 +39,8 @@ export const globalStyles = StyleSheet.create({
     display: 'flex',
     alignSelf: 'center',
     width: '100%',
+    minHeight: '100%',
+    height: '100%',
     maxWidth: 500,
   },
   scrollContent: {
@@ -51,7 +78,7 @@ export const globalStyles = StyleSheet.create({
   rowCenter: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    gap: 6 
+    gap: theme.spacing.xxs,
   },
   dangerSection: {
     marginTop: theme.spacing.xxl,
@@ -80,6 +107,23 @@ export const globalStyles = StyleSheet.create({
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
     marginHorizontal: 0,
+  },
+  premiumCard: {
+    backgroundColor: theme.colors.backgroundPanel,
+    borderRadius: theme.borderRadius.xl,
+    borderWidth: 1,
+    borderColor: theme.colors.borderPremium,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  premiumCardInner: {
+    borderRadius: theme.borderRadius.xl,
+    borderWidth: 1,
+    borderColor: theme.effects.gold12,
+    padding: theme.spacing.xl,
   },
   listContainer: {
     paddingVertical: theme.spacing.sm,
@@ -143,6 +187,21 @@ export const globalStyles = StyleSheet.create({
     fontWeight: 'bold',
     color: theme.colors.primary,
   },
+  headerSideSlot: {
+    width: 40,
+  },
+  iconBackButton: {
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.circle,
+    backgroundColor: theme.colors.primary,
+    minWidth: theme.spacing.huge,
+    alignItems: 'center',
+  },
+  iconBackButtonText: {
+    fontSize: theme.fonts.xl,
+    color: theme.colors.background,
+    fontWeight: 'bold',
+  },
 
   // Sections
   sectionTitle: {
@@ -197,6 +256,21 @@ export const globalStyles = StyleSheet.create({
     fontSize: theme.fonts.md,
     backgroundColor: 'transparent',
     color: theme.colors.text,
+  },
+  inputShellDark: {
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.backgroundInput,
+    borderWidth: 1,
+    borderColor: theme.effects.white10,
+  },
+  inputShellFocusedGold: {
+    borderColor: theme.effects.gold85,
+    shadowColor: theme.colors.primaryGlow,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.24,
+    shadowRadius: 8,
+    elevation: 4,
   },
   pickerInput: {
     borderWidth: 1,
@@ -258,16 +332,7 @@ export const globalStyles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   outlineButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: theme.spacing.lg,
-    paddingHorizontal: theme.spacing.xl,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 2,
-    borderColor: theme.colors.primary,
-    marginBottom: theme.spacing.md,
+    ...outlineButtonBase,
   },
   outlineButtonText: {
     fontSize: theme.fonts.md,
@@ -275,16 +340,7 @@ export const globalStyles = StyleSheet.create({
     fontWeight: '600',
   },
   outlineButtonGold: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: theme.spacing.lg,
-    paddingHorizontal: theme.spacing.xl,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 2,
-    borderColor: theme.colors.primary,
-    marginBottom: theme.spacing.md,
+    ...outlineButtonBase,
   },
   outlineButtonGoldText: {
     fontSize: theme.fonts.md,
@@ -442,7 +498,7 @@ export const globalStyles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: theme.colors.modalBackground,
     padding: theme.spacing.xl,
   },
 
@@ -525,18 +581,10 @@ export const globalStyles = StyleSheet.create({
 
   // Bottom bar styles
   tabBar: {
-    flexDirection: 'row',
-    height: 70,
-    backgroundColor: theme.colors.background,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.surface,
+    ...tabBarBase,
   },
   tabBarWeb: {
-    flexDirection: 'row',
-    height: 70,
-    backgroundColor: theme.colors.background,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.surface,
+    ...tabBarBase,
     alignSelf: 'center',
     width: '100%',
     maxWidth: 500,
@@ -545,10 +593,24 @@ export const globalStyles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: theme.borderRadius.round,
+    borderWidth: 1,
+    borderColor: theme.colors.borderTabItem,
+    backgroundColor: theme.colors.backgroundTabItem,
+  },
+  tabItemFocused: {
+    backgroundColor: theme.colors.backgroundTabItemFocused,
+    borderColor: theme.colors.borderTabItemFocused,
+    ...theme.shadows.button,
   },
   tabIcon: {
     width: 30,
     height: 30,
+    tintColor: theme.colors.iconTabIdle,
+  },
+  tabIconFocused: {
+    width: 36,
+    height: 36,
     tintColor: theme.colors.primary,
   },
 });

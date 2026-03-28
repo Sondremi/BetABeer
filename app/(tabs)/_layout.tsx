@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Tabs, usePathname, useRouter } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { Image, Platform, TouchableOpacity, View } from 'react-native';
 import { globalStyles } from '../styles/globalStyles';
 
@@ -15,10 +15,10 @@ const routes = [
 ] as const;
 
 type RouteName = typeof routes[number]['name'];
+const SHOW_TAB_BAR = false;
 
 export default function TabLayout() {
   const router = useRouter();
-  const pathname = usePathname();
 
   const CustomTabBar = ({ navigation, state }: BottomTabBarProps) => {
     const handleGroupsNavigation = async () => {
@@ -40,12 +40,11 @@ export default function TabLayout() {
       <View style={Platform.OS === 'web' ? globalStyles.tabBarWeb : globalStyles.tabBar}>
         {routes.map((route, index) => {
           const isFocused = state.index === index;
-          const iconSize = isFocused ? 36 : 30;
 
           return (
             <TouchableOpacity
               key={route.name}
-              style={globalStyles.tabItem}
+              style={[globalStyles.tabItem, isFocused && globalStyles.tabItemFocused]}
               onPress={() => {
                 const event = navigation.emit({
                   type: 'tabPress',
@@ -64,7 +63,7 @@ export default function TabLayout() {
             >
               <Image
                 source={route.icon}
-                style={[globalStyles.tabIcon, { width: iconSize, height: iconSize }]}
+                style={[globalStyles.tabIcon, isFocused && globalStyles.tabIconFocused]}
                 resizeMode="contain"
               />
             </TouchableOpacity>
@@ -80,7 +79,7 @@ export default function TabLayout() {
         headerShown: false,
         tabBarShowLabel: false,
       }}
-      tabBar={(props) => <CustomTabBar {...props} />}
+      tabBar={(props) => (SHOW_TAB_BAR ? <CustomTabBar {...props} /> : null)}
     >
       <Tabs.Screen name="groups" options={{ title: 'Grupper' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profil' }} />

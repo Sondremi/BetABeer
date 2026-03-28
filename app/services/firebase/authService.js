@@ -1,22 +1,27 @@
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged as firebaseOnAuthStateChanged } from 'firebase/auth';
+import { createUserWithEmailAndPassword, onAuthStateChanged as firebaseOnAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { auth } from './FirebaseConfig';
 
 const firestore = getFirestore();
+const normalizeValue = (value) => String(value || '').trim().toLowerCase();
 
 export const authService = {
   createUser: async (userData) => {
     try {
+      const normalizedEmail = normalizeValue(userData.email);
+      const trimmedUsername = String(userData.username || '').trim();
       const userCredential = await createUserWithEmailAndPassword(
         auth,
-        userData.email,
+        normalizedEmail,
         userData.password
       );
       const user = userCredential.user;
       await setDoc(doc(firestore, 'users', user.uid), {
-        username: userData.username,
+        username: trimmedUsername,
+        usernameLower: normalizeValue(trimmedUsername),
         name: userData.name,
-        email: userData.email,
+        email: String(userData.email || '').trim(),
+        emailLower: normalizedEmail,
         phone: userData.phone ?? null,
         weight: userData.weight ?? null,
         gender: userData.gender ?? null,
@@ -26,9 +31,9 @@ export const authService = {
       });
       return {
         id: user.uid,
-        username: userData.username,
+        username: trimmedUsername,
         name: userData.name,
-        email: userData.email,
+        email: String(userData.email || '').trim(),
         phone: userData.phone ?? null,
         weight: userData.weight ?? null,
         gender: userData.gender ?? null, 
@@ -41,7 +46,7 @@ export const authService = {
 
   loginUser: async (email, password) => {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, normalizeValue(email), password);
       const user = userCredential.user;
       const userDoc = await getDoc(doc(firestore, 'users', user.uid));
       if (userDoc.exists()) {
@@ -126,6 +131,50 @@ export const authService = {
     } catch (error) {
       console.error('Check username error:', error);
       throw new Error('Kunne ikke sjekke brukernavn');
+    }
+  },
+
+  checkUsernameExistsInsensitive: async (username) => {
+    try {
+      const normalizedUsername = normalizeValue(username);
+      if (!normalizedUsername) return false;
+
+      const usersRef = collection(firestore, 'users');
+      const lowerQuery = query(usersRef, where('usernameLower', '==', normalizedUsername));
+      const lowerSnapshot = await getDocs(lowerQuery);
+      if (!lowerSnapshot.empty) return true;
+
+      // Backward compatibility: older users may not have usernameLower set.
+      const allUsersSnapshot = await getDocs(usersRef);
+      return allUsersSnapshot.docs.some((docSnap) => {
+        const existingUsername = docSnap.data().username;
+        return normalizeValue(existingUsername) === normalizedUsername;
+      });
+    } catch (error) {
+      console.error('Check username (insensitive) error:', error);
+      throw new Error('Kunne ikke sjekke brukernavn');
+    }
+  },
+
+  checkEmailExistsInsensitive: async (email) => {
+    try {
+      const normalizedEmail = normalizeValue(email);
+      if (!normalizedEmail) return false;
+
+      const usersRef = collection(firestore, 'users');
+      const lowerQuery = query(usersRef, where('emailLower', '==', normalizedEmail));
+      const lowerSnapshot = await getDocs(lowerQuery);
+      if (!lowerSnapshot.empty) return true;
+
+      // Backward compatibility: older users may not have emailLower set.
+      const allUsersSnapshot = await getDocs(usersRef);
+      return allUsersSnapshot.docs.some((docSnap) => {
+        const existingEmail = docSnap.data().email;
+        return normalizeValue(existingEmail) === normalizedEmail;
+      });
+    } catch (error) {
+      console.error('Check email (insensitive) error:', error);
+      throw new Error('Kunne ikke sjekke e-postadresse');
     }
   },
 

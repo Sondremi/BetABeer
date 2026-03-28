@@ -1,28 +1,245 @@
-import { StyleSheet } from 'react-native';
-import { theme } from '../theme';
+import { Platform, StyleSheet } from 'react-native';
 import { globalStyles } from '../globalStyles';
+import { theme } from '../theme';
 
-export const loginStyles = StyleSheet.create({
+export const loginScreenTokens = {
+  placeholderTextColor: theme.colors.textSecondary,
+  iconTint: theme.colors.textSecondary,
+  loaderColor: theme.colors.shadowDim,
+  backgroundGradientColors: [theme.gradients.loginBackgroundStart, theme.gradients.loginBackgroundEnd] as const,
+  cardHighlightGradientColors: [theme.effects.white08, theme.effects.white00] as const,
+  authCardGradientColors: [theme.effects.authGradientFrom, theme.effects.authGradientTo] as const,
+  ctaGradientColors: [theme.gradients.ctaStart, theme.gradients.ctaEnd] as const,
+};
+
+export const loginStyles: any = StyleSheet.create({
+  pageContainer: {
+    padding: 0,
+  },
+  darkContainer: {
+    backgroundColor: theme.colors.backgroundDeep,
+  },
+  screenContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: theme.spacing.xxl,
+    paddingTop: Platform.OS === 'web' ? theme.spacing.huge - theme.spacing.xxs : theme.spacing.xl,
+    paddingBottom: theme.spacing.xxl,
+    overflow: 'hidden',
+  },
+  screenContentRegister: {
+    justifyContent: 'flex-start',
+    paddingTop: Platform.OS === 'web' ? theme.spacing.xxl : theme.fonts.sm,
+  },
+  backgroundLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: theme.colors.backgroundDeep,
+  },
+  backgroundGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  brandSection: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.xl,
+  },
+  brandLogo: {
+    width: theme.sizes.logo,
+    height: theme.sizes.logo,
+    marginBottom: theme.spacing.xs,
+    opacity: 0.95,
+  },
   appName: {
     ...globalStyles.titleText,
+    fontSize: theme.fonts.heroTitle,
+    lineHeight: theme.fonts.heroTitleLine,
+    fontWeight: '800',
+    color: theme.colors.primarySoft,
+    textShadowColor: theme.effects.black50,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: theme.spacing.xs,
+    letterSpacing: -0.3,
   },
   welcomeText: {
-    fontSize: theme.fonts.lg,
-    color: theme.colors.text,
+    fontSize: theme.fonts.mdPlus,
+    color: theme.colors.textStrong,
     textAlign: 'center',
+    marginTop: theme.spacing.xs,
+    fontWeight: '500',
   },
-  toggleContainer: {
+  cardWrapper: {
+    width: '100%',
+    maxWidth: theme.sizes.cardMaxWidth,
+    alignSelf: 'center',
+    position: 'relative',
+    paddingVertical: 0,
+    overflow: 'visible',
+  },
+  cardBorderFade: {
+    position: 'absolute',
+    top: 1,
+    bottom: 1,
+    left: 1,
+    right: 1,
+    borderRadius: theme.borderRadius.card,
+    backgroundColor: theme.effects.gold03,
+    shadowColor: theme.colors.primaryGlow,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: Platform.OS === 'web' ? 0.44 : 0.31,
+    shadowRadius: Platform.OS === 'web' ? theme.spacing.huge + theme.spacing.xs : theme.spacing.xxxl,
+    elevation: 5,
+    zIndex: 3,
+  },
+  authCard: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: theme.gradients.ctaStart,
+    borderRadius: theme.borderRadius.card,
+    backgroundColor: theme.colors.backgroundCard,
+    overflow: 'hidden',
+    marginHorizontal: 0,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: theme.spacing.xl,
+    elevation: 10,
+    zIndex: 2,
+  },
+  cardHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: theme.spacing.massive + theme.fonts.sm,
+    zIndex: 3,
+  },
+  authCardGradient: {
+    padding: 0,
+  },
+  authCardBody: {
+    paddingHorizontal: Platform.OS === 'web' ? theme.spacing.xxxl - theme.spacing.xxxs : theme.spacing.xxl,
+    paddingTop: Platform.OS === 'web' ? theme.spacing.xxl : theme.spacing.xl,
+    paddingBottom: Platform.OS === 'web' ? theme.spacing.xxxl - theme.spacing.xxxs : theme.spacing.xxl,
+  },
+  modeSwitchContainer: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.backgroundTabBar,
+    borderTopLeftRadius: theme.borderRadius.card,
+    borderTopRightRadius: theme.borderRadius.card,
+    borderWidth: 1,
+    borderColor: theme.colors.borderTabBar,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  modeSwitchIndicator: {
+    position: 'absolute',
+    top: 1,
+    bottom: 0,
+    left: 1,
+    borderRadius: 0,
+    backgroundColor: theme.colors.backgroundTabItemFocused,
+    borderWidth: 1,
+    borderColor: theme.colors.borderTabItemFocused,
+    borderBottomWidth: 2,
+    borderBottomColor: theme.colors.primary,
+  },
+  modeButton: {
+    flex: 1,
     alignItems: 'center',
-    paddingTop: theme.spacing.sm,
+    justifyContent: 'center',
+    paddingVertical: theme.fonts.sm - theme.spacing.xxxs,
+    borderRadius: 0,
+    zIndex: 2,
   },
-  toggleText: {
-    fontSize: theme.fonts.sm,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+  modeButtonDivider: {
+    borderLeftWidth: 1,
+    borderLeftColor: theme.colors.borderTabItem,
   },
-  toggleLink: {
+  modeButtonActive: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+  },
+  modeButtonText: {
+    color: theme.colors.textSecondary,
     fontSize: theme.fonts.sm,
-    color: theme.colors.primary,
     fontWeight: '700',
+  },
+  modeButtonTextActive: {
+    color: theme.colors.primary,
+  },
+  fieldLabel: {
+    ...globalStyles.label,
+    color: theme.colors.white,
+    marginBottom: theme.spacing.sm,
+    fontSize: theme.fonts.sm,
+    fontWeight: '500',
+  },
+  formInputGroup: {
+    marginBottom: theme.spacing.xxxl - theme.spacing.xxxs,
+  },
+  inputShellWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  authInput: {
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    color: theme.colors.textInput,
+    fontSize: theme.fonts.md,
+    paddingVertical: theme.fonts.sm - theme.spacing.xxxs,
+    paddingHorizontal: theme.fonts.sm,
+  },
+  authInputWithIcon: {
+    flex: 1,
+    paddingRight: theme.spacing.sm,
+  },
+  eyeButton: {
+    width: theme.spacing.xxl * 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+  },
+  ctaButton: {
+    borderRadius: theme.borderRadius.pill,
+    marginTop: theme.spacing.xxs,
+    marginBottom: theme.fonts.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.effects.black08,
+    minHeight: theme.spacing.massive + theme.spacing.xs,
+    justifyContent: 'center',
+    shadowColor: theme.colors.primaryGlowStrong,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: Platform.OS === 'web' ? 0.35 : 0.24,
+    shadowRadius: theme.fonts.md,
+    elevation: 6,
+  },
+  ctaGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: theme.borderRadius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaLoader: {
+    marginRight: theme.spacing.sm,
+  },
+  ctaButtonText: {
+    color: theme.colors.textOnGold,
+    fontSize: theme.fonts.xlPlus,
+    fontWeight: '700',
+    letterSpacing: 0,
+  },
+  ctaShineSweep: {
+    position: 'absolute',
+    top: -theme.fonts.lg,
+    width: theme.spacing.huge + theme.spacing.massive,
+    height: theme.spacing.massive + theme.spacing.huge + theme.spacing.md,
+    backgroundColor: theme.effects.white55,
+    opacity: 0.7,
   },
 });

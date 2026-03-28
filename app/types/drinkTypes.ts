@@ -11,6 +11,7 @@ export interface DrinkEntry {
   alcoholPercent: number;
   quantity: number;
   timestamp: number; // Unix timestamp
+  endTimestamp?: number; // Optional end of consumption period
 }
 
 export interface DrinkTransaction {
@@ -32,6 +33,7 @@ export interface MemberDrinkStats {
   betsWon: number;
   betsLost: number;
   drinksToConsume: { [key in DrinkType]?: { [key in MeasureType]?: number } }; // All drinks from bets lost and received
+  drinksConsumed: { [key in DrinkType]?: { [key in MeasureType]?: number } }; // Drinks user has confirmed consumed
   drinksToDistribute: { [key in DrinkType]?: { [key in MeasureType]?: number } }; // Drinks won from bets
   transactions: DrinkTransaction[];
 }
@@ -46,6 +48,8 @@ export interface Bet {
   hiddenFromUserIds?: string[];
   createdByUserId?: string;
   createdByUsername?: string;
+  isAnonymous?: boolean;
+  createdAt?: number;
 }
 
 export interface BettingOption {
