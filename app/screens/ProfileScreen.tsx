@@ -121,6 +121,7 @@ const ProfileScreen: React.FC = () => {
   const [groupInvitations, setGroupInvitations] = useState<GroupInvitation[]>([]);
   const [handlingInvitation, setHandlingInvitation] = useState(false);
   const [userNames, setUserNames] = useState<{ [id: string]: string }>({});
+  const [incomingFriendRequestCount, setIncomingFriendRequestCount] = useState(0);
   // Move Hook call to top level
   const [userInfo, setUserInfo] = useState<{
     name?: string;
@@ -389,6 +390,27 @@ const ProfileScreen: React.FC = () => {
       unsubscribeInvitations();
     };
   }, [user]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setIncomingFriendRequestCount(0);
+      return;
+    }
+
+    const incomingFriendRequestsQuery = query(
+      collection(firestore, 'friendRequests'),
+      where('toUserId', '==', user.id),
+      where('status', '==', 'pending')
+    );
+
+    const unsubscribeIncomingFriendRequests = onSnapshot(incomingFriendRequestsQuery, (snapshot) => {
+      setIncomingFriendRequestCount(snapshot.size);
+    });
+
+    return () => {
+      unsubscribeIncomingFriendRequests();
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     const fetchNames = async () => {
@@ -1029,6 +1051,13 @@ const ProfileScreen: React.FC = () => {
           <View style={[globalStyles.premiumCard, profileStyles.profileHeroCard]}>
             <TouchableOpacity style={profileStyles.heroFriendsButton} onPress={navigateToFriends}>
               <Image source={FriendsIcon} style={profileStyles.heroFriendsIcon} />
+              {incomingFriendRequestCount > 0 && (
+                <View style={profileStyles.heroFriendsBadge}>
+                  <Text style={profileStyles.heroFriendsBadgeText}>
+                    {incomingFriendRequestCount > 9 ? '9+' : incomingFriendRequestCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
             <TouchableOpacity style={profileStyles.heroSettingsButton} onPress={navigateToSettings}>
               <Image source={SettingsIcon} style={globalStyles.primaryIcon} />
