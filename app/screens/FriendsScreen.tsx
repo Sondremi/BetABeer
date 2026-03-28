@@ -111,7 +111,9 @@ const FriendsScreen = () => {
     handleSearch(searchTerm);
   }, [searchTerm, handleSearch]);
 
-  const inviteLink = 'http://bet-a-beer.netlify.app';
+  const inviteLink = auth.currentUser
+    ? `http://bet-a-beer.netlify.app/login?inviter=${encodeURIComponent(auth.currentUser.uid)}`
+    : 'http://bet-a-beer.netlify.app/login';
 
   const handleInviteFriends = async () => {
     try {

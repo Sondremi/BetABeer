@@ -1,13 +1,14 @@
 import { loginScreenTokens, loginStyles } from '@/app/styles/components/loginStyles';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   Text,
@@ -16,11 +17,13 @@ import {
   View,
 } from 'react-native';
 import { authService } from '../services/firebase/authService';
+import { sendFriendRequest } from '../services/friendService';
 import { globalStyles } from '../styles/globalStyles';
 import { showAlert } from '../utils/platformAlert';
 
 const LoginScreen: React.FC = () => {
   const router = useRouter();
+  const params = useLocalSearchParams<{ inviter?: string | string[] }>();
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [formData, setFormData] = useState({
     username: '',
@@ -33,6 +36,7 @@ const LoginScreen: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [activeField, setActiveField] = useState<string | null>(null);
+  const [inviterId, setInviterId] = useState<string | null>(null);
   const [modeSwitchWidth, setModeSwitchWidth] = useState(0);
   const shineAnim = useRef(new Animated.Value(-1)).current;
   const modeAnim = useRef(new Animated.Value(0)).current;
@@ -68,6 +72,52 @@ const LoginScreen: React.FC = () => {
       useNativeDriver: true,
     }).start();
   }, [isLoginMode, modeAnim]);
+
+  useEffect(() => {
+    const paramInviter = Array.isArray(params.inviter) ? params.inviter[0] : params.inviter;
+    if (typeof paramInviter === 'string' && paramInviter.trim()) {
+      setInviterId(paramInviter.trim());
+    }
+  }, [params.inviter]);
+
+  useEffect(() => {
+    const parseInviterFromUrl = (url: string | null | undefined) => {
+      if (!url) return null;
+      try {
+        const parsedUrl = new URL(url);
+        const inviter = parsedUrl.searchParams.get('inviter');
+        return inviter?.trim() || null;
+      } catch {
+        const match = url.match(/[?&]inviter=([^&]+)/i);
+        return match?.[1] ? decodeURIComponent(match[1]).trim() : null;
+      }
+    };
+
+    let isMounted = true;
+    Linking.getInitialURL()
+      .then((url) => {
+        if (!isMounted) return;
+        const parsedInviter = parseInviterFromUrl(url);
+        if (parsedInviter) {
+          setInviterId(parsedInviter);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to parse initial invite URL:', error);
+      });
+
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      const parsedInviter = parseInviterFromUrl(url);
+      if (parsedInviter) {
+        setInviterId(parsedInviter);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.remove();
+    };
+  }, []);
 
   const validateForm = async () => {
     if (isLoginMode) {
@@ -119,9 +169,18 @@ const LoginScreen: React.FC = () => {
     }
 
     try {
-      const usernameExists = await authService.checkUsernameExists(formData.username);
+      const [usernameExists, emailExists] = await Promise.all([
+        authService.checkUsernameExistsInsensitive(formData.username),
+        authService.checkEmailExistsInsensitive(formData.email),
+      ]);
+
       if (usernameExists) {
         showAlert('Feil', 'Brukernavnet er allerede tatt');
+        return false;
+      }
+
+      if (emailExists) {
+        showAlert('Feil', 'E-postadressen er allerede i bruk');
         return false;
       }
     } catch (error) {
@@ -163,7 +222,17 @@ const LoginScreen: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await authService.createUser(formData);
+      const createdUser = await authService.createUser(formData);
+
+      if (inviterId && inviterId !== createdUser.id) {
+        try {
+          await sendFriendRequest(inviterId);
+        } catch (inviteError) {
+          // Ignore invite-link friend request failures to avoid blocking signup flow.
+          console.error('Invite-link friend request failed:', inviteError);
+        }
+      }
+
       setIsLoading(false);
       router.replace('/(tabs)/profile');
     } catch (error) {

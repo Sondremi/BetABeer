@@ -101,10 +101,45 @@ export const sendFriendRequest = async (toUserId: string) => {
   if (toUserId === currentUser.uid) {
     throw new Error('Kan ikke sende venneforespørsel til deg selv')
   }
+
+  const fromUserDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
+  const toUserDoc = await getDoc(doc(firestore, 'users', toUserId));
+  if (!toUserDoc.exists()) {
+    throw new Error('Brukeren finnes ikke');
+  }
+
+  const fromUserFriends = fromUserDoc.exists() ? (fromUserDoc.data().friends || []) : [];
+  if (Array.isArray(fromUserFriends) && fromUserFriends.includes(toUserId)) {
+    throw new Error('Dere er allerede venner');
+  }
+
   const friendRequestRef = collection(firestore, FRIEND_REQUESTS_COLLECTION);
+  const existingOutgoingQuery = query(
+    friendRequestRef,
+    where('fromUserId', '==', currentUser.uid),
+    where('toUserId', '==', toUserId),
+    where('status', '==', 'pending')
+  );
+  const existingIncomingQuery = query(
+    friendRequestRef,
+    where('fromUserId', '==', toUserId),
+    where('toUserId', '==', currentUser.uid),
+    where('status', '==', 'pending')
+  );
+  const [existingOutgoingSnapshot, existingIncomingSnapshot] = await Promise.all([
+    getDocs(existingOutgoingQuery),
+    getDocs(existingIncomingQuery),
+  ]);
+
+  if (!existingOutgoingSnapshot.empty) {
+    throw new Error('Venneforespørsel er allerede sendt');
+  }
+  if (!existingIncomingSnapshot.empty) {
+    throw new Error('Denne brukeren har allerede sendt deg en forespørsel');
+  }
+
   // Get current user's profile data
-  const currentUserDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-  const currentUserData = currentUserDoc.data();
+  const currentUserData = fromUserDoc.data();
   const payload: Record<string, unknown> = {
     fromUserId: currentUser.uid,
     toUserId,
