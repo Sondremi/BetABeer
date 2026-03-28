@@ -1,4 +1,4 @@
-import { createUserWithEmailAndPassword, onAuthStateChanged as firebaseOnAuthStateChanged, sendEmailVerification, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { createUserWithEmailAndPassword, onAuthStateChanged as firebaseOnAuthStateChanged, sendEmailVerification, signInWithEmailAndPassword, signOut, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { auth } from './FirebaseConfig';
 
@@ -93,14 +93,66 @@ export const authService = {
 
   updateUser: async (userId, updateData) => {
     try {
-      await updateDoc(doc(firestore, 'users', userId), {
+      const payload = {
         ...updateData,
         updatedAt: serverTimestamp(),
+      };
+
+      if (typeof updateData.email === 'string') {
+        const trimmedEmail = String(updateData.email).trim();
+        payload.email = trimmedEmail;
+        payload.emailLower = normalizeValue(trimmedEmail);
+      }
+
+      await updateDoc(doc(firestore, 'users', userId), {
+        ...payload,
       });
-      return updateData;
+      return payload;
     } catch (error) {
       console.error('Update user error:', error);
       throw new Error('Kunne ikke oppdatere bruker');
+    }
+  },
+
+  requestEmailChange: async (newEmail) => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('unauthorized-email-change-attempt');
+      }
+
+      const normalizedNewEmail = normalizeValue(newEmail);
+      const currentEmail = normalizeValue(currentUser.email);
+      if (!normalizedNewEmail) {
+        throw new Error('invalid-email');
+      }
+      if (normalizedNewEmail === currentEmail) {
+        return { status: 'unchanged' };
+      }
+
+      await verifyBeforeUpdateEmail(currentUser, normalizedNewEmail);
+      return { status: 'verification-sent' };
+    } catch (error) {
+      console.error('Request email change error:', error);
+
+      if (error && typeof error === 'object' && 'code' in error) {
+        const errorCode = String(error.code);
+        if (errorCode === 'auth/requires-recent-login') {
+          throw new Error('Du må logge inn på nytt for å endre e-postadresse');
+        }
+        if (errorCode === 'auth/email-already-in-use') {
+          throw new Error('E-postadressen er allerede i bruk');
+        }
+        if (errorCode === 'auth/invalid-email') {
+          throw new Error('Ugyldig e-postadresse');
+        }
+      }
+
+      if (error instanceof Error && error.message === 'unauthorized-email-change-attempt') {
+        throw new Error('Bruker ikke autorisert');
+      }
+
+      throw new Error('Kunne ikke starte e-postendring');
     }
   },
 

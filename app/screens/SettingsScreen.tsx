@@ -105,17 +105,45 @@ const SettingsScreen = () => {
     try {
       setIsLoading(true);
 
-      const updateData = {
+      const normalizedCurrentEmail = userInfo.email.trim().toLowerCase();
+      const normalizedEditedEmail = editedInfo.email.trim().toLowerCase();
+      const hasEmailChanged = normalizedEditedEmail !== normalizedCurrentEmail;
+
+      if (hasEmailChanged) {
+        await authService.requestEmailChange(editedInfo.email);
+      }
+
+      const updateData: {
+        name: string;
+        weight: number | null;
+        gender: Gender | null;
+        email?: string;
+      } = {
         name: editedInfo.name,
-        email: editedInfo.email,
         weight: editedInfo.weight ?? null,
         gender: editedInfo.gender ?? null,
       };
 
+      if (!hasEmailChanged) {
+        updateData.email = editedInfo.email;
+      }
+
       await authService.updateUser(userInfo.id, updateData);
 
-      setUserInfo(editedInfo);
+      const nextUserInfo = {
+        ...editedInfo,
+        email: hasEmailChanged ? userInfo.email : editedInfo.email,
+      };
+      setUserInfo(nextUserInfo);
+      setEditedInfo(nextUserInfo);
       setIsEditing(false);
+
+      if (hasEmailChanged) {
+        showAlert(
+          'Bekreft e-postendring',
+          `Vi har sendt en bekreftelse til ${editedInfo.email.trim()}. Når du bekrefter, blir e-postadressen oppdatert.`
+        );
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Kunne ikke lagre endringene';
       showAlert('Feil', errorMessage);

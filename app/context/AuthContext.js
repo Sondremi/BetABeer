@@ -1,4 +1,4 @@
-import { doc, getDoc, getFirestore, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, getFirestore, onSnapshot, updateDoc } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { authService } from '../services/firebase/authService';
 
@@ -21,24 +21,54 @@ export const AuthProvider = ({ children }) => {
     const fetchAndSetUser = async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          const userDoc = await getDoc(doc(firestore, 'users', firebaseUser.uid));
+          const userRef = doc(firestore, 'users', firebaseUser.uid);
+          const userDoc = await getDoc(userRef);
           if (userDoc.exists()) {
             const userData = userDoc.data();
+            const normalizedFirestoreEmail = String(userData.email || '').trim().toLowerCase();
+            const normalizedAuthEmail = String(firebaseUser.email || '').trim().toLowerCase();
+
+            if (normalizedAuthEmail && normalizedAuthEmail !== normalizedFirestoreEmail) {
+              try {
+                await updateDoc(userRef, {
+                  email: String(firebaseUser.email || '').trim(),
+                  emailLower: normalizedAuthEmail,
+                });
+              } catch (syncError) {
+                console.error('Feil ved synk av e-post fra auth til Firestore:', syncError);
+              }
+            }
+
             setUser({
               id: firebaseUser.uid,
               username: userData.username,
               name: userData.name,
-              email: userData.email,
+              email: firebaseUser.email || userData.email,
               phone: userData.phone,
               profileImage: userData.profileImage || null,
             });
           }
           else {
-            setUser(null);
+            // Keep authenticated state even if Firestore user doc is not yet available.
+            setUser({
+              id: firebaseUser.uid,
+              username: '',
+              name: '',
+              email: firebaseUser.email || '',
+              phone: null,
+              profileImage: null,
+            });
           }
         } catch (error) {
           console.error('Feil ved henting av brukerdata:', error);
-          setUser(null);
+          setUser({
+            id: firebaseUser.uid,
+            username: '',
+            name: '',
+            email: firebaseUser.email || '',
+            phone: null,
+            profileImage: null,
+          });
         }
       } else {
         setUser(null);
@@ -60,20 +90,28 @@ export const AuthProvider = ({ children }) => {
         userDocUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const userData = docSnap.data();
-            setUser((prev) => prev ? {
-              ...prev,
+            setUser((prev) => ({
+              id: currentUid,
               username: userData.username,
               name: userData.name,
-              email: userData.email,
+              email: firebaseUser.email || userData.email,
               phone: userData.phone,
               profileImage: userData.profileImage || null,
-            } : null);
+            }));
           } else {
-            setUser(null);
+            // The Firestore profile may be created shortly after auth signup.
+            setUser((prev) => prev || {
+              id: currentUid,
+              username: '',
+              name: '',
+              email: firebaseUser.email || '',
+              phone: null,
+              profileImage: null,
+            });
           }
         }, (error) => {
           console.error('Feil ved onSnapshot for brukerdata: ', error);
-          setUser(null);
+          setUser((prev) => prev);
         });
       }
     });
