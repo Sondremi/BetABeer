@@ -1,15 +1,18 @@
-# 🍻 BetABeer
+<a href="https://bet-a-beer.netlify.app" target="_blank">
+  <img src="./assets/images/logo/header.png" alt="BetABeer"/>
+</a>
 
 **BetABeer** er en sosial drikkelek-app der du og vennene dine kan lage og delta i morsomme bets – og betale med slurker eller shots. Perfekt for vors, fest eller en kveld på byen.
 
-[🌐 Prøv appen her!](https://bet-a-beer.netlify.app)
+## Prøv appen her
+[https://bet-a-beer.netlify.app](https://bet-a-beer.netlify.app)
 
 ## ✨ Hvordan fungerer det?
 
 - Logg inn eller opprett en bruker
 - Legg til venner
 - Opprett eller bli med i en gruppe og inviter vennene dine
-- Lag egne betts med en tittel, alternativer og odds til hvert alternativ
+- Lag egne betts
 - Bett på hva du mener er riktig alternativ med slurker, shot eller chugg av ulike drikketyper
 - Se live resultater fra alle bets i gruppen
 - Statistikk over hvem som vinner mest – eller drikker mest
@@ -24,19 +27,10 @@ Følg stegene under for å sette opp prosjektet lokalt og bidra til videreutvikl
 - Node.js (`brew install node`)
 - Expo CLI (`npm install -g expo-cli`)
 - Firebase CLI (`npm install -g firebase-tools`)
-- Expo Go (last ned til Android/iOS for testing)
 
 ---
 
-### 📥 1. Klon prosjektet
-
-```bash
-git clone https://github.com/sondremi/BetABeer.git && cd BetABeer
-```
-
----
-
-### 📦 2. Installer avhengigheter
+### 📦 1. Installer avhengigheter
 
 ```bash
 npm install
@@ -44,7 +38,7 @@ npm install
 
 ---
 
-### 🔐 3. Setup Firebase
+### 🔐 2. Setup Firebase
 
 Opprett prosjekt i Firebase, opprett `.env`-fil og legg inn prosjektinformasjonen slik:
 
@@ -56,6 +50,9 @@ EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=
 EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 EXPO_PUBLIC_FIREBASE_APP_ID=
 EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=
+EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=
 ```
 
 Logg inn og deploy regler:
@@ -67,7 +64,7 @@ firebase deploy --only firestore:rules
 
 ---
 
-### ▶️ 4. Start prosjektet
+### ▶️ 3. Start prosjektet
 
 ```bash
 npx expo start

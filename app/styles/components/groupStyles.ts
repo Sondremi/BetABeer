@@ -604,6 +604,231 @@ export const groupStyles = StyleSheet.create({
     marginRight: theme.spacing.sm,
     minWidth: 120,
   },
+  groupNameInputCompact: {
+    flexBasis: 140,
+    flexGrow: 0,
+    flexShrink: 1,
+    minWidth: 80,
+    maxWidth: 160,
+    fontSize: theme.fonts.md,
+    paddingVertical: theme.spacing.xxxs + 1,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  inlineIconActionButton: {
+    marginLeft: theme.spacing.xxxs + 1,
+  },
+  leaderboardSectionWrap: {
+    marginBottom: theme.spacing.md,
+  },
+  leaderboardSectionTopGap: {
+    marginTop: theme.spacing.lg,
+  },
+  leaderboardToggleLabel: {
+    fontSize: theme.fonts.sm,
+  },
+  leaderboardListWrap: {
+    paddingBottom: theme.spacing.md,
+  },
+  leaderboardPodiumRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    marginBottom: theme.spacing.lg,
+  },
+  leaderboardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.surface,
+    paddingVertical: theme.spacing.sm + theme.spacing.xxxs,
+    paddingHorizontal: theme.spacing.sm + theme.spacing.xxs,
+    marginBottom: theme.spacing.xs,
+  },
+  leaderboardRankBadge: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xxxs + 1,
+    borderRadius: 999,
+    backgroundColor: theme.effects.gold12,
+    borderWidth: 1,
+    borderColor: theme.effects.gold85,
+    marginRight: theme.spacing.sm,
+    minWidth: theme.sizes.minValueBadge,
+    alignItems: 'center',
+  },
+  leaderboardRankText: {
+    fontSize: theme.fonts.xs,
+    color: theme.colors.primary,
+    fontWeight: '700',
+  },
+  leaderboardListAvatar: {
+    width: theme.sizes.avatarMd,
+    height: theme.sizes.avatarMd,
+    marginRight: theme.spacing.sm,
+  },
+  leaderboardMemberMeta: {
+    flex: 1,
+    marginRight: theme.spacing.sm,
+  },
+  leaderboardMemberName: {
+    fontSize: theme.fonts.sm,
+    color: theme.colors.text,
+  },
+  leaderboardMemberSubtext: {
+    fontSize: theme.fonts.xs,
+    color: theme.colors.textSecondary,
+  },
+  leaderboardStatsCard: {
+    minWidth: 84,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.background,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  leaderboardStatsCardWide: {
+    minWidth: 104,
+  },
+  leaderboardStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  leaderboardStatColumn: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  leaderboardStatLabel: {
+    fontSize: theme.fonts.xxs + 1,
+    color: theme.colors.textSecondary,
+    letterSpacing: 0.3,
+  },
+  leaderboardStatLabelWide: {
+    letterSpacing: 0.4,
+  },
+  leaderboardStatValue: {
+    fontSize: theme.fonts.lg,
+    color: theme.colors.text,
+    fontWeight: '700',
+  },
+  leaderboardStatValueCompact: {
+    fontSize: theme.fonts.lg - 2,
+  },
+  leaderboardCenterAligned: {
+    alignItems: 'center',
+  },
+  leaderboardEmptyStateText: {
+    fontSize: theme.fonts.sm,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+  },
+  leaderboardCloseButtonText: {
+    fontSize: theme.fonts.md,
+    color: theme.colors.primary,
+  },
+  podiumCardBase: {
+    alignItems: 'center',
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    justifyContent: 'space-between',
+  },
+  podiumCardFirst: {
+    width: '34%',
+    height: 200,
+  },
+  podiumCardOther: {
+    width: '30%',
+    height: 170,
+  },
+  podiumCardSecondOffset: {
+    marginRight: theme.spacing.sm,
+  },
+  podiumCardThirdOffset: {
+    marginLeft: theme.spacing.sm,
+  },
+  podiumAvatarFirst: {
+    width: 60,
+    height: 60,
+  },
+  podiumAvatarOther: {
+    width: 50,
+    height: 50,
+  },
+  podiumNameWrap: {
+    paddingHorizontal: theme.spacing.xs,
+    width: '100%',
+  },
+  podiumNameText: {
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  podiumNameTextFirst: {
+    fontSize: theme.fonts.md,
+    fontWeight: '600',
+  },
+  podiumNameTextOther: {
+    fontSize: theme.fonts.sm,
+    fontWeight: '500',
+  },
+  podiumPlacementBadge: {
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  podiumPlacementBadgeFirst: {
+    paddingHorizontal: theme.spacing.md - 2,
+    paddingVertical: theme.spacing.xxs,
+  },
+  podiumPlacementBadgeOther: {
+    paddingHorizontal: theme.spacing.sm + theme.spacing.xxxs,
+    paddingVertical: theme.spacing.xxxs + 1,
+  },
+  podiumPlacementText: {
+    color: theme.colors.background,
+    fontWeight: '700',
+  },
+  podiumPlacementTextFirst: {
+    fontSize: theme.fonts.sm,
+  },
+  podiumPlacementTextOther: {
+    fontSize: theme.fonts.xs,
+  },
+  podiumStatsCard: {
+    width: '100%',
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  podiumStatsCardFirst: {
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    paddingVertical: theme.spacing.sm,
+  },
+  podiumStatsCardOther: {
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    paddingVertical: theme.spacing.sm - 2,
+  },
+  podiumStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  podiumStatsColumn: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  podiumStatsLabel: {
+    fontSize: theme.fonts.xxs + 2,
+    color: theme.colors.background,
+    opacity: 0.9,
+  },
+  podiumStatsValue: {
+    color: theme.colors.background,
+    fontWeight: '700',
+  },
+  podiumStatsValueFirst: {
+    fontSize: theme.fonts.xxl,
+  },
+  podiumStatsValueOther: {
+    fontSize: theme.fonts.xl,
+  },
   createBetSection: {
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.md,

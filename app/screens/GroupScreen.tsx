@@ -1,19 +1,19 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, getFirestore, increment, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, cancelFriendRequest, getIncomingRequest, getOutgoingRequest, sendFriendRequest } from '../services/friendService';
 import { buildGroupInviteLink } from '../services/groupInviteLinkService';
 import { cancelGroupInvitation, deleteGroup, distributeDrinks, exitGroup, registerConsumedDrinks, removeFriendFromGroup, sendGroupInvitation } from '../services/groupService';
-import { createGroup, getGroupInvitation, profileService, updateGroupName } from '../services/profileService';
+import { createGroup, profileService, updateGroupName } from '../services/profileService';
 import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import type { Bet, BettingOption, BetWager, DrinkTransaction, DrinkType, MeasureType, MemberDrinkStats } from '../types/drinkTypes';
-import { Group, GroupInvitation } from '../types/drinkTypes';
+import { Group } from '../types/drinkTypes';
 import { Friend, FriendRequest } from '../types/userTypes';
 import { defaultProfileImageMap } from '../utils/defaultProfileImages';
 import { showAlert } from '../utils/platformAlert';
@@ -40,7 +40,6 @@ const GroupScreen = () => {
   const [groupName, setGroupName] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [invitations, setInvitations] = useState<GroupInvitation[]>([]);
   const [betModalVisible, setBetModalVisible] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [betTitle, setBetTitle] = useState('');
@@ -71,8 +70,6 @@ const GroupScreen = () => {
   const [inviting, setInviting] = useState(false);
   const [sendingFriendRequest, setSendingFriendRequest] = useState(false);
   const [distributeModalVisible, setDistributeModalVisible] = useState(false);
-  const [selectedMemberForDistribution, setSelectedMemberForDistribution] = useState<string | null>(null);
-  const [distributionAmount, setDistributionAmount] = useState('');
   const [selectedEditBet, setSelectedEditBet] = useState<{ bet: Bet; index: number } | null>(null);
   const [memberData, setMemberData] = useState<Friend[]>([]);
   const [membersModalVisible, setMembersModalVisible] = useState(false);
@@ -126,11 +123,133 @@ const GroupScreen = () => {
     [leaderboardData]
   );
 
+  const fetchMemberUsernames = useCallback(async (memberIds: string[]): Promise<{ [key: string]: string }> => {
+    const usernames: { [key: string]: string } = { ...cachedUsernames };
+    const uncachedIds = memberIds.filter(id => !usernames[id]);
+    if (uncachedIds.length > 0) {
+      await Promise.all(
+        uncachedIds.map(async (memberId) => {
+          try {
+            const userDoc = await getDoc(doc(firestore, 'users', memberId));
+            usernames[memberId] = userDoc.exists()
+              ? userDoc.data().username || userDoc.data().displayName || userDoc.data().email ||
+                (user && memberId === user.id ? 'Meg' : 'Ukjent')
+              : (user && memberId === user.id ? 'Meg' : 'Ukjent');
+          } catch (error) {
+            console.error(`Error fetching username for member ${memberId}:`, error);
+            usernames[memberId] = user && memberId === user.id ? 'Meg' : 'Ukjent';
+          }
+        })
+      );
+      setCachedUsernames(usernames);
+    }
+    return usernames;
+  }, [cachedUsernames, user]);
+
+  const getLeaderboardData = useCallback(async (): Promise<GroupLeaderboardMemberStats[]> => {
+    if (!selectedGroup || !selectedGroup.members) return [];
+
+    const usernames = await fetchMemberUsernames(selectedGroup.members);
+    const memberStats: { [userId: string]: GroupLeaderboardMemberStats } = {};
+
+    await Promise.all(
+      selectedGroup.members.map(async (userId: string) => {
+        try {
+          const userDoc = await getDoc(doc(firestore, 'users', userId));
+          const userData = userDoc.exists() ? userDoc.data() : {};
+          const hasBacData =
+            Array.isArray(userData.drinks) &&
+            typeof userData.weight === 'number' &&
+            (userData.gender === 'male' || userData.gender === 'female');
+          const currentBAC = hasBacData
+            ? profileService.calculateBAC(userData.drinks, userData.weight, userData.gender, Date.now())
+            : 0;
+
+          memberStats[userId] = {
+            userId,
+            username: usernames[userId] || 'Ukjent',
+            betsWon: 0,
+            betsLost: 0,
+            currentBAC,
+            profilePicture: userData.profileImage
+              ? defaultProfileImageMap[userData.profileImage] || DefaultProfilePicture
+              : DefaultProfilePicture,
+            drinksToConsume: userData.drinksToConsume || {},
+            drinksConsumed: userData.drinksConsumed || {},
+            drinksToDistribute: userData.drinksToDistribute || {},
+            transactions: [],
+          };
+        } catch (error) {
+          console.error(`Error fetching member ${userId}:`, error);
+          memberStats[userId] = {
+            userId,
+            username: usernames[userId] || 'Ukjent',
+            betsWon: 0,
+            betsLost: 0,
+            currentBAC: 0,
+            profilePicture: DefaultProfilePicture,
+            drinksToConsume: {},
+            drinksConsumed: {},
+            drinksToDistribute: {},
+            transactions: [],
+          };
+        }
+      })
+    );
+
+    const finishedBets = bets.filter(bet => bet.isFinished && bet.correctOptionId);
+    finishedBets.forEach(bet => {
+      const wagers = bet.wagers || [];
+
+      wagers.forEach(wager => {
+        const stats = memberStats[wager.userId];
+        if (!stats) return;
+
+        stats.username = usernames[wager.userId] || wager.username || 'Ukjent';
+
+        if (wager.optionId === bet.correctOptionId) {
+          stats.betsWon += 1;
+        } else {
+          stats.betsLost += 1;
+        }
+      });
+    });
+
+    const transactionsRef = collection(firestore, `groups/${selectedGroup.id}/transactions`);
+    const transactionsSnapshot = await getDocs(transactionsRef);
+    const distributionHistory: DrinkTransaction[] = transactionsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        fromUserId: data.fromUserId,
+        fromUsername: data.fromUsername,
+        toUserId: data.toUserId,
+        toUsername: data.toUsername,
+        drinkType: data.drinkType,
+        measureType: data.measureType,
+        amount: data.amount,
+        source: data.source,
+        timestamp: data.timestamp,
+      } as DrinkTransaction;
+    });
+
+    distributionHistory.forEach((dist: DrinkTransaction) => {
+      const receiverStats = memberStats[dist.toUserId];
+      if (receiverStats) {
+        const drinkTypeObj = receiverStats.drinksToConsume[dist.drinkType] ?? (receiverStats.drinksToConsume[dist.drinkType] = {});
+        drinkTypeObj[dist.measureType] = (drinkTypeObj[dist.measureType] ?? 0) + dist.amount;
+        receiverStats.transactions.push(dist);
+      }
+    });
+
+    return Object.values(memberStats).sort((a, b) => b.betsWon - a.betsWon);
+  }, [selectedGroup, fetchMemberUsernames, bets]);
+
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
 
-    const fetchGroupsAndInvitations = async () => {
+    const fetchGroups = async () => {
       setGroupsResolved(false);
       const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
       const groupSnapshot = await getDocs(groupQuery);
@@ -148,10 +267,6 @@ const GroupScreen = () => {
       });
       const uniqueGroups = Array.from(new Map(groupList.map((group) => [group.id, group])).values());
       setGroups(uniqueGroups);
-
-      const invitationList = await getGroupInvitation(user.id);
-      if (!isMounted) return;
-      setInvitations(invitationList);
 
       let groupFromParams = null;
       if (params.selectedGroup) {
@@ -179,7 +294,7 @@ const GroupScreen = () => {
       setSelectedGroup(foundGroup ?? null);
       setGroupsResolved(true);
     };
-    fetchGroupsAndInvitations();
+    fetchGroups();
     return () => {
       isMounted = false;
     };
@@ -196,7 +311,7 @@ const GroupScreen = () => {
     if (selectedGroup && selectedGroup.name !== groupName) {
       setGroupName(selectedGroup.name);
     }
-  }, [selectedGroup]);
+  }, [selectedGroup, groupName]);
 
   useEffect(() => {
     if (selectedGroup) {
@@ -290,7 +405,7 @@ const GroupScreen = () => {
     return () => {
       isMounted = false;
     };
-  }, [leaderboardModalVisible, bets, selectedGroup]);
+  }, [leaderboardModalVisible, getLeaderboardData]);
 
   useEffect(() => {
     if (!selectedGroup || !selectedGroup.members) {
@@ -336,7 +451,7 @@ const GroupScreen = () => {
     return () => {
       isMounted = false;
     };
-  }, [selectedGroup?.members]);
+  }, [selectedGroup, fetchMemberUsernames]);
 
   useEffect(() => {
     if (!user?.id || !membersModalVisible) return;
@@ -405,7 +520,7 @@ const GroupScreen = () => {
     return () => {
       isMounted = false;
     };
-  }, [distributeModalVisible, user?.id, selectedGroup?.id]);
+  }, [distributeModalVisible, user?.id, selectedGroup?.id, getLeaderboardData]);
 
   const openMembersModal = async () => {
     if (!user?.id) {
@@ -486,28 +601,6 @@ const GroupScreen = () => {
     }
   };
 
-  const fetchMemberUsernames = async (memberIds: string[]): Promise<{ [key: string]: string }> => {
-    const usernames: { [key: string]: string } = { ...cachedUsernames };
-    const uncachedIds = memberIds.filter(id => !usernames[id]);
-    if (uncachedIds.length > 0) {
-      await Promise.all(
-        uncachedIds.map(async (memberId) => {
-          try {
-            const userDoc = await getDoc(doc(firestore, 'users', memberId));
-            usernames[memberId] = userDoc.exists() 
-            ? userDoc.data().username || userDoc.data().displayName || userDoc.data().email || 
-            (user && memberId === user.id ? 'Meg' : 'Ukjent') 
-            : (user && memberId === user.id ? 'Meg' : 'Ukjent');
-          } catch (error) {
-            console.error(`Error fetching username for member ${memberId}:`, error);
-            usernames[memberId] = user && memberId === user.id ? 'Meg' : 'Ukjent';
-          }
-        }
-      ));
-      setCachedUsernames(usernames);
-    }
-    return usernames;
-  };
 
   const handleDistributeDrinks = async () => {
     if (!user?.id || !selectedGroup?.id) {
@@ -1090,108 +1183,6 @@ const GroupScreen = () => {
     }
   };
 
-  const getLeaderboardData = async (): Promise<GroupLeaderboardMemberStats[]> => {
-    if (!selectedGroup || !selectedGroup.members) return [];
-
-    const usernames = await fetchMemberUsernames(selectedGroup.members);
-    const memberStats: { [userId: string]: GroupLeaderboardMemberStats } = {};
-
-    await Promise.all(
-      selectedGroup.members.map(async (userId: string) => {
-        try {
-          const userDoc = await getDoc(doc(firestore, 'users', userId));
-          const userData = userDoc.exists() ? userDoc.data() : {};
-          const hasBacData =
-            Array.isArray(userData.drinks) &&
-            typeof userData.weight === 'number' &&
-            (userData.gender === 'male' || userData.gender === 'female');
-          const currentBAC = hasBacData
-            ? profileService.calculateBAC(userData.drinks, userData.weight, userData.gender, Date.now())
-            : 0;
-          
-          memberStats[userId] = {
-            userId,
-            username: usernames[userId] || 'Ukjent',
-            betsWon: 0,
-            betsLost: 0,
-            currentBAC,
-            profilePicture: userData.profileImage ? 
-              defaultProfileImageMap[userData.profileImage] || DefaultProfilePicture 
-              : DefaultProfilePicture,
-            drinksToConsume: userData.drinksToConsume || {},
-            drinksConsumed: userData.drinksConsumed || {},
-            drinksToDistribute: userData.drinksToDistribute || {},
-            transactions: [],
-          };
-        } catch (error) {
-          console.error(`Error fetching member ${userId}:`, error);
-          memberStats[userId] = {
-            userId,
-            username: usernames[userId] || 'Ukjent',
-            betsWon: 0,
-            betsLost: 0,
-            currentBAC: 0,
-            profilePicture: DefaultProfilePicture,
-            drinksToConsume: {},
-            drinksConsumed: {},
-            drinksToDistribute: {},
-            transactions: [],
-          };
-        }
-      })
-    );
-
-    const finishedBets = bets.filter(bet => bet.isFinished && bet.correctOptionId);
-    finishedBets.forEach(bet => {
-      const wagers = bet.wagers || [];
-      
-      // Only count wins and losses, don't modify drink amounts since they're already in Firestore
-      wagers.forEach(wager => {
-        const stats = memberStats[wager.userId];
-        if (!stats) return;
-
-        stats.username = usernames[wager.userId] || wager.username || 'Ukjent';
-        
-        if (wager.optionId === bet.correctOptionId) {
-          stats.betsWon += 1;
-        } else {
-          stats.betsLost += 1;
-        }
-      });
-    });
-
-    // Collect distribution transactions from Firestore
-    const transactionsRef = collection(firestore, `groups/${selectedGroup.id}/transactions`);
-    const transactionsSnapshot = await getDocs(transactionsRef);
-    const distributionHistory: DrinkTransaction[] = transactionsSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        fromUserId: data.fromUserId,
-        fromUsername: data.fromUsername,
-        toUserId: data.toUserId,
-        toUsername: data.toUsername,
-        drinkType: data.drinkType,
-        measureType: data.measureType,
-        amount: data.amount,
-        source: data.source,
-        timestamp: data.timestamp,
-      } as DrinkTransaction;
-    });
-    
-    distributionHistory.forEach((dist: DrinkTransaction) => {
-      const receiverStats = memberStats[dist.toUserId];
-      if (receiverStats) {
-  const drinkTypeObj = receiverStats.drinksToConsume[dist.drinkType] ?? (receiverStats.drinksToConsume[dist.drinkType] = {});
-  drinkTypeObj[dist.measureType] = (drinkTypeObj[dist.measureType] ?? 0) + dist.amount;
-        receiverStats.transactions.push(dist);
-      }
-    });
-    
-    // Sort by bets won descending
-    return Object.values(memberStats).sort((a, b) => b.betsWon - a.betsWon);
-  };
-
   const handleMemberTap = (userId: string) => {
     setSelectedMember(userId);
     setSelectedDistribution(null);
@@ -1481,26 +1472,12 @@ const GroupScreen = () => {
           >
             {option.name} {isCorrect && '✓'}
           </Text>
-          {isUserChoice && userWager && (
-            <>
-            </>
-          )}
         </View>
-        <Text
-          style={[
-            groupStyles.optionName,
-            isUserChoice && groupStyles.optionNameSelected,
-            isCorrect && groupStyles.optionNameCorrect,
-            isBetFinished && !isCorrect && groupStyles.optionNameIncorrect,
-          ]}
-        />
-        
       </TouchableOpacity>
     );
   };
 
   const renderBet = ({ item, index }: { item: Bet; index: number }) => {
-    const userWager = getUserWagerForBet(item);
     const creatorName = item.createdByUsername?.trim() || '';
     const createdAtLabel = item.createdAt
       ? (() => {
@@ -1785,67 +1762,45 @@ const GroupScreen = () => {
 
   const renderPodiumCard = ({ member, placement }: { member: MemberDrinkStats; placement: 1 | 2 | 3 }) => {
     const isFirst = placement === 1;
-    const cardWidth = isFirst ? '34%' : '30%';
-    const cardHeight = isFirst ? 200 : 170;
-    const sideMargin = placement === 2 ? { marginRight: 8 } : placement === 3 ? { marginLeft: 8 } : null;
     const cardColor = placement === 1 ? theme.colors.primary : placement === 2 ? theme.colors.silver : theme.colors.bronze;
-    const avatarSize = isFirst ? 60 : 50;
 
     return (
       <View
-        style={{
-          alignItems: 'center',
-          width: cardWidth,
-          backgroundColor: cardColor,
-          borderRadius: theme.borderRadius.lg,
-          padding: 16,
-          height: cardHeight,
-          justifyContent: 'space-between',
-          ...(sideMargin || {}),
-        }}
+        style={[
+          groupStyles.podiumCardBase,
+          isFirst ? groupStyles.podiumCardFirst : groupStyles.podiumCardOther,
+          placement === 2 && groupStyles.podiumCardSecondOffset,
+          placement === 3 && groupStyles.podiumCardThirdOffset,
+          { backgroundColor: cardColor },
+        ]}
       >
         <Image
           source={member.profilePicture || ImageMissing}
-          style={[globalStyles.circularImage, { width: avatarSize, height: avatarSize }]}
+          style={[globalStyles.circularImage, isFirst ? groupStyles.podiumAvatarFirst : groupStyles.podiumAvatarOther]}
         />
 
-        <View style={{ paddingHorizontal: 4, width: '100%' }}>
+        <View style={groupStyles.podiumNameWrap}>
           <Text
-            style={{ fontSize: isFirst ? 15 : 13, color: theme.colors.text, textAlign: 'center', fontWeight: isFirst ? '600' : '500' }}
+            style={[groupStyles.podiumNameText, isFirst ? groupStyles.podiumNameTextFirst : groupStyles.podiumNameTextOther]}
             numberOfLines={2}
           >
             {member.username}
           </Text>
         </View>
 
-        <View
-          style={{
-            paddingHorizontal: isFirst ? 14 : 12,
-            paddingVertical: isFirst ? 6 : 5,
-            borderRadius: 999,
-            backgroundColor: 'rgba(255,255,255,0.2)',
-          }}
-        >
-          <Text style={{ fontSize: isFirst ? 13 : 12, color: theme.colors.background, fontWeight: '700' }}>#{placement}</Text>
+        <View style={[groupStyles.podiumPlacementBadge, isFirst ? groupStyles.podiumPlacementBadgeFirst : groupStyles.podiumPlacementBadgeOther]}>
+          <Text style={[groupStyles.podiumPlacementText, isFirst ? groupStyles.podiumPlacementTextFirst : groupStyles.podiumPlacementTextOther]}>#{placement}</Text>
         </View>
 
-        <View
-          style={{
-            width: '100%',
-            borderRadius: theme.borderRadius.md,
-            backgroundColor: isFirst ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.14)',
-            paddingVertical: isFirst ? 10 : 8,
-            paddingHorizontal: 8,
-          }}
-        >
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <View style={{ alignItems: 'center', flex: 1 }}>
-              <Text style={{ fontSize: 10, color: theme.colors.background, opacity: 0.9 }}>VUNNET</Text>
-              <Text style={{ fontSize: isFirst ? 18 : 16, color: theme.colors.background, fontWeight: '700' }}>{member.betsWon}</Text>
+        <View style={[groupStyles.podiumStatsCard, isFirst ? groupStyles.podiumStatsCardFirst : groupStyles.podiumStatsCardOther]}>
+          <View style={groupStyles.podiumStatsRow}>
+            <View style={groupStyles.podiumStatsColumn}>
+              <Text style={groupStyles.podiumStatsLabel}>VUNNET</Text>
+              <Text style={[groupStyles.podiumStatsValue, isFirst ? groupStyles.podiumStatsValueFirst : groupStyles.podiumStatsValueOther]}>{member.betsWon}</Text>
             </View>
-            <View style={{ alignItems: 'center', flex: 1 }}>
-              <Text style={{ fontSize: 10, color: theme.colors.background, opacity: 0.9 }}>TAPT</Text>
-              <Text style={{ fontSize: isFirst ? 18 : 16, color: theme.colors.background, fontWeight: '700' }}>{member.betsLost}</Text>
+            <View style={groupStyles.podiumStatsColumn}>
+              <Text style={groupStyles.podiumStatsLabel}>TAPT</Text>
+              <Text style={[groupStyles.podiumStatsValue, isFirst ? groupStyles.podiumStatsValueFirst : groupStyles.podiumStatsValueOther]}>{member.betsLost}</Text>
             </View>
           </View>
         </View>
@@ -1863,81 +1818,47 @@ const GroupScreen = () => {
     const rank = index + 4;
 
     return (
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          borderWidth: 1,
-          borderColor: theme.colors.border,
-          borderRadius: theme.borderRadius.md,
-          backgroundColor: theme.colors.surface,
-          paddingVertical: 10,
-          paddingHorizontal: 12,
-          marginBottom: 8,
-        }}
-      >
-        <View
-          style={{
-            paddingHorizontal: 10,
-            paddingVertical: 4,
-            borderRadius: 999,
-            backgroundColor: theme.colors.primary + '1F',
-            borderWidth: 1,
-            borderColor: theme.colors.primary + '55',
-            marginRight: 10,
-            minWidth: 46,
-            alignItems: 'center',
-          }}
-        >
-          <Text style={{ fontSize: 12, color: theme.colors.primary, fontWeight: '700' }}>#{rank}</Text>
+      <View style={groupStyles.leaderboardRow}>
+        <View style={groupStyles.leaderboardRankBadge}>
+          <Text style={groupStyles.leaderboardRankText}>#{rank}</Text>
         </View>
 
         <Image
           source={item.profilePicture || DefaultProfilePicture}
-          style={[globalStyles.circularImage, { width: 42, height: 42, marginRight: 10 }]}
+          style={[globalStyles.circularImage, groupStyles.leaderboardListAvatar]}
         />
 
-        <View style={{ flex: 1, marginRight: 10 }}>
-          <Text style={[groupStyles.wagerUser, { fontSize: 14, color: theme.colors.text }]} numberOfLines={1}>
+        <View style={groupStyles.leaderboardMemberMeta}>
+          <Text style={[groupStyles.wagerUser, groupStyles.leaderboardMemberName]} numberOfLines={1}>
             {item.username}
           </Text>
           {leaderboardView === 'betsWon' ? (
-            <Text style={[globalStyles.secondaryText, { fontSize: 11, color: theme.colors.textSecondary }]}> 
+            <Text style={[globalStyles.secondaryText, groupStyles.leaderboardMemberSubtext]}> 
               {item.betsWon} vunnet • {item.betsLost} tapt
             </Text>
           ) : (
-            <Text style={[globalStyles.secondaryText, { fontSize: 11, color: theme.colors.textSecondary }]}> 
+            <Text style={[globalStyles.secondaryText, groupStyles.leaderboardMemberSubtext]}> 
               {totalReceived} mottatt, {totalDistributed} tilgjengelig
             </Text>
           )}
         </View>
 
-        <View
-          style={{
-            minWidth: leaderboardView === 'betsWon' ? 104 : 84,
-            borderRadius: theme.borderRadius.md,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            backgroundColor: theme.colors.background,
-            paddingVertical: 6,
-            paddingHorizontal: 8,
-          }}
-        >
+        <View style={[groupStyles.leaderboardStatsCard, leaderboardView === 'betsWon' && groupStyles.leaderboardStatsCardWide]}>
           {leaderboardView === 'betsWon' ? (
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <View style={{ alignItems: 'center', flex: 1 }}>
-                <Text style={{ fontSize: 9, color: theme.colors.textSecondary, letterSpacing: 0.3 }}>V</Text>
-                <Text style={{ fontSize: 16, color: theme.colors.text, fontWeight: '700' }}>{item.betsWon}</Text>
+            <View style={groupStyles.leaderboardStatsRow}>
+              <View style={groupStyles.leaderboardStatColumn}>
+                <Text style={groupStyles.leaderboardStatLabel}>V</Text>
+                <Text style={[groupStyles.leaderboardStatValue, groupStyles.leaderboardStatValueCompact]}>{item.betsWon}</Text>
               </View>
-              <View style={{ alignItems: 'center', flex: 1 }}>
-                <Text style={{ fontSize: 9, color: theme.colors.textSecondary, letterSpacing: 0.3 }}>T</Text>
-                <Text style={{ fontSize: 16, color: theme.colors.text, fontWeight: '700' }}>{item.betsLost}</Text>
+              <View style={groupStyles.leaderboardStatColumn}>
+                <Text style={groupStyles.leaderboardStatLabel}>T</Text>
+                <Text style={[groupStyles.leaderboardStatValue, groupStyles.leaderboardStatValueCompact]}>{item.betsLost}</Text>
               </View>
             </View>
           ) : (
-            <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 10, color: theme.colors.textSecondary, letterSpacing: 0.4 }}>TILGJENGELIG</Text>
-              <Text style={{ fontSize: 16, color: theme.colors.text, fontWeight: '700' }}>{totalDistributed}</Text>
+            <View style={groupStyles.leaderboardCenterAligned}>
+              <Text style={[groupStyles.leaderboardStatLabel, groupStyles.leaderboardStatLabelWide]}>TILGJENGELIG</Text>
+              <Text style={[groupStyles.leaderboardStatValue, groupStyles.leaderboardStatValueCompact]}>{totalDistributed}</Text>
             </View>
           )}
         </View>
@@ -1977,7 +1898,7 @@ const GroupScreen = () => {
                     <TextInput
                       value={groupName}
                       onChangeText={setGroupName}
-                      style={[groupStyles.groupNameInput, { flexBasis: 140, flexGrow: 0, flexShrink: 1, minWidth: 80, maxWidth: 160, fontSize: 16, paddingVertical: 4, paddingHorizontal: 8 }]}
+                      style={[groupStyles.groupNameInput, groupStyles.groupNameInputCompact]}
                       editable={!saving}
                       autoFocus
                       placeholder="Gruppenavn"
@@ -1985,13 +1906,13 @@ const GroupScreen = () => {
                       onSubmitEditing={handleSaveGroupName}
                       returnKeyType="done"
                     />
-                    <TouchableOpacity onPress={handleSaveGroupName} disabled={saving} style={{ marginLeft: 4 }}>
+                    <TouchableOpacity onPress={handleSaveGroupName} disabled={saving} style={groupStyles.inlineIconActionButton}>
                       <Image source={PencilIcon} style={globalStyles.primaryIcon} />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => {
                       setGroupName(selectedGroup.name);
                       setEditingName(false);
-                    }} disabled={saving} style={{ marginLeft: 4 }}>
+                    }} disabled={saving} style={groupStyles.inlineIconActionButton}>
                       <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
                     </TouchableOpacity>
                   </View>
@@ -2655,13 +2576,13 @@ const GroupScreen = () => {
                 </TouchableOpacity>
               </View>
               {leaderboardData.length > 0 ? (
-                <View style={{ marginBottom: theme.spacing.md }}>
+                <View style={groupStyles.leaderboardSectionWrap}>
                   {leaderboardView === 'drinkStats' ? (
                     <View>
                       <Text style={groupStyles.modalSectionSubtitle}>Oversikt over drikkestatus per medlem.</Text>
                       
                       {/* Detaljert medlemsoversikt */}
-                      <View style={{ marginBottom: theme.spacing.lg }}>
+                      <View style={groupStyles.leaderboardSectionTopGap}>
                         <Text style={groupStyles.modalSectionTitle}>Medlemmer</Text>
                         <View>
                           {leaderboardData.map((member) => (
@@ -2671,7 +2592,7 @@ const GroupScreen = () => {
                       </View>
                       
                       {/* Transaksjonshistorikk */}
-                      <View style={{ marginTop: theme.spacing.lg }}>
+                      <View style={groupStyles.betSpacing}>
                         <Text style={groupStyles.modalSectionTitle}>Siste overføringer</Text>
                         {(() => {
                           const recentTransactions = leaderboardData
@@ -2680,13 +2601,13 @@ const GroupScreen = () => {
                             .slice(0, 10);
                           if (recentTransactions.length === 0) {
                             return (
-                              <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center' }}>
+                              <Text style={groupStyles.leaderboardEmptyStateText}>
                                 Ingen overføringer ennå
                               </Text>
                             );
                           }
                           return (
-                            <View style={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}> 
+                            <View style={[globalStyles.listContainer, groupStyles.leaderboardListWrap]}> 
                               {recentTransactions.map((transaction, idx) => (
                                 <View key={`${transaction.fromUserId}-${transaction.toUserId}-${transaction.timestamp}-${idx}`}>
                                   {renderTransactionItem({ item: transaction })}
@@ -2702,66 +2623,30 @@ const GroupScreen = () => {
                       <Text style={groupStyles.modalSectionSubtitle}>
                         Medlemmer sortert på nåværende BAC (høyest først)
                       </Text>
-                      <View style={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}> 
+                      <View style={[globalStyles.listContainer, groupStyles.leaderboardListWrap]}> 
                         {bacLeaderboardData.map((member, idx) => (
-                          <View
-                            key={member.userId}
-                            style={{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              borderWidth: 1,
-                              borderColor: theme.colors.border,
-                              borderRadius: theme.borderRadius.md,
-                              backgroundColor: theme.colors.surface,
-                              paddingVertical: 10,
-                              paddingHorizontal: 12,
-                              marginBottom: 8,
-                            }}
-                          >
-                            <View
-                              style={{
-                                paddingHorizontal: 10,
-                                paddingVertical: 4,
-                                borderRadius: 999,
-                                backgroundColor: theme.colors.primary + '1F',
-                                borderWidth: 1,
-                                borderColor: theme.colors.primary + '55',
-                                marginRight: 10,
-                                minWidth: 46,
-                                alignItems: 'center',
-                              }}
-                            >
-                              <Text style={{ fontSize: 12, color: theme.colors.primary, fontWeight: '700' }}>#{idx + 1}</Text>
+                          <View key={member.userId} style={groupStyles.leaderboardRow}>
+                            <View style={groupStyles.leaderboardRankBadge}>
+                              <Text style={groupStyles.leaderboardRankText}>#{idx + 1}</Text>
                             </View>
 
                             <Image
                               source={member.profilePicture || DefaultProfilePicture}
-                              style={[globalStyles.circularImage, { width: 42, height: 42, marginRight: 10 }]}
+                              style={[globalStyles.circularImage, groupStyles.leaderboardListAvatar]}
                             />
 
-                            <View style={{ flex: 1, marginRight: 10 }}>
-                              <Text style={[groupStyles.wagerUser, { fontSize: 14, color: theme.colors.text }]} numberOfLines={1}>
+                            <View style={groupStyles.leaderboardMemberMeta}>
+                              <Text style={[groupStyles.wagerUser, groupStyles.leaderboardMemberName]} numberOfLines={1}>
                                 {member.username}
                               </Text>
-                              <Text style={[globalStyles.secondaryText, { fontSize: 11, color: theme.colors.textSecondary }]}> 
+                              <Text style={[globalStyles.secondaryText, groupStyles.leaderboardMemberSubtext]}> 
                                 {member.betsWon} vunnet • {member.betsLost} tapt
                               </Text>
                             </View>
 
-                            <View
-                              style={{
-                                minWidth: 84,
-                                borderRadius: theme.borderRadius.md,
-                                borderWidth: 1,
-                                borderColor: theme.colors.border,
-                                backgroundColor: theme.colors.background,
-                                paddingVertical: 6,
-                                paddingHorizontal: 8,
-                                alignItems: 'center',
-                              }}
-                            >
-                              <Text style={{ fontSize: 10, color: theme.colors.textSecondary, letterSpacing: 0.4 }}>BAC</Text>
-                              <Text style={{ fontSize: 16, color: theme.colors.text, fontWeight: '700' }}>{member.currentBAC.toFixed(3)}</Text>
+                            <View style={[groupStyles.leaderboardStatsCard, groupStyles.leaderboardCenterAligned]}>
+                              <Text style={[groupStyles.leaderboardStatLabel, groupStyles.leaderboardStatLabelWide]}>BAC</Text>
+                              <Text style={[groupStyles.leaderboardStatValue, groupStyles.leaderboardStatValueCompact]}>{member.currentBAC.toFixed(3)}</Text>
                             </View>
                           </View>
                         ))}
@@ -2773,14 +2658,14 @@ const GroupScreen = () => {
                         Oversikt over hvem som har vunnet flest bets
                       </Text>
                       {/* Podium layout */}
-                      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', marginBottom: theme.spacing.lg}}>
+                      <View style={groupStyles.leaderboardPodiumRow}>
                         {leaderboardData[1] && renderPodiumCard({ member: leaderboardData[1], placement: 2 })}
                         {leaderboardData[0] && renderPodiumCard({ member: leaderboardData[0], placement: 1 })}
                         {leaderboardData[2] && renderPodiumCard({ member: leaderboardData[2], placement: 3 })}
                       </View>
                       {/* Remaining Members */}
                       {leaderboardData.length > 3 && (
-                        <View style={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}> 
+                        <View style={[globalStyles.listContainer, groupStyles.leaderboardListWrap]}> 
                           {leaderboardData.slice(3).map((member, idx) => (
                             <View key={member.userId}>{renderLeaderboardItem({ item: member, index: idx })}</View>
                           ))}
@@ -2792,7 +2677,7 @@ const GroupScreen = () => {
               ) : (
                 <Text style={[
                   globalStyles.emptyStateText, 
-                  { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginVertical: theme.spacing.md }
+                  groupStyles.leaderboardEmptyStateText,
                 ]}>
                   Ingen data tilgjengelig ennå
                 </Text>
@@ -2800,7 +2685,7 @@ const GroupScreen = () => {
             </ScrollView>
             <View style={[globalStyles.editButtonsContainer, groupStyles.modalFooterBordered]}> 
               <TouchableOpacity onPress={() => setLeaderboardModalVisible(false)}>
-                <Text style={[globalStyles.cancelButtonText, { fontSize: 16, color: theme.colors.primary }]}>Lukk</Text>
+                <Text style={[globalStyles.cancelButtonText, groupStyles.leaderboardCloseButtonText]}>Lukk</Text>
               </TouchableOpacity>
             </View>
           </View>

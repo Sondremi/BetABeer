@@ -22,6 +22,8 @@ const config: ExpoConfig = {
     bundler: 'metro',
     output: 'static',
     favicon: './assets/images/logo/Logo.png',
+    backgroundColor: '#0F131A',
+    themeColor: '#0F131A',
   },
   plugins: [
     'expo-router',

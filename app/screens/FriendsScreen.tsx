@@ -7,7 +7,6 @@ import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, friendS
 import { friendsScreenTokens, friendsStyles } from '../styles/components/friendsStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { Friend, FriendRequest, FriendWithPending } from '../types/userTypes';
-import { debounce } from '../utils/debounce';
 import { defaultProfileImageMap } from '../utils/defaultProfileImages';
 import { showAlert } from '../utils/platformAlert';
 
@@ -26,13 +25,27 @@ const FriendsScreen = () => {
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
   const [friends, setFriends] = useState<FriendWithPending[]>([]);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [isFriendsExpanded, setIsFriendsExpanded] = useState(true);
+  const [isRequestsExpanded, setIsRequestsExpanded] = useState(true);
 
   useEffect(() => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
 
-    getIncomingRequest(currentUser.uid).then(setIncomingRequests);
-    getOutgoingRequest(currentUser.uid).then(setOutgoingRequests);
+    const loadInitialRequests = async () => {
+      try {
+        const [incoming, outgoing] = await Promise.all([
+          getIncomingRequest(currentUser.uid),
+          getOutgoingRequest(currentUser.uid),
+        ]);
+        setIncomingRequests(incoming);
+        setOutgoingRequests(outgoing);
+      } catch (error) {
+        console.error('Failed to load initial friend requests:', error);
+      }
+    };
+
+    loadInitialRequests();
 
     const unsubIncoming = listenToIncomingRequests(currentUser.uid, setIncomingRequests);
     const unsubOutgoing = listenToOutgoingRequests(currentUser.uid, setOutgoingRequests);
@@ -88,9 +101,9 @@ const FriendsScreen = () => {
 
   useEffect(() => {
     fetchFriends();
-  }, [fetchFriends, incomingRequests, outgoingRequests]);
+  }, [fetchFriends]);
 
-  const handleSearch = useCallback(debounce(async (term: string) => {
+  const performSearch = useCallback(async (term: string) => {
     if (!term.trim()) {
       setSearchResults([]);
       return;
@@ -105,11 +118,22 @@ const FriendsScreen = () => {
       console.error('Error handling search: ', error);
       showAlert('Feil', `Kunne ikke søke ${(error as Error).message}`);
     }
-  }, 300), [friends]);
+  }, [friends]);
 
   useEffect(() => {
-    handleSearch(searchTerm);
-  }, [searchTerm, handleSearch]);
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      void performSearch(searchTerm);
+    }, 300);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [searchTerm, performSearch]);
 
   const inviteLink = auth.currentUser
     ? `http://bet-a-beer.netlify.app/login?inviter=${encodeURIComponent(auth.currentUser.uid)}`
@@ -320,7 +344,9 @@ const FriendsScreen = () => {
                 />
               </View>
               <TouchableOpacity
-                onPress={() => handleSearch(searchTerm)}
+                onPress={() => {
+                  void performSearch(searchTerm);
+                }}
                 style={friendsStyles.searchButton}
               >
                 <Text style={friendsStyles.searchButtonText}>Søk</Text>
@@ -354,8 +380,20 @@ const FriendsScreen = () => {
         {/* Friends section */}
         <View style={[globalStyles.section, friendsStyles.compactSection]}>
           <View style={[globalStyles.premiumCard, friendsStyles.listSectionCard]}>
-            <Text style={globalStyles.sectionTitle}>Mine venner ({friends.length})</Text>
-            {friends.length > 0 ? (
+            <View style={[friendsStyles.sectionHeaderRow, !isFriendsExpanded && friendsStyles.collapsedHeaderRow]}>
+              <Text style={globalStyles.sectionTitle}>Mine venner ({friends.length})</Text>
+              <TouchableOpacity
+                style={[globalStyles.outlineButtonGold, friendsStyles.sectionToggleButton]}
+                onPress={() => setIsFriendsExpanded((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={isFriendsExpanded ? 'Minimer venner' : 'Utvid venner'}
+              >
+                <Text style={[globalStyles.outlineButtonGoldText, friendsStyles.sectionToggleButtonText]}>
+                  {isFriendsExpanded ? '▾' : '▸'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {isFriendsExpanded && friends.length > 0 ? (
               <View>
                 <View style={friendsStyles.listScrollBox}>
                   <ScrollView nestedScrollEnabled contentContainerStyle={friendsStyles.listScrollContent}>
@@ -365,21 +403,33 @@ const FriendsScreen = () => {
                   </ScrollView>
                 </View>
               </View>
-            ) : (
+            ) : isFriendsExpanded ? (
               <View style={globalStyles.emptyState}>
                 <Image source={PeopleIcon} style={globalStyles.primaryIcon} />
                 <Text style={globalStyles.emptyStateText}>Du har ingen venner enda</Text>
                 <Text style={globalStyles.emptyStateSubtext}>Bruk søkefeltet over for å finne venner</Text>
               </View>
-            )}
+            ) : null}
           </View>
         </View>
 
         {/* Friend Requests section */}
         <View style={[globalStyles.section, friendsStyles.compactSection]}>
           <View style={[globalStyles.premiumCard, friendsStyles.listSectionCard]}>
-            <Text style={globalStyles.sectionTitle}>Venneforespørsler</Text>
-            {incomingRequests.length > 0 ? (
+            <View style={[friendsStyles.sectionHeaderRow, !isRequestsExpanded && friendsStyles.collapsedHeaderRow]}>
+              <Text style={globalStyles.sectionTitle}>Venneforespørsler ({incomingRequests.length})</Text>
+              <TouchableOpacity
+                style={[globalStyles.outlineButtonGold, friendsStyles.sectionToggleButton]}
+                onPress={() => setIsRequestsExpanded((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={isRequestsExpanded ? 'Minimer venneforespørsler' : 'Utvid venneforespørsler'}
+              >
+                <Text style={[globalStyles.outlineButtonGoldText, friendsStyles.sectionToggleButtonText]}>
+                  {isRequestsExpanded ? '▾' : '▸'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {isRequestsExpanded && incomingRequests.length > 0 ? (
               <View>
                 <View style={friendsStyles.listScrollBox}>
                   <ScrollView nestedScrollEnabled contentContainerStyle={friendsStyles.listScrollContent}>
@@ -412,12 +462,12 @@ const FriendsScreen = () => {
                   </ScrollView>
                 </View>
               </View>
-            ) : (
+            ) : isRequestsExpanded ? (
               <View style={globalStyles.emptyState}>
                 <Image source={AddFriendIcon} style={globalStyles.primaryIcon} />
                 <Text style={globalStyles.emptyStateText}>Ingen forespørsler</Text>
               </View>
-            )}
+            ) : null}
           </View>
         </View>
       </ScrollView>
