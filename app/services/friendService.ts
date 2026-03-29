@@ -1,9 +1,9 @@
 import { addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { Friend, FriendRequest } from '../types/userTypes';
-import { defaultProfileImageMap } from '../utils/defaultProfileImages';
 import { auth, firestore } from './firebase/FirebaseConfig';
+import { getDefaultProfilePicture, resolveProfileImageSource } from '../utils/profileImage';
 
-const DefaultProfilePicture = require('../../assets/images/default/default_profilepicture.png');
+const DefaultProfilePicture = getDefaultProfilePicture();
 const FRIEND_REQUESTS_COLLECTION = 'friendRequests';
 
 export type SendFriendRequestResult =
@@ -11,8 +11,7 @@ export type SendFriendRequestResult =
   | { status: 'accepted'; requestId: string };
 
 const resolveProfilePicture = (profileImageKey?: string | null) => {
-  if (!profileImageKey) return DefaultProfilePicture;
-  return defaultProfileImageMap[profileImageKey] || DefaultProfilePicture;
+  return resolveProfileImageSource(profileImageKey, DefaultProfilePicture);
 };
 
 const mapIncomingRequest = async (docSnap: any) => {
@@ -72,7 +71,7 @@ export const listenToOutgoingRequests = (currentUserId: string, callback: (reque
         name: userData?.name || 'Ukjent',
         username: userData?.username || 'ukjent',
         profilePicture: userData?.profileImage ? 
-          defaultProfileImageMap[userData.profileImage] 
+          resolveProfilePicture(userData.profileImage)
           : DefaultProfilePicture,
       };
     }));
@@ -101,7 +100,7 @@ export const friendSearch = async (searchTerm: string): Promise<Friend[]> => {
       name: doc.data().name || 'Ukjent',
       username: doc.data().username || 'ukjent',
       profilePicture: doc.data().profileImage ? 
-        defaultProfileImageMap[doc.data().profileImage] || DefaultProfilePicture
+        resolveProfilePicture(doc.data().profileImage)
         : DefaultProfilePicture,
     })).filter((user) => user.id !== currentUser.uid);
     return result;
@@ -228,7 +227,7 @@ export const getOutgoingRequest = async (currentUserId: string) : Promise<Friend
         name: userDoc.exists() ? userDoc.data().name || 'Ukjent' : 'Ukjent',
         username: userDoc.exists() ? userDoc.data().username || 'ukjent' : 'ukjent',
         profilePicture: userDoc.exists() ? 
-          userDoc.data().profileImage ? defaultProfileImageMap[userDoc.data().profileImage] || DefaultProfilePicture
+          userDoc.data().profileImage ? resolveProfilePicture(userDoc.data().profileImage)
           : DefaultProfilePicture
           : DefaultProfilePicture,
       };

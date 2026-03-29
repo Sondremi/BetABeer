@@ -22,7 +22,26 @@ function PersistedRouteStack() {
   const pathname = usePathname();
   const params = useGlobalSearchParams<{ groupInvite?: string | string[] }>();
   const handledGroupInviteRef = useRef<string | null>(null);
+  const lastRedirectRef = useRef<{ from: string; to: string } | null>(null);
   const groupInviteId = parseGroupInviteIdFromParams(params.groupInvite);
+
+  const normalizeRoutePath = (value: string | null | undefined) => {
+    if (!value) return null;
+
+    let normalized = value.trim();
+    if (!normalized) return null;
+
+    normalized = normalized.replace(/^\/\(tabs\)/, '') || '/';
+    if (!normalized.startsWith('/')) {
+      normalized = `/${normalized}`;
+    }
+
+    if (normalized.length > 1 && normalized.endsWith('/')) {
+      normalized = normalized.slice(0, -1);
+    }
+
+    return normalized;
+  };
 
   useEffect(() => {
     if (pathname === '/login') return;
@@ -70,11 +89,13 @@ function PersistedRouteStack() {
     return () => {
       cancelled = true;
     };
-  }, [groupInviteId, user, router]);
+  }, [groupInviteId, user?.id, router]);
 
   useEffect(() => {
     if (loading) return;
     if (!user) return;
+
+    let cancelled = false;
 
     async function handleRedirect() {
       let lastRoute: string | null = null;
@@ -89,14 +110,46 @@ function PersistedRouteStack() {
           lastRoute = null;
         }
       }
-      if (lastRoute && lastRoute !== '/login' && lastRoute !== pathname) {
-        router.replace(lastRoute as any);
-      } else if (pathname === '/login' && !groupInviteId) {
-        router.replace('/(tabs)/profile');
+      const normalizedLastRoute = normalizeRoutePath(lastRoute);
+      const normalizedCurrentPath = normalizeRoutePath(pathname);
+      const normalizedProfileRoute = normalizeRoutePath('/(tabs)/profile');
+
+      const redirectTarget =
+        normalizedLastRoute &&
+        normalizedLastRoute !== '/login' &&
+        normalizedLastRoute !== normalizedCurrentPath
+          ? lastRoute
+          : pathname === '/login' && !groupInviteId
+            ? '/(tabs)/profile'
+            : null;
+
+      const normalizedTarget = normalizeRoutePath(redirectTarget);
+      if (cancelled || !normalizedCurrentPath || !normalizedTarget) return;
+      if (normalizedTarget === normalizedCurrentPath) return;
+      if (normalizedTarget === normalizedProfileRoute && normalizedCurrentPath === normalizedProfileRoute) return;
+
+      const previousRedirect = lastRedirectRef.current;
+      if (
+        previousRedirect &&
+        previousRedirect.from === normalizedCurrentPath &&
+        previousRedirect.to === normalizedTarget
+      ) {
+        return;
       }
+
+      lastRedirectRef.current = {
+        from: normalizedCurrentPath,
+        to: normalizedTarget,
+      };
+
+      router.replace(redirectTarget as any);
     }
     handleRedirect();
-  }, [user, loading, pathname, groupInviteId, router]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, loading, pathname, groupInviteId, router]);
 
   return (
     <Stack initialRouteName="login">

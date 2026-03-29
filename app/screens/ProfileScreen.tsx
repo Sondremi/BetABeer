@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { collection, doc, getDoc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
@@ -9,6 +10,7 @@ import { LineChart } from 'react-native-chart-kit';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/firebase/authService';
 import { firestore } from '../services/firebase/FirebaseConfig';
+import { uploadProfileImage } from '../services/profileImageUploadService';
 import { sendGroupInvitation } from '../services/groupService';
 import { acceptGroupInvitation, createGroup, declineGroupInvitation, profileService } from '../services/profileService';
 import { profileChartConfig, profileChartDataset, profileScreenTokens, profileStyles } from '../styles/components/profileStyles';
@@ -16,8 +18,9 @@ import { globalStyles } from '../styles/globalStyles';
 import { DrinkCategory, DrinkEntry, Group, GroupInvitation } from '../types/drinkTypes';
 import { Friend } from '../types/userTypes';
 import { defaultProfileImageMap, defaultProfileImages } from '../utils/defaultProfileImages';
+import { getDefaultProfilePicture, isDefaultProfileImageKey, resolveProfileImageSource } from '../utils/profileImage';
 import { showAlert } from '../utils/platformAlert';
-const DefaultProfilePicture = require('../../assets/images/default/default_profilepicture.png');
+const DefaultProfilePicture = getDefaultProfilePicture();
 const ImageMissing = require('../../assets/images/image_missing.png');
 const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png');
 const FriendsIcon = require('../../assets/icons/noun-people-2196504.png');
@@ -75,13 +78,13 @@ const ProfileScreen: React.FC = () => {
   const [onboardingModalVisible, setOnboardingModalVisible] = useState(false);
   const [onboardingStorageKey, setOnboardingStorageKey] = useState<string | null>(null);
   const [selectedProfileImage, setSelectedProfileImage] = useState<string | null>(null);
+  const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
+  const [profileUploadStatus, setProfileUploadStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [profileNameFocused, setProfileNameFocused] = useState(false);
 
   useEffect(() => {
-    if (user && (user as any).profileImage) {
-      setSelectedProfileImage((user as any).profileImage);
-    }
+    setSelectedProfileImage((user as any)?.profileImage || null);
   }, [user]);
 
   useEffect(() => {
@@ -109,6 +112,46 @@ const ProfileScreen: React.FC = () => {
     } catch (error) {
       console.error(error)
       showAlert('Feil', 'Could not update profile');
+    }
+  };
+
+  const handleUploadProfileImage = async () => {
+    if (!user?.id) {
+      showAlert('Feil', 'Du må være logget inn for å laste opp bilde.');
+      return;
+    }
+
+    try {
+      setUploadingProfileImage(true);
+      setProfileUploadStatus(null);
+
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        showAlert('Tilgang mangler', 'Gi tilgang til bilder for å laste opp profilbilde.');
+        return;
+      }
+
+      const pickerResult = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.7,
+        aspect: [1, 1],
+      });
+
+      if (pickerResult.canceled || !pickerResult.assets?.length) {
+        setProfileUploadStatus({ type: 'error', message: 'Ingen bilde ble valgt.' });
+        return;
+      }
+
+      const selectedAsset = pickerResult.assets[0];
+      const uploadedImageUrl = await uploadProfileImage(user.id, selectedAsset.uri);
+      setSelectedProfileImage(uploadedImageUrl);
+      setProfileUploadStatus({ type: 'success', message: 'Profilbildet er lastet opp. Trykk Lagre for å oppdatere profilen.' });
+    } catch (error) {
+      console.error(error);
+      setProfileUploadStatus({ type: 'error', message: (error as Error).message || 'Kunne ikke laste opp profilbildet.' });
+    } finally {
+      setUploadingProfileImage(false);
     }
   };
   const router = useRouter();
@@ -1007,7 +1050,7 @@ const ProfileScreen: React.FC = () => {
             id: snap.id,
             name: data.name || 'Ukjent',
             username: data.username || 'ukjent',
-            profilePicture: data.profileImage ? defaultProfileImageMap[data.profileImage] || DefaultProfilePicture : DefaultProfilePicture,
+            profilePicture: resolveProfileImageSource(data.profileImage, DefaultProfilePicture),
           } as Friend;
         })
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -1115,18 +1158,15 @@ const ProfileScreen: React.FC = () => {
             {/* Profile picture */}
             <View style={profileStyles.profileImageContainer}>
               <Image
-                source={
-                  (selectedProfileImage && defaultProfileImageMap[selectedProfileImage])
-                    ? defaultProfileImageMap[selectedProfileImage]
-                    : (user && (user as any).profileImage && defaultProfileImageMap[(user as any).profileImage])
-                      ? defaultProfileImageMap[(user as any).profileImage]
-                      : DefaultProfilePicture
-                }
+                source={resolveProfileImageSource(selectedProfileImage || (user as any)?.profileImage, DefaultProfilePicture)}
                 style={[globalStyles.circularImage, profileStyles.profileImage]}
               />
               <TouchableOpacity
                 style={profileStyles.editProfileImageButton}
-                onPress={() => setProfileImageModalVisible(true)}
+                onPress={() => {
+                  setProfileUploadStatus(null);
+                  setProfileImageModalVisible(true);
+                }}
               >
                 <Image source={PencilIcon} style={globalStyles.primaryIcon} />
               </TouchableOpacity>
@@ -1141,11 +1181,44 @@ const ProfileScreen: React.FC = () => {
           visible={profileImageModalVisible}
           animationType="slide"
           transparent
-          onRequestClose={() => setProfileImageModalVisible(false)}
+          onRequestClose={() => {
+            setProfileUploadStatus(null);
+            setProfileImageModalVisible(false);
+          }}
         >
           <View style={globalStyles.modalContainer}> 
             <View style={[globalStyles.modalContent, profileStyles.profileModalContent]}> 
               <Text style={globalStyles.modalTitle}>Velg profilbilde</Text>
+              <View style={profileStyles.profileUploadPreviewWrap}>
+                <Image
+                  source={resolveProfileImageSource(selectedProfileImage || (user as any)?.profileImage, DefaultProfilePicture)}
+                  style={profileStyles.profileUploadPreviewImage}
+                />
+              </View>
+              <TouchableOpacity
+                style={[globalStyles.outlineButtonGold, profileStyles.profileUploadButton]}
+                onPress={handleUploadProfileImage}
+                disabled={uploadingProfileImage}
+              >
+                <Text style={globalStyles.outlineButtonGoldText}>
+                  {uploadingProfileImage ? 'Laster opp...' : 'Last opp'}
+                </Text>
+              </TouchableOpacity>
+              {!!selectedProfileImage && !isDefaultProfileImageKey(selectedProfileImage) && (
+                <Text style={profileStyles.profileUploadHintText}>Eget bilde valgt</Text>
+              )}
+              {!!profileUploadStatus && (
+                <Text
+                  style={[
+                    profileStyles.profileUploadStatusText,
+                    profileUploadStatus.type === 'error'
+                      ? profileStyles.profileUploadStatusError
+                      : profileStyles.profileUploadStatusSuccess,
+                  ]}
+                >
+                  {profileUploadStatus.message}
+                </Text>
+              )}
               <ScrollView contentContainerStyle={profileStyles.profileModalGrid}>
                 {defaultProfileImages.map((img) => (
                   <TouchableOpacity
@@ -1154,7 +1227,10 @@ const ProfileScreen: React.FC = () => {
                       profileStyles.profileImageChoice,
                       selectedProfileImage === img && profileStyles.profileImageChoiceSelected,
                     ]}
-                    onPress={() => setSelectedProfileImage(img)}
+                    onPress={() => {
+                      setSelectedProfileImage(img);
+                      setProfileUploadStatus(null);
+                    }}
                   >
                     <Image
                       source={defaultProfileImageMap[img]}
@@ -1180,7 +1256,13 @@ const ProfileScreen: React.FC = () => {
                 </View>
               </View>
               <View style={globalStyles.buttonRow}>
-                <TouchableOpacity style={globalStyles.cancelButton} onPress={() => setProfileImageModalVisible(false)}>
+                <TouchableOpacity
+                  style={globalStyles.cancelButton}
+                  onPress={() => {
+                    setProfileUploadStatus(null);
+                    setProfileImageModalVisible(false);
+                  }}
+                >
                   <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={globalStyles.saveButton} onPress={handleProfileSave}>

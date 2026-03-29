@@ -8,10 +8,10 @@ import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, friendS
 import { friendsScreenTokens, friendsStyles } from '../styles/components/friendsStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { Friend, FriendRequest, FriendWithPending } from '../types/userTypes';
-import { defaultProfileImageMap } from '../utils/defaultProfileImages';
+import { getDefaultProfilePicture, resolveProfileImageSource } from '../utils/profileImage';
 import { showAlert } from '../utils/platformAlert';
 
-const DefaultProfilePicture = require('../../assets/images/default/default_profilepicture.png');
+const DefaultProfilePicture = getDefaultProfilePicture();
 const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
 const RemoveFriendIcon = require('../../assets/icons/noun-user-removed-7856287.png');
 const PeopleIcon = require('../../assets/icons/noun-people-2196504.png');
@@ -83,7 +83,7 @@ const FriendsScreen = () => {
           name: doc.data().name || 'Ukjent',
           username: doc.data().username || 'ukjent',
           profilePicture: doc.data().profileImage ? 
-            defaultProfileImageMap[doc.data().profileImage] || DefaultProfilePicture 
+            resolveProfileImageSource(doc.data().profileImage, DefaultProfilePicture)
             : DefaultProfilePicture,
           type: 'friend' as const,
         }));
@@ -267,9 +267,9 @@ const FriendsScreen = () => {
             name: userData.name || request.fromUserName || 'Ukjent',
             username: userData.username || request.fromUsername || 'ukjent',
             profilePicture: userData.profileImage ? 
-              defaultProfileImageMap[userData.profileImage] || DefaultProfilePicture 
+              resolveProfileImageSource(userData.profileImage, DefaultProfilePicture)
               : request.fromUserProfileImage ?
-                defaultProfileImageMap[request.fromUserProfileImage] || DefaultProfilePicture
+                resolveProfileImageSource(request.fromUserProfileImage, DefaultProfilePicture)
                 : DefaultProfilePicture,
             type: 'friend' as const,
           },

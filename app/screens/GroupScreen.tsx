@@ -15,11 +15,11 @@ import { theme } from '../styles/theme';
 import type { Bet, BettingOption, BetWager, DrinkTransaction, DrinkType, MeasureType, MemberDrinkStats } from '../types/drinkTypes';
 import { Group } from '../types/drinkTypes';
 import { Friend, FriendRequest } from '../types/userTypes';
-import { defaultProfileImageMap } from '../utils/defaultProfileImages';
+import { getDefaultProfilePicture, resolveProfileImageSource } from '../utils/profileImage';
 import { showAlert } from '../utils/platformAlert';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
-const DefaultProfilePicture = require('../../assets/images/default/default_profilepicture.png');
+const DefaultProfilePicture = getDefaultProfilePicture();
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 
 type SentGroupInvitation = {
@@ -184,7 +184,7 @@ const GroupScreen = () => {
             betsLost: 0,
             currentBAC,
             profilePicture: userData.profileImage
-              ? defaultProfileImageMap[userData.profileImage] || DefaultProfilePicture
+              ? resolveProfileImageSource(userData.profileImage, DefaultProfilePicture)
               : DefaultProfilePicture,
             drinksToConsume: userData.drinksToConsume || {},
             drinksConsumed: userData.drinksConsumed || {},
@@ -354,7 +354,7 @@ const GroupScreen = () => {
                     name: friendData.name || 'Ukjent navn',
                     username: friendData.username || 'ukjent',
                     profilePicture: friendData.profileImage ? 
-                      defaultProfileImageMap[friendData.profileImage] || DefaultProfilePicture 
+                      resolveProfileImageSource(friendData.profileImage, DefaultProfilePicture)
                       : DefaultProfilePicture,
                   };
                 }
@@ -440,7 +440,7 @@ const GroupScreen = () => {
               name: userData?.name || 'Ukjent navn',
               username: usernames[memberId] || 'ukjent',
               profilePicture: profileImage ? 
-                defaultProfileImageMap[profileImage] || DefaultProfilePicture 
+                resolveProfileImageSource(profileImage, DefaultProfilePicture)
                 : DefaultProfilePicture,
             };
           } catch (error) {
