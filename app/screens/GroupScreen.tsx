@@ -309,10 +309,10 @@ const GroupScreen = () => {
   }, [user, groupsResolved, selectedGroup, groups.length, router]);
 
   useEffect(() => {
-    if (selectedGroup && selectedGroup.name !== groupName) {
-      setGroupName(selectedGroup.name);
-    }
-  }, [selectedGroup, groupName]);
+    if (!selectedGroup) return;
+    if (editingName) return;
+    setGroupName(selectedGroup.name || '');
+  }, [selectedGroup?.id, selectedGroup?.name, editingName]);
 
   useEffect(() => {
     if (selectedGroup) {
