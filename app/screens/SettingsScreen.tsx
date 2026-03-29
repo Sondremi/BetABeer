@@ -463,7 +463,7 @@ const SettingsScreen = () => {
           {/* Password reset section */}
           <View style={[globalStyles.premiumCard, settingsStyles.sectionCard]}>
             <Text style={globalStyles.sectionTitle}>Passord</Text>
-            <Text style={[globalStyles.mutedText, settingsStyles.dangerHelperText, { color: '#B0B0B0' }]}> 
+            <Text style={[globalStyles.mutedText, settingsStyles.dangerHelperText, settingsStyles.neutralHelperText]}> 
               Send e-post for å tilbakestille passordet ditt.
             </Text>
             <TouchableOpacity

@@ -80,6 +80,13 @@ export const globalStyles = StyleSheet.create({
     alignItems: 'center', 
     gap: theme.spacing.xxs,
   },
+  buttonRowNoGap: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    gap: theme.spacing.xs,
+  },
   dangerSection: {
     marginTop: theme.spacing.xxl,
     paddingTop: theme.spacing.xl,
@@ -107,6 +114,22 @@ export const globalStyles = StyleSheet.create({
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
     marginHorizontal: 0,
+  },
+  premiumSectionCard: {
+    borderRadius: theme.borderRadius.xl,
+    borderWidth: 1,
+    borderColor: theme.colors.borderPremium,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.lg,
+  },
+  warmListPanel: {
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderWarm,
+    backgroundColor: theme.colors.backgroundListCard,
+    paddingHorizontal: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.xs,
   },
   premiumCard: {
     backgroundColor: theme.colors.backgroundPanel,
@@ -202,6 +225,19 @@ export const globalStyles = StyleSheet.create({
     color: theme.colors.background,
     fontWeight: 'bold',
   },
+  sectionToggleIconButton: {
+    marginBottom: 0,
+    marginTop: 0,
+    minHeight: theme.fonts.xxl + theme.spacing.sm,
+    minWidth: theme.fonts.xxl + theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  sectionToggleIconButtonText: {
+    fontSize: theme.fonts.md,
+    fontWeight: '700',
+    lineHeight: theme.fonts.lg,
+  },
 
   // Sections
   sectionTitle: {
@@ -247,6 +283,11 @@ export const globalStyles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.primary,
     marginBottom: theme.spacing.sm,
+  },
+  labelOnDark: {
+    color: theme.colors.white,
+    fontSize: theme.fonts.sm,
+    fontWeight: '500',
   },
   input: {
     borderWidth: 1,
@@ -426,6 +467,17 @@ export const globalStyles = StyleSheet.create({
     flexDirection: 'row',
     gap: theme.spacing.sm,
     justifyContent: 'flex-end',
+  },
+  iconActionButtonSm: {
+    padding: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: theme.sizes.iconButton,
+    minHeight: theme.sizes.iconButton,
   },
 
   // Items/Cards

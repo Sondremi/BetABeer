@@ -168,10 +168,8 @@ export const loginStyles: any = StyleSheet.create({
   },
   fieldLabel: {
     ...globalStyles.label,
-    color: theme.colors.white,
+    ...globalStyles.labelOnDark,
     marginBottom: theme.spacing.sm,
-    fontSize: theme.fonts.sm,
-    fontWeight: '500',
   },
   formInputGroup: {
     marginBottom: theme.spacing.xxxl - theme.spacing.xxxs,
@@ -197,6 +195,16 @@ export const loginStyles: any = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
+  },
+  forgotPasswordButton: {
+    alignSelf: 'flex-end',
+    marginTop: -2,
+    marginBottom: theme.spacing.lg - theme.spacing.xxxs,
+  },
+  forgotPasswordText: {
+    color: loginScreenTokens.iconTint,
+    fontSize: theme.fonts.xs + 1,
+    fontWeight: '600',
   },
   ctaButton: {
     borderRadius: theme.borderRadius.pill,

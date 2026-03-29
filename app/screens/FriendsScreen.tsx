@@ -7,7 +7,6 @@ import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, friendS
 import { friendsScreenTokens, friendsStyles } from '../styles/components/friendsStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { Friend, FriendRequest, FriendWithPending } from '../types/userTypes';
-import { debounce } from '../utils/debounce';
 import { defaultProfileImageMap } from '../utils/defaultProfileImages';
 import { showAlert } from '../utils/platformAlert';
 
@@ -33,8 +32,20 @@ const FriendsScreen = () => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
 
-    getIncomingRequest(currentUser.uid).then(setIncomingRequests);
-    getOutgoingRequest(currentUser.uid).then(setOutgoingRequests);
+    const loadInitialRequests = async () => {
+      try {
+        const [incoming, outgoing] = await Promise.all([
+          getIncomingRequest(currentUser.uid),
+          getOutgoingRequest(currentUser.uid),
+        ]);
+        setIncomingRequests(incoming);
+        setOutgoingRequests(outgoing);
+      } catch (error) {
+        console.error('Failed to load initial friend requests:', error);
+      }
+    };
+
+    loadInitialRequests();
 
     const unsubIncoming = listenToIncomingRequests(currentUser.uid, setIncomingRequests);
     const unsubOutgoing = listenToOutgoingRequests(currentUser.uid, setOutgoingRequests);
@@ -90,9 +101,9 @@ const FriendsScreen = () => {
 
   useEffect(() => {
     fetchFriends();
-  }, [fetchFriends, incomingRequests, outgoingRequests]);
+  }, [fetchFriends]);
 
-  const handleSearch = useCallback(debounce(async (term: string) => {
+  const performSearch = useCallback(async (term: string) => {
     if (!term.trim()) {
       setSearchResults([]);
       return;
@@ -107,11 +118,22 @@ const FriendsScreen = () => {
       console.error('Error handling search: ', error);
       showAlert('Feil', `Kunne ikke søke ${(error as Error).message}`);
     }
-  }, 300), [friends]);
+  }, [friends]);
 
   useEffect(() => {
-    handleSearch(searchTerm);
-  }, [searchTerm, handleSearch]);
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      void performSearch(searchTerm);
+    }, 300);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [searchTerm, performSearch]);
 
   const inviteLink = auth.currentUser
     ? `http://bet-a-beer.netlify.app/login?inviter=${encodeURIComponent(auth.currentUser.uid)}`
@@ -322,7 +344,9 @@ const FriendsScreen = () => {
                 />
               </View>
               <TouchableOpacity
-                onPress={() => handleSearch(searchTerm)}
+                onPress={() => {
+                  void performSearch(searchTerm);
+                }}
                 style={friendsStyles.searchButton}
               >
                 <Text style={friendsStyles.searchButtonText}>Søk</Text>

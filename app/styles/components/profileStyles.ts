@@ -136,17 +136,10 @@ export const profileStyles = StyleSheet.create({
     marginBottom: 0,
   },
   bacToggleButton: {
-    marginBottom: 0,
-    marginTop: 0,
-    minHeight: theme.fonts.xxl + theme.spacing.sm,
-    minWidth: theme.fonts.xxl + theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    paddingHorizontal: theme.spacing.sm,
+    ...globalStyles.sectionToggleIconButton,
   },
   bacToggleButtonText: {
-    fontSize: theme.fonts.md,
-    fontWeight: '700',
-    lineHeight: theme.fonts.lg,
+    ...globalStyles.sectionToggleIconButtonText,
   },
   bacActionButton: {
     flex: 1,

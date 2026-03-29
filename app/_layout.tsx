@@ -3,7 +3,7 @@ import { Stack, useGlobalSearchParams, usePathname, useRouter } from 'expo-route
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import { AppAlertProvider } from './context/AppAlertProvider';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { parseGroupInviteIdFromParams, setPendingGroupInviteId } from './services/groupInviteLinkService';
 import { joinGroupFromInviteLink } from './services/groupService';
 
@@ -35,7 +35,7 @@ function PersistedRouteStack() {
     }
   }, [pathname]);
 
-  const { user, loading } = require('./context/AuthContext');
+  const { user, loading } = useAuth();
 
   useEffect(() => {
     if (!groupInviteId) return;
@@ -85,7 +85,7 @@ function PersistedRouteStack() {
       } else {
         try {
           lastRoute = await AsyncStorage.getItem('lastRoute');
-        } catch (e) {
+        } catch {
           lastRoute = null;
         }
       }

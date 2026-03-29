@@ -587,8 +587,8 @@ const LoginScreen: React.FC = () => {
             )}
 
             {isLoginMode && (
-              <TouchableOpacity onPress={handleForgotPassword} disabled={isLoading} style={{ alignSelf: 'flex-end', marginTop: -2, marginBottom: 14 }}>
-                <Text style={{ color: loginScreenTokens.iconTint, fontSize: 13, fontWeight: '600' }}>Glemt passord?</Text>
+              <TouchableOpacity onPress={handleForgotPassword} disabled={isLoading} style={loginStyles.forgotPasswordButton}>
+                <Text style={loginStyles.forgotPasswordText}>Glemt passord?</Text>
               </TouchableOpacity>
             )}
 
