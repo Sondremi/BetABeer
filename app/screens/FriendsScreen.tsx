@@ -2,7 +2,8 @@ import { useRouter } from 'expo-router';
 import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { auth, firestore } from '../services/firebase/FirebaseConfig';
+import { useAuth } from '../context/AuthContext';
+import { firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, friendSearch, getIncomingRequest, getOutgoingRequest, listenToIncomingRequests, listenToOutgoingRequests, removeFriend, sendFriendRequest } from '../services/friendService';
 import { friendsScreenTokens, friendsStyles } from '../styles/components/friendsStyles';
 import { globalStyles } from '../styles/globalStyles';
@@ -19,6 +20,7 @@ const RejectIcon = require('../../assets/icons/noun-delete-7938028.png');
 
 const FriendsScreen = () => {
   const router = useRouter();
+  const { user, loading } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Friend[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
@@ -29,14 +31,19 @@ const FriendsScreen = () => {
   const [isRequestsExpanded, setIsRequestsExpanded] = useState(true);
 
   useEffect(() => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
+    if (loading) return;
+
+    if (!user?.id) {
+      setIncomingRequests([]);
+      setOutgoingRequests([]);
+      return;
+    }
 
     const loadInitialRequests = async () => {
       try {
         const [incoming, outgoing] = await Promise.all([
-          getIncomingRequest(currentUser.uid),
-          getOutgoingRequest(currentUser.uid),
+          getIncomingRequest(user.id),
+          getOutgoingRequest(user.id),
         ]);
         setIncomingRequests(incoming);
         setOutgoingRequests(outgoing);
@@ -47,23 +54,22 @@ const FriendsScreen = () => {
 
     loadInitialRequests();
 
-    const unsubIncoming = listenToIncomingRequests(currentUser.uid, setIncomingRequests);
-    const unsubOutgoing = listenToOutgoingRequests(currentUser.uid, setOutgoingRequests);
+    const unsubIncoming = listenToIncomingRequests(user.id, setIncomingRequests);
+    const unsubOutgoing = listenToOutgoingRequests(user.id, setOutgoingRequests);
     return () => {
       if (typeof unsubIncoming === 'function') unsubIncoming();
       if (typeof unsubOutgoing === 'function') unsubOutgoing();
     };
-  }, []);
+  }, [loading, user?.id]);
 
   const fetchFriends = useCallback(async () => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      console.log('No user authenticated');
+    if (!user?.id) {
+      setFriends([]);
       return;
     }
 
     try {
-      const userDocRef = doc(firestore, 'users', currentUser.uid);
+      const userDocRef = doc(firestore, 'users', user.id);
       const userDoc = await getDoc(userDocRef);
       const friendIds = userDoc.exists() ? userDoc.data().friends || [] : [];
 
@@ -97,11 +103,12 @@ const FriendsScreen = () => {
       console.error('Failed to fetch friends:', error);
       showAlert('Feil', `Kunne ikke hente venner: ${(error as Error).message}`);
     }
-  }, [outgoingRequests]);
+  }, [outgoingRequests, user?.id]);
 
   useEffect(() => {
+    if (loading) return;
     fetchFriends();
-  }, [fetchFriends]);
+  }, [fetchFriends, loading]);
 
   const performSearch = useCallback(async (term: string) => {
     if (!term.trim()) {
@@ -135,8 +142,8 @@ const FriendsScreen = () => {
     };
   }, [searchTerm, performSearch]);
 
-  const inviteLink = auth.currentUser
-    ? `http://bet-a-beer.netlify.app/login?inviter=${encodeURIComponent(auth.currentUser.uid)}`
+  const inviteLink = user?.id
+    ? `http://bet-a-beer.netlify.app/login?inviter=${encodeURIComponent(user.id)}`
     : 'http://bet-a-beer.netlify.app/login';
 
   const handleInviteFriends = async () => {
@@ -152,8 +159,7 @@ const FriendsScreen = () => {
   };
 
   const handleAddFriend = async (friend: Friend) => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
+    if (!user?.id) {
       showAlert('Ikke logget inn!');
       return;
     }
@@ -165,7 +171,7 @@ const FriendsScreen = () => {
         ...prev,
         {
           id: requestId,
-          fromUserId: currentUser.uid,
+          fromUserId: user.id,
           toUserId: friend.id,
           status: 'pending',
           createdAt: serverTimestamp(),
@@ -182,8 +188,7 @@ const FriendsScreen = () => {
   };
 
   const handleRemoveFriend = (friend: FriendWithPending) => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
+    if (!user?.id) {
       showAlert("Ikke logget inn!");
       return;
     }
@@ -221,7 +226,7 @@ const FriendsScreen = () => {
             style: 'destructive',
             onPress: async () => {
               try {
-                await removeFriend(currentUser.uid, friend.id);
+                await removeFriend(user.id, friend.id);
                 setFriends((prev) => prev.filter((f) => f.id !== friend.id));
               } catch (error) {
                 console.error(error);
@@ -235,8 +240,7 @@ const FriendsScreen = () => {
   };
 
   const handleAcceptRequest = async (request: FriendRequest) => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
+    if (!user?.id) {
       showAlert('Ikke logget inn!');
       return;
     }

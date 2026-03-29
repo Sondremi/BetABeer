@@ -1025,12 +1025,22 @@ const GroupScreen = () => {
 
   const canManageBet = (bet: Bet) => {
     if (!user?.id) return false;
-    return bet.createdByUserId === user.id;
+    if (bet.createdByUserId === user.id) return true;
+
+    const isGroupOwner = selectedGroup?.createdBy === user.id;
+    if (!isGroupOwner) return false;
+
+    const members = selectedGroup?.members || [];
+    const betCreatorId = bet.createdByUserId;
+    const creatorStillMember = Boolean(betCreatorId && members.includes(betCreatorId));
+
+    // Group owner can only take over bet management when original creator has left.
+    return !creatorStillMember;
   };
 
   const openEditBetModal = (bet: Bet, idx: number) => {
     if (!canManageBet(bet)) {
-      showAlert('Ikke tilgang', 'Kun den som opprettet bettet kan redigere eller markere det som ferdig.');
+      showAlert('Ikke tilgang', 'Kun oppretter kan redigere bettet. Hvis oppretter forlater gruppen, kan gruppeeier overta.');
       return;
     }
     setSelectedEditBet({ bet, index: idx });
@@ -1050,8 +1060,8 @@ const GroupScreen = () => {
       if (groupSnap.exists()) {
         const groupBets = groupSnap.data().bets || [];
         const targetBet = groupBets[selectCorrectBetIdx];
-        if (!targetBet || targetBet.createdByUserId !== user?.id) {
-          throw new Error('Only the bet creator can mark this bet as finished.');
+        if (!targetBet || !canManageBet(targetBet)) {
+          throw new Error('Du har ikke tilgang til å markere dette bettet som ferdig.');
         }
         const newBets = [...groupBets];
 
@@ -1127,8 +1137,8 @@ const GroupScreen = () => {
         groupBets = groupSnap.data().bets;
       }
       const originalBet = groupBets[editBetIdx];
-      if (!originalBet || originalBet.createdByUserId !== user?.id) {
-        throw new Error('Only the bet creator can edit this bet.');
+      if (!originalBet || !canManageBet(originalBet)) {
+        throw new Error('Du har ikke tilgang til å redigere dette bettet.');
       }
       const updatedBet = {
         ...originalBet,
@@ -1166,8 +1176,8 @@ const GroupScreen = () => {
         groupBets = groupSnap.data().bets;
       }
       const targetBet = groupBets[betIndex];
-      if (!targetBet || targetBet.createdByUserId !== user?.id) {
-        throw new Error('Only the bet creator can delete this bet.');
+      if (!targetBet || !canManageBet(targetBet)) {
+        throw new Error('Du har ikke tilgang til å slette dette bettet.');
       }
       const newBets = groupBets.filter((_, idx: number) => idx !== betIndex);
       await updateDoc(groupRef, { bets: newBets });
