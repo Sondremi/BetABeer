@@ -8,8 +8,8 @@ import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, friendS
 import { friendsScreenTokens, friendsStyles } from '../styles/components/friendsStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { Friend, FriendRequest, FriendWithPending } from '../types/userTypes';
-import { getDefaultProfilePicture, resolveProfileImageSource } from '../utils/profileImage';
 import { showAlert } from '../utils/platformAlert';
+import { getDefaultProfilePicture, resolveProfileImageSource } from '../utils/profileImage';
 
 const DefaultProfilePicture = getDefaultProfilePicture();
 const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');

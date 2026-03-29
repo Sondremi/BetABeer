@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, getFirestore, increment, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { authService } from '../services/firebase/authService';
 import { firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, cancelFriendRequest, getIncomingRequest, getOutgoingRequest, sendFriendRequest } from '../services/friendService';
 import { buildGroupInviteLink } from '../services/groupInviteLinkService';
@@ -17,8 +18,8 @@ import { theme } from '../styles/theme';
 import type { Bet, BettingOption, BetWager, DrinkTransaction, DrinkType, MeasureType, MemberDrinkStats } from '../types/drinkTypes';
 import { Group } from '../types/drinkTypes';
 import { Friend, FriendRequest } from '../types/userTypes';
-import { getDefaultProfilePicture, resolveProfileImageSource } from '../utils/profileImage';
 import { showAlert } from '../utils/platformAlert';
+import { getDefaultProfilePicture, resolveProfileImageSource } from '../utils/profileImage';
 
 const ImageMissing = require('../../assets/images/image_missing.png');
 const DefaultProfilePicture = getDefaultProfilePicture();
@@ -919,6 +920,13 @@ const GroupScreen = () => {
   const handleUploadOrChangeGroupImage = async () => {
     if (!selectedGroup?.id || !canManageGroupImage) {
       showAlert('Ikke tilgang', 'Kun gruppeeier kan oppdatere gruppebildet.');
+      return;
+    }
+
+    try {
+      await authService.ensureVerifiedEmailForMediaUpload();
+    } catch (error) {
+      showAlert('Verifisering kreves', (error as Error).message || 'Du må verifisere e-postadressen din.');
       return;
     }
 

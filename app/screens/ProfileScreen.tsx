@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
@@ -10,16 +10,16 @@ import { LineChart } from 'react-native-chart-kit';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/firebase/authService';
 import { firestore } from '../services/firebase/FirebaseConfig';
-import { uploadProfileImage } from '../services/profileImageUploadService';
 import { sendGroupInvitation } from '../services/groupService';
+import { uploadProfileImage } from '../services/profileImageUploadService';
 import { acceptGroupInvitation, createGroup, declineGroupInvitation, profileService } from '../services/profileService';
 import { profileChartConfig, profileChartDataset, profileScreenTokens, profileStyles } from '../styles/components/profileStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { DrinkCategory, DrinkEntry, Group, GroupInvitation } from '../types/drinkTypes';
 import { Friend } from '../types/userTypes';
 import { defaultProfileImageMap, defaultProfileImages } from '../utils/defaultProfileImages';
-import { getDefaultProfilePicture, isDefaultProfileImageKey, resolveProfileImageSource } from '../utils/profileImage';
 import { showAlert } from '../utils/platformAlert';
+import { getDefaultProfilePicture, isDefaultProfileImageKey, resolveProfileImageSource } from '../utils/profileImage';
 const DefaultProfilePicture = getDefaultProfilePicture();
 const ImageMissing = require('../../assets/images/image_missing.png');
 const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png');
@@ -115,17 +115,39 @@ const ProfileScreen: React.FC = () => {
   };
 
   const handleUploadProfileImage = async () => {
+    const showUploadAlert = (title: string, message: string) => {
+      const shouldReopenModal = profileImageModalVisible;
+
+      if (shouldReopenModal) {
+        setProfileImageModalVisible(false);
+      }
+
+      setTimeout(() => {
+        showAlert(title, message, [
+          {
+            text: 'OK',
+            onPress: () => {
+              if (shouldReopenModal) {
+                setProfileImageModalVisible(true);
+              }
+            },
+          },
+        ]);
+      }, shouldReopenModal ? 80 : 0);
+    };
+
     if (!user?.id) {
-      showAlert('Feil', 'Du må være logget inn for å laste opp bilde.');
+      showUploadAlert('Feil', 'Du må være logget inn for å laste opp bilde.');
       return;
     }
 
     try {
+      await authService.ensureVerifiedEmailForMediaUpload();
       setUploadingProfileImage(true);
 
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        showAlert('Tilgang mangler', 'Gi tilgang til bilder for å laste opp profilbilde.');
+        showUploadAlert('Tilgang mangler', 'Gi tilgang til bilder for å laste opp profilbilde.');
         return;
       }
 
@@ -145,7 +167,7 @@ const ProfileScreen: React.FC = () => {
       setSelectedProfileImage(uploadedImageUrl);
     } catch (error) {
       console.error(error);
-      showAlert('Feil', (error as Error).message || 'Kunne ikke laste opp profilbildet.');
+      showUploadAlert('Feil', (error as Error).message || 'Kunne ikke laste opp profilbildet.');
     } finally {
       setUploadingProfileImage(false);
     }

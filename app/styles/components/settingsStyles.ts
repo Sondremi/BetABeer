@@ -68,4 +68,17 @@ export const settingsStyles = StyleSheet.create({
   neutralHelperText: {
     color: theme.colors.textSecondary,
   },
+  emailVerificationStatus: {
+    marginTop: theme.spacing.xs,
+  },
+  emailVerifiedText: {
+    color: theme.colors.primary,
+  },
+  emailNotVerifiedText: {
+    color: theme.colors.errorLight,
+  },
+  emailVerificationButton: {
+    marginTop: theme.spacing.sm,
+    marginBottom: 0,
+  },
 });

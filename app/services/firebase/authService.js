@@ -1,4 +1,4 @@
-import { GoogleAuthProvider, createUserWithEmailAndPassword, onAuthStateChanged as firebaseOnAuthStateChanged, sendEmailVerification, sendPasswordResetEmail, signInWithCredential, signInWithEmailAndPassword, signOut, verifyBeforeUpdateEmail } from 'firebase/auth';
+import { GoogleAuthProvider, createUserWithEmailAndPassword, onAuthStateChanged as firebaseOnAuthStateChanged, reload, sendEmailVerification, sendPasswordResetEmail, signInWithCredential, signInWithEmailAndPassword, signOut, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { auth } from './FirebaseConfig';
 
@@ -197,6 +197,57 @@ export const authService = {
 
   getCurrentUser: () => {
     return auth.currentUser;
+  },
+
+  refreshCurrentUser: async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Bruker ikke autorisert');
+    }
+    await reload(currentUser);
+    return auth.currentUser;
+  },
+
+  ensureVerifiedEmailForMediaUpload: async () => {
+    const currentUser = await authService.refreshCurrentUser();
+    if (!currentUser?.email) {
+      throw new Error('Kontoen mangler e-postadresse.');
+    }
+    if (!currentUser.emailVerified) {
+      throw new Error('Du må verifisere e-postadressen din før du kan laste opp bilder. Gå til innstillinger for å sende verifisering på nytt.');
+    }
+    return true;
+  },
+
+  resendEmailVerification: async () => {
+    try {
+      const currentUser = await authService.refreshCurrentUser();
+      if (!currentUser?.email) {
+        throw new Error('missing-email-for-verification');
+      }
+
+      if (currentUser.emailVerified) {
+        return { status: 'already-verified', email: currentUser.email };
+      }
+
+      await sendEmailVerification(currentUser);
+      return { status: 'sent', email: currentUser.email };
+    } catch (error) {
+      console.error('Resend email verification error:', error);
+
+      if (error && typeof error === 'object' && 'code' in error) {
+        const errorCode = String(error.code);
+        if (errorCode === 'auth/too-many-requests') {
+          throw new Error('For mange forespørsler. Prøv igjen litt senere.');
+        }
+      }
+
+      if (error instanceof Error && error.message === 'missing-email-for-verification') {
+        throw new Error('Fant ingen e-postadresse for verifisering.');
+      }
+
+      throw new Error('Kunne ikke sende verifiseringsmail.');
+    }
   },
 
   updateUser: async (userId, updateData) => {

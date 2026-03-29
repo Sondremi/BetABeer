@@ -1,7 +1,7 @@
 import { addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { Friend, FriendRequest } from '../types/userTypes';
-import { auth, firestore } from './firebase/FirebaseConfig';
 import { getDefaultProfilePicture, resolveProfileImageSource } from '../utils/profileImage';
+import { auth, firestore } from './firebase/FirebaseConfig';
 
 const DefaultProfilePicture = getDefaultProfilePicture();
 const FRIEND_REQUESTS_COLLECTION = 'friendRequests';

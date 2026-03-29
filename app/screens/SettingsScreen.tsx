@@ -29,6 +29,8 @@ const SettingsScreen = () => {
   const [editedInfo, setEditedInfo] = useState(userInfo);
   const [isLoading, setIsLoading] = useState(true);
   const [isSendingPasswordReset, setIsSendingPasswordReset] = useState(false);
+  const [isSendingVerificationEmail, setIsSendingVerificationEmail] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [focusedField, setFocusedField] = useState<'' | 'name' | 'email' | 'weight'>('');
 
   const loadUserData = useCallback(async () => {
@@ -49,6 +51,7 @@ const SettingsScreen = () => {
             };
             setUserInfo(userInfoData);
             setEditedInfo(userInfoData);
+            setIsEmailVerified(Boolean(currentUser.emailVerified));
             return;
           }
         }
@@ -63,6 +66,7 @@ const SettingsScreen = () => {
         };
         setUserInfo(fallbackUserInfo);
         setEditedInfo(fallbackUserInfo);
+        setIsEmailVerified(Boolean(currentUser.emailVerified));
       }
     } catch (error) {
       console.error(error);
@@ -294,6 +298,27 @@ const SettingsScreen = () => {
     }
   };
 
+  const handleResendVerificationEmail = async () => {
+    try {
+      setIsSendingVerificationEmail(true);
+      const result = await authService.resendEmailVerification();
+
+      if (result.status === 'already-verified') {
+        setIsEmailVerified(true);
+        showAlert('E-post verifisert', 'E-postadressen din er allerede verifisert.');
+        return;
+      }
+
+      showAlert('Verifiseringsmail sendt', `Vi har sendt en ny verifiseringsmail til ${result.email}.`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Kunne ikke sende verifiseringsmail';
+      showAlert('Feil', errorMessage);
+    } finally {
+      setIsSendingVerificationEmail(false);
+      loadUserData();
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={[globalStyles.container, globalStyles.centerContent]}>
@@ -379,6 +404,26 @@ const SettingsScreen = () => {
                 <View style={globalStyles.readOnlyInput}>
                   <Text style={settingsStyles.readOnlyText}>{userInfo.email}</Text>
                 </View>
+              )}
+              <Text
+                style={[
+                  globalStyles.mutedText,
+                  settingsStyles.emailVerificationStatus,
+                  isEmailVerified ? settingsStyles.emailVerifiedText : settingsStyles.emailNotVerifiedText,
+                ]}
+              >
+                {isEmailVerified ? 'E-post er verifisert' : 'E-post er ikke verifisert'}
+              </Text>
+              {!isEmailVerified && !isEditing && (
+                <TouchableOpacity
+                  style={[globalStyles.outlineButtonGold, settingsStyles.emailVerificationButton, (isLoading || isSendingVerificationEmail) && globalStyles.disabledButton]}
+                  onPress={handleResendVerificationEmail}
+                  disabled={isLoading || isSendingVerificationEmail}
+                >
+                  <Text style={globalStyles.outlineButtonGoldText}>
+                    {isSendingVerificationEmail ? 'Sender...' : 'Send verifiseringsmail på nytt'}
+                  </Text>
+                </TouchableOpacity>
               )}
             </View>
 

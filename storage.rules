@@ -5,6 +5,7 @@ service firebase.storage {
       allow read: if request.auth != null;
       allow write: if request.auth != null
         && request.auth.uid == userId
+        && request.auth.token.email_verified == true
         && (
           request.resource == null
           || (
@@ -18,6 +19,7 @@ service firebase.storage {
       allow read: if request.auth != null;
       allow write: if request.auth != null
         && firestore.get(/databases/(default)/documents/groups/$(groupId)).data.createdBy == request.auth.uid
+        && request.auth.token.email_verified == true
         && (
           request.resource == null
           || (
