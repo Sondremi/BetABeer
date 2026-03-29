@@ -28,6 +28,29 @@ export const friendsStyles = StyleSheet.create({
     color: theme.colors.primary,
     letterSpacing: 0.8,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  collapsedHeaderRow: {
+    marginBottom: 0,
+  },
+  sectionToggleButton: {
+    marginBottom: 0,
+    marginTop: 0,
+    minHeight: theme.fonts.xxl + theme.spacing.sm,
+    minWidth: theme.fonts.xxl + theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  sectionToggleButtonText: {
+    fontSize: theme.fonts.md,
+    fontWeight: '700',
+    lineHeight: theme.fonts.lg,
+  },
   friendName: {
     fontSize: theme.fonts.md,
     fontWeight: '700',
