@@ -1,20 +1,22 @@
 import { loginScreenTokens, loginStyles } from '@/app/styles/components/loginStyles';
 import { Ionicons } from '@expo/vector-icons';
+import * as Google from 'expo-auth-session/providers/google';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Animated,
-    Image,
-    KeyboardAvoidingView,
-    Linking,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Animated,
+  Image,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { authService } from '../services/firebase/authService';
 import { sendFriendRequest } from '../services/friendService';
@@ -22,6 +24,14 @@ import { consumePendingGroupInviteId, parseGroupInviteIdFromParams, parseGroupIn
 import { joinGroupFromInviteLink } from '../services/groupService';
 import { globalStyles } from '../styles/globalStyles';
 import { showAlert } from '../utils/platformAlert';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_WEB_CLIENT_ID =
+  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
+  '215706928947-694n8eqdva4pppovsere7a7v1b3eukdc.apps.googleusercontent.com';
+const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
 
 const LoginScreen: React.FC = () => {
   const router = useRouter();
@@ -43,6 +53,14 @@ const LoginScreen: React.FC = () => {
   const [modeSwitchWidth, setModeSwitchWidth] = useState(0);
   const shineAnim = useRef(new Animated.Value(-1)).current;
   const modeAnim = useRef(new Animated.Value(0)).current;
+  const [googleRequest, , promptGoogleSignIn] = Google.useAuthRequest({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+    responseType: 'id_token',
+    scopes: ['openid', 'profile', 'email'],
+    selectAccount: true,
+  });
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -326,6 +344,39 @@ const LoginScreen: React.FC = () => {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Kunne ikke sende reset-lenke.';
       showAlert('Feil', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    if (!googleRequest) {
+      showAlert('Google-innlogging', 'Google-innlogging er ikke klar enda. Prøv igjen om et øyeblikk.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const result = await promptGoogleSignIn();
+
+      if (result.type !== 'success') {
+        return;
+      }
+
+      const idToken =
+        result.authentication?.idToken ||
+        (typeof result.params?.id_token === 'string' ? result.params.id_token : undefined);
+
+      if (!idToken) {
+        throw new Error('Mangler Google ID-token. Sjekk OAuth-oppsett i Firebase.');
+      }
+
+      await authService.loginWithGoogleIdToken(idToken);
+      await tryAutoJoinGroupFromInvite();
+      router.replace('/(tabs)/profile');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Noe gikk galt under Google-innlogging.';
+      showAlert('Google-innlogging feilet', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -638,6 +689,30 @@ const LoginScreen: React.FC = () => {
                 />
               </LinearGradient>
             </TouchableOpacity>
+
+            {isLoginMode && (
+              <>
+                <View style={loginStyles.authDividerRow}>
+                  <View style={loginStyles.authDividerLine} />
+                  <Text style={loginStyles.authDividerText}>eller</Text>
+                  <View style={loginStyles.authDividerLine} />
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    loginStyles.googleButton,
+                    (isLoading || !googleRequest) && globalStyles.disabledButton,
+                  ]}
+                  onPress={handleGoogleLogin}
+                  disabled={isLoading || !googleRequest}
+                >
+                  <View style={loginStyles.googleButtonContent}>
+                    <Ionicons name="logo-google" size={18} color={loginScreenTokens.googleIconColor} />
+                    <Text style={loginStyles.googleButtonText}>Fortsett med Google</Text>
+                  </View>
+                </TouchableOpacity>
+              </>
+            )}
             </View>
             </LinearGradient>
           </View>

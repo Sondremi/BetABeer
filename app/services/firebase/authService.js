@@ -1,9 +1,87 @@
-import { createUserWithEmailAndPassword, onAuthStateChanged as firebaseOnAuthStateChanged, sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, verifyBeforeUpdateEmail } from 'firebase/auth';
+import { GoogleAuthProvider, createUserWithEmailAndPassword, onAuthStateChanged as firebaseOnAuthStateChanged, sendEmailVerification, sendPasswordResetEmail, signInWithCredential, signInWithEmailAndPassword, signOut, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { auth } from './FirebaseConfig';
 
 const firestore = getFirestore();
 const normalizeValue = (value) => String(value || '').trim().toLowerCase();
+const toDisplayValue = (value) => String(value || '').trim();
+
+const buildFallbackUsername = (email, uid) => {
+  const emailPrefix = String(email || '')
+    .split('@')[0]
+    .replace(/[^a-zA-Z0-9._-]/g, '')
+    .slice(0, 18);
+  const uidSuffix = String(uid || '').slice(0, 6);
+  return (emailPrefix || 'user') + (uidSuffix ? `_${uidSuffix}` : '');
+};
+
+const ensureUserDocument = async (firebaseUser) => {
+  const userRef = doc(firestore, 'users', firebaseUser.uid);
+  const userDoc = await getDoc(userRef);
+
+  const email = toDisplayValue(firebaseUser.email);
+  const emailLower = normalizeValue(firebaseUser.email);
+  const displayName = toDisplayValue(firebaseUser.displayName);
+
+  if (!userDoc.exists()) {
+    const username = buildFallbackUsername(firebaseUser.email, firebaseUser.uid);
+
+    await setDoc(userRef, {
+      username,
+      usernameLower: normalizeValue(username),
+      name: displayName || username,
+      email,
+      emailLower,
+      phone: firebaseUser.phoneNumber || null,
+      weight: null,
+      gender: null,
+      friends: [],
+      groups: [],
+      createdAt: serverTimestamp(),
+    });
+
+    return {
+      id: firebaseUser.uid,
+      username,
+      name: displayName || username,
+      email,
+      phone: firebaseUser.phoneNumber || null,
+      weight: null,
+      gender: null,
+      friends: [],
+      groups: [],
+    };
+  }
+
+  const userData = userDoc.data();
+  const updates = {};
+
+  if (email && normalizeValue(userData.email) !== emailLower) {
+    updates.email = email;
+    updates.emailLower = emailLower;
+  }
+
+  if (displayName && !toDisplayValue(userData.name)) {
+    updates.name = displayName;
+  }
+
+  if (Object.keys(updates).length > 0) {
+    updates.updatedAt = serverTimestamp();
+    await updateDoc(userRef, updates);
+  }
+
+  return {
+    id: firebaseUser.uid,
+    username: userData.username,
+    name: userData.name,
+    email: userData.email || email,
+    phone: userData.phone,
+    weight: userData.weight,
+    gender: userData.gender,
+    friends: userData.friends || [],
+    groups: userData.groups || [],
+  };
+};
 
 export const authService = {
   createUser: async (userData) => {
@@ -75,6 +153,36 @@ export const authService = {
     } catch (error) {
       console.error('Login error:', error);
       throw new Error('Kunne ikke logge inn');
+    }
+  },
+
+  loginWithGoogleIdToken: async (idToken) => {
+    try {
+      if (!idToken) {
+        throw new Error('missing-google-id-token');
+      }
+
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      return await ensureUserDocument(userCredential.user);
+    } catch (error) {
+      console.error('Google login error:', error);
+
+      if (error && typeof error === 'object' && 'code' in error) {
+        const errorCode = String(error.code);
+        if (errorCode === 'auth/account-exists-with-different-credential') {
+          throw new Error('Denne e-posten er allerede registrert med en annen innloggingsmetode');
+        }
+        if (errorCode === 'auth/popup-closed-by-user' || errorCode === 'auth/cancelled-popup-request') {
+          throw new Error('Google-innlogging ble avbrutt');
+        }
+      }
+
+      if (error instanceof Error && error.message === 'missing-google-id-token') {
+        throw new Error('Mangler Google ID-token. Sjekk OAuth-oppsett i appen.');
+      }
+
+      throw new Error('Kunne ikke logge inn med Google');
     }
   },
 
