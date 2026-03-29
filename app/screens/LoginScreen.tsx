@@ -4,7 +4,7 @@ import * as Google from 'expo-auth-session/providers/google';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -53,14 +53,17 @@ const LoginScreen: React.FC = () => {
   const [modeSwitchWidth, setModeSwitchWidth] = useState(0);
   const shineAnim = useRef(new Animated.Value(-1)).current;
   const modeAnim = useRef(new Animated.Value(0)).current;
-  const [googleRequest, , promptGoogleSignIn] = Google.useAuthRequest({
+  const googleAuthRequestConfig = useMemo(() => ({
     webClientId: GOOGLE_WEB_CLIENT_ID,
     iosClientId: GOOGLE_IOS_CLIENT_ID,
     androidClientId: GOOGLE_ANDROID_CLIENT_ID,
     responseType: 'id_token',
+    // Avoid PKCE digest requirement on insecure web origins (e.g. local network HTTP on mobile browser).
+    usePKCE: false,
     scopes: ['openid', 'profile', 'email'],
     selectAccount: true,
-  });
+  }), []);
+  const [googleRequest, , promptGoogleSignIn] = Google.useAuthRequest(googleAuthRequestConfig);
 
   useEffect(() => {
     const loop = Animated.loop(

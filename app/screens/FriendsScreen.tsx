@@ -165,21 +165,27 @@ const FriendsScreen = () => {
     }
 
     try {
-      const requestId = await sendFriendRequest(friend.id);
-      
-      setOutgoingRequests((prev) => [
-        ...prev,
-        {
-          id: requestId,
-          fromUserId: user.id,
-          toUserId: friend.id,
-          status: 'pending',
-          createdAt: serverTimestamp(),
-          name: friend.name || 'Ukjent',
-          username: friend.username || 'ukjent',
-          profilePicture: friend.profilePicture || DefaultProfilePicture,
-        },
-      ]);
+      const result = await sendFriendRequest(friend.id);
+
+      if (result.status === 'accepted') {
+        setIncomingRequests((prev) => prev.filter((req) => req.fromUserId !== friend.id));
+        showAlert('Suksess', `Du er nå venn med ${friend.name || friend.username || 'brukeren'}`);
+        await fetchFriends();
+      } else {
+        setOutgoingRequests((prev) => [
+          ...prev,
+          {
+            id: result.requestId,
+            fromUserId: user.id,
+            toUserId: friend.id,
+            status: 'pending',
+            createdAt: serverTimestamp(),
+            name: friend.name || 'Ukjent',
+            username: friend.username || 'ukjent',
+            profilePicture: friend.profilePicture || DefaultProfilePicture,
+          },
+        ]);
+      }
       setSearchResults([]);
     } catch (error) {
       console.error(error);

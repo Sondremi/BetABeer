@@ -108,6 +108,7 @@ const GroupScreen = () => {
   const shouldScrollMembers = memberData.length > 5;
   const shouldScrollAvailableFriends = availableFriends.length > 5;
   const canSaveBet = betTitle.trim().length > 0 && betOptions.length > 0 && betOptions.every(opt => opt.name.trim().length > 0);
+  const canEditGroupName = Boolean(selectedGroup && user?.id && selectedGroup.members?.includes(user.id));
   const availableDistributionEntries = Object.entries(userDrinksToDistribute).flatMap(([drinkType, measures]) =>
     Object.entries(measures || {})
       .filter(([, amount]) => Number(amount) > 0)
@@ -848,15 +849,15 @@ const GroupScreen = () => {
         url: inviteLink,
       });
     } catch (error) {
-      console.error('Error sharing group invite link:', error);
-      showAlert('Feil', 'Kunne ikke dele gruppelenke');
+      // Sharing can fail/cancel depending on platform and user action; avoid showing an error toast here.
+      console.warn('Share group invite link was cancelled or unavailable:', error);
     }
   };
 
   const handleSaveGroupName = async () => {
     if (!selectedGroup) return;
-    if (selectedGroup.createdBy !== user?.id) {
-      showAlert('Ikke tilgang', 'Kun gruppeeier kan endre gruppenavn.');
+    if (!canEditGroupName) {
+      showAlert('Ikke tilgang', 'Du har ikke tilgang til å endre gruppenavn.');
       return;
     }
     const trimmedName = groupName.trim();
@@ -1932,7 +1933,7 @@ const GroupScreen = () => {
                   <Text style={groupStyles.groupHeaderName}>{currentGroup.name}</Text>
                   {selectedGroup && (
                     <View style={groupStyles.groupHeaderActions}>
-                      {selectedGroup.createdBy === user?.id && (
+                      {canEditGroupName && (
                         <TouchableOpacity onPress={() => setEditingName(true)} style={groupStyles.groupActionIconButton}>
                           <Image source={PencilIcon} style={globalStyles.primaryIcon} />
                         </TouchableOpacity>

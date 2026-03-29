@@ -6,6 +6,10 @@ import { auth, firestore } from './firebase/FirebaseConfig';
 const DefaultProfilePicture = require('../../assets/images/default/default_profilepicture.png');
 const FRIEND_REQUESTS_COLLECTION = 'friendRequests';
 
+export type SendFriendRequestResult =
+  | { status: 'sent'; requestId: string }
+  | { status: 'accepted'; requestId: string };
+
 const resolveProfilePicture = (profileImageKey?: string | null) => {
   if (!profileImageKey) return DefaultProfilePicture;
   return defaultProfileImageMap[profileImageKey] || DefaultProfilePicture;
@@ -107,7 +111,7 @@ export const friendSearch = async (searchTerm: string): Promise<Friend[]> => {
   }
 };
 
-export const sendFriendRequest = async (toUserId: string) => {
+export const sendFriendRequest = async (toUserId: string): Promise<SendFriendRequestResult> => {
   const currentUser = auth.currentUser;
   if (!currentUser) {
     throw new Error('Bruker ikke autorisert');
@@ -149,7 +153,12 @@ export const sendFriendRequest = async (toUserId: string) => {
     throw new Error('Venneforespørsel er allerede sendt');
   }
   if (!existingIncomingSnapshot.empty) {
-    throw new Error('Denne brukeren har allerede sendt deg en forespørsel');
+    const incomingRequest = existingIncomingSnapshot.docs[0];
+    await acceptFriendRequest(incomingRequest.id, toUserId, currentUser.uid);
+    return {
+      status: 'accepted',
+      requestId: incomingRequest.id,
+    };
   }
 
   // Get current user's profile data
@@ -168,7 +177,10 @@ export const sendFriendRequest = async (toUserId: string) => {
 
   const docRef = await addDoc(friendRequestRef, payload);
   console.log("Venneforespørsel opprettet", docRef.id);
-  return docRef.id;
+  return {
+    status: 'sent',
+    requestId: docRef.id,
+  };
 };
 
 export const getIncomingRequest = async (currentUserId: string) : Promise<FriendRequest[]> => {
