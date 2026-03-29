@@ -73,6 +73,7 @@ export interface Group {
   name: string;
   memberCount: number;
   image: any;
+  imageUrl?: string | null;
   createdBy: string;
   members: string[];
 }

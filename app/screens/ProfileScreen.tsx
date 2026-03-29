@@ -79,7 +79,6 @@ const ProfileScreen: React.FC = () => {
   const [onboardingStorageKey, setOnboardingStorageKey] = useState<string | null>(null);
   const [selectedProfileImage, setSelectedProfileImage] = useState<string | null>(null);
   const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
-  const [profileUploadStatus, setProfileUploadStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [profileNameFocused, setProfileNameFocused] = useState(false);
 
@@ -123,7 +122,6 @@ const ProfileScreen: React.FC = () => {
 
     try {
       setUploadingProfileImage(true);
-      setProfileUploadStatus(null);
 
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
@@ -139,17 +137,15 @@ const ProfileScreen: React.FC = () => {
       });
 
       if (pickerResult.canceled || !pickerResult.assets?.length) {
-        setProfileUploadStatus({ type: 'error', message: 'Ingen bilde ble valgt.' });
         return;
       }
 
       const selectedAsset = pickerResult.assets[0];
       const uploadedImageUrl = await uploadProfileImage(user.id, selectedAsset.uri);
       setSelectedProfileImage(uploadedImageUrl);
-      setProfileUploadStatus({ type: 'success', message: 'Profilbildet er lastet opp. Trykk Lagre for å oppdatere profilen.' });
     } catch (error) {
       console.error(error);
-      setProfileUploadStatus({ type: 'error', message: (error as Error).message || 'Kunne ikke laste opp profilbildet.' });
+      showAlert('Feil', (error as Error).message || 'Kunne ikke laste opp profilbildet.');
     } finally {
       setUploadingProfileImage(false);
     }
@@ -456,7 +452,8 @@ const ProfileScreen: React.FC = () => {
           id: docSnap.id,
           name: groupData.name || groupData.groupName || groupData.group_name || 'Gruppenavn',
           memberCount: groupData.members?.length || 0,
-          image: ImageMissing,
+          image: resolveProfileImageSource(groupData.image, ImageMissing),
+          imageUrl: typeof groupData.image === 'string' ? groupData.image : null,
           createdBy: groupData.createdBy || '',
           members: groupData.members || [],
         });
@@ -973,7 +970,7 @@ const ProfileScreen: React.FC = () => {
     setCreatingGroup(true);
     try {
       const newGroup = await createGroup(user.id, trimmedGroupName);
-      const groupWithImage: Group = { ...newGroup, image: ImageMissing };
+      const groupWithImage: Group = { ...newGroup, image: ImageMissing, imageUrl: null };
       const inviteTargets = selectedInviteeIds.filter((inviteeId) => inviteeId !== user.id);
       const invitationResults = await Promise.allSettled(
         inviteTargets.map((inviteeId) => sendGroupInvitation(inviteeId, groupWithImage))
@@ -1163,10 +1160,7 @@ const ProfileScreen: React.FC = () => {
               />
               <TouchableOpacity
                 style={profileStyles.editProfileImageButton}
-                onPress={() => {
-                  setProfileUploadStatus(null);
-                  setProfileImageModalVisible(true);
-                }}
+                onPress={() => setProfileImageModalVisible(true)}
               >
                 <Image source={PencilIcon} style={globalStyles.primaryIcon} />
               </TouchableOpacity>
@@ -1181,10 +1175,7 @@ const ProfileScreen: React.FC = () => {
           visible={profileImageModalVisible}
           animationType="slide"
           transparent
-          onRequestClose={() => {
-            setProfileUploadStatus(null);
-            setProfileImageModalVisible(false);
-          }}
+          onRequestClose={() => setProfileImageModalVisible(false)}
         >
           <View style={globalStyles.modalContainer}> 
             <View style={[globalStyles.modalContent, profileStyles.profileModalContent]}> 
@@ -1207,18 +1198,6 @@ const ProfileScreen: React.FC = () => {
               {!!selectedProfileImage && !isDefaultProfileImageKey(selectedProfileImage) && (
                 <Text style={profileStyles.profileUploadHintText}>Eget bilde valgt</Text>
               )}
-              {!!profileUploadStatus && (
-                <Text
-                  style={[
-                    profileStyles.profileUploadStatusText,
-                    profileUploadStatus.type === 'error'
-                      ? profileStyles.profileUploadStatusError
-                      : profileStyles.profileUploadStatusSuccess,
-                  ]}
-                >
-                  {profileUploadStatus.message}
-                </Text>
-              )}
               <ScrollView contentContainerStyle={profileStyles.profileModalGrid}>
                 {defaultProfileImages.map((img) => (
                   <TouchableOpacity
@@ -1227,10 +1206,7 @@ const ProfileScreen: React.FC = () => {
                       profileStyles.profileImageChoice,
                       selectedProfileImage === img && profileStyles.profileImageChoiceSelected,
                     ]}
-                    onPress={() => {
-                      setSelectedProfileImage(img);
-                      setProfileUploadStatus(null);
-                    }}
+                    onPress={() => setSelectedProfileImage(img)}
                   >
                     <Image
                       source={defaultProfileImageMap[img]}
@@ -1258,10 +1234,7 @@ const ProfileScreen: React.FC = () => {
               <View style={globalStyles.buttonRow}>
                 <TouchableOpacity
                   style={globalStyles.cancelButton}
-                  onPress={() => {
-                    setProfileUploadStatus(null);
-                    setProfileImageModalVisible(false);
-                  }}
+                  onPress={() => setProfileImageModalVisible(false)}
                 >
                   <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
                 </TouchableOpacity>

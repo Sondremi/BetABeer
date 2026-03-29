@@ -486,18 +486,6 @@ export const profileStyles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: theme.spacing.sm,
   },
-  profileUploadStatusText: {
-    fontSize: theme.fonts.sm,
-    textAlign: 'center',
-    marginBottom: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.xs,
-  },
-  profileUploadStatusError: {
-    color: theme.colors.errorLight,
-  },
-  profileUploadStatusSuccess: {
-    color: theme.colors.primary,
-  },
   profileImageChoice: {
     margin: theme.spacing.sm,
     borderRadius: theme.sizes.avatarXl,

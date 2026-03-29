@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { collection, doc, getDoc, getDocs, getFirestore, increment, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -8,6 +9,7 @@ import { firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, cancelFriendRequest, getIncomingRequest, getOutgoingRequest, sendFriendRequest } from '../services/friendService';
 import { buildGroupInviteLink } from '../services/groupInviteLinkService';
 import { cancelGroupInvitation, deleteGroup, distributeDrinks, exitGroup, registerConsumedDrinks, removeFriendFromGroup, sendGroupInvitation } from '../services/groupService';
+import { removeGroupImage, uploadGroupImage } from '../services/profileImageUploadService';
 import { createGroup, profileService, updateGroupName } from '../services/profileService';
 import { groupStyles } from '../styles/components/groupStyles';
 import { globalStyles } from '../styles/globalStyles';
@@ -98,6 +100,7 @@ const GroupScreen = () => {
   const [distributionLoading, setDistributionLoading] = useState(false);
   const [consumingDrinkKey, setConsumingDrinkKey] = useState<string | null>(null);
   const [drinkDetailViewByUser, setDrinkDetailViewByUser] = useState<Record<string, 'consume' | 'consumed' | 'distribute'>>({});
+  const [uploadingGroupImage, setUploadingGroupImage] = useState(false);
 
   const currentGroup: Group & { image: any } = selectedGroup
     ? { ...selectedGroup, name: groupName, image: selectedGroup.image ?? ImageMissing }
@@ -109,6 +112,8 @@ const GroupScreen = () => {
   const shouldScrollAvailableFriends = availableFriends.length > 5;
   const canSaveBet = betTitle.trim().length > 0 && betOptions.length > 0 && betOptions.every(opt => opt.name.trim().length > 0);
   const canEditGroupName = Boolean(selectedGroup && user?.id && selectedGroup.members?.includes(user.id));
+  const canManageGroupImage = Boolean(selectedGroup && user?.id && selectedGroup.createdBy === user.id);
+  const hasCustomGroupImage = Boolean(selectedGroup?.imageUrl);
   const availableDistributionEntries = Object.entries(userDrinksToDistribute).flatMap(([drinkType, measures]) =>
     Object.entries(measures || {})
       .filter(([, amount]) => Number(amount) > 0)
@@ -273,7 +278,8 @@ const GroupScreen = () => {
           id: docSnap.id,
           name: groupData.name || groupData.groupName || groupData.group_name || 'Gruppenavn',
           memberCount: groupData.members?.length || 0,
-          image: ImageMissing,
+          image: resolveProfileImageSource(groupData.image, ImageMissing),
+          imageUrl: typeof groupData.image === 'string' ? groupData.image : null,
           createdBy: groupData.createdBy || '',
           members: groupData.members || [],
         };
@@ -830,7 +836,7 @@ const GroupScreen = () => {
     setCreatingGroup(true);
     try {
       const newGroup = await createGroup(user.id, trimmedGroupName);
-      const groupWithImage: Group = { ...newGroup, image: ImageMissing };
+      const groupWithImage: Group = { ...newGroup, image: ImageMissing, imageUrl: null };
       setGroups(prev => prev.some(group => group.id === groupWithImage.id) ? prev : [...prev, groupWithImage]);
       setSelectedGroup(groupWithImage);
       setCreateGroupModalVisible(false);
@@ -890,6 +896,81 @@ const GroupScreen = () => {
       showAlert('Feil', `Kunne ikke oppdatere gruppenavn: ${(error as Error).message}`);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const applyGroupImageLocally = useCallback(async (groupId: string, imageValue: string | null) => {
+    const imageSource = resolveProfileImageSource(imageValue, ImageMissing);
+
+    setGroups((prev) => prev.map((group) => (
+      group.id === groupId ? { ...group, image: imageSource, imageUrl: imageValue } : group
+    )));
+
+    setSelectedGroup((prev) => {
+      if (!prev || prev.id !== groupId) return prev;
+      const updatedGroup = { ...prev, image: imageSource, imageUrl: imageValue };
+      AsyncStorage.setItem('lastSelectedGroup', JSON.stringify(updatedGroup)).catch((error) => {
+        console.error('Error saving group image locally:', error);
+      });
+      return updatedGroup;
+    });
+  }, []);
+
+  const handleUploadOrChangeGroupImage = async () => {
+    if (!selectedGroup?.id || !canManageGroupImage) {
+      showAlert('Ikke tilgang', 'Kun gruppeeier kan oppdatere gruppebildet.');
+      return;
+    }
+
+    setUploadingGroupImage(true);
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        showAlert('Tilgang mangler', 'Gi tilgang til bilder for å laste opp gruppebilde.');
+        return;
+      }
+
+      const pickerResult = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.7,
+        aspect: [16, 9],
+      });
+
+      if (pickerResult.canceled || !pickerResult.assets?.length) {
+        return;
+      }
+
+      const selectedAsset = pickerResult.assets[0];
+      const uploadedImageUrl = await uploadGroupImage(selectedGroup.id, selectedAsset.uri);
+      await updateDoc(doc(firestore, 'groups', selectedGroup.id), { image: uploadedImageUrl });
+      await applyGroupImageLocally(selectedGroup.id, uploadedImageUrl);
+    } catch (error) {
+      console.error('Error uploading group image:', error);
+      showAlert('Feil', (error as Error).message || 'Kunne ikke laste opp gruppebilde.');
+    } finally {
+      setUploadingGroupImage(false);
+    }
+  };
+
+  const handleRemoveGroupImage = async () => {
+    if (!selectedGroup?.id || !canManageGroupImage) {
+      showAlert('Ikke tilgang', 'Kun gruppeeier kan fjerne gruppebildet.');
+      return;
+    }
+
+    setUploadingGroupImage(true);
+    try {
+      await Promise.all([
+        updateDoc(doc(firestore, 'groups', selectedGroup.id), { image: null }),
+        removeGroupImage(selectedGroup.id),
+      ]);
+      await applyGroupImageLocally(selectedGroup.id, null);
+    } catch (error) {
+      console.error('Error removing group image:', error);
+      showAlert('Feil', (error as Error).message || 'Kunne ikke fjerne gruppebilde.');
+    } finally {
+      setUploadingGroupImage(false);
     }
   };
 
@@ -2008,13 +2089,35 @@ const GroupScreen = () => {
         </View>
 
         <View style={groupStyles.actionCard}>
-          <TouchableOpacity
-            style={[globalStyles.outlineButtonGold, groupStyles.groupInviteLinkButton]}
-            onPress={handleShareGroupInviteLink}
-            disabled={!selectedGroup}
-          >
-            <Text style={[globalStyles.outlineButtonGoldText, groupStyles.groupInviteLinkButtonText]}>Inviter via lenke</Text>
-          </TouchableOpacity>
+          <View style={groupStyles.actionGridRow}>
+            <TouchableOpacity
+              style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]}
+              onPress={handleShareGroupInviteLink}
+              disabled={!selectedGroup}
+            >
+              <Text style={[globalStyles.outlineButtonGoldText, groupStyles.actionGridButtonText]}>Inviter</Text>
+            </TouchableOpacity>
+            {canManageGroupImage && (
+              <TouchableOpacity
+                style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]}
+                onPress={handleUploadOrChangeGroupImage}
+                disabled={uploadingGroupImage}
+              >
+                <Text style={[globalStyles.outlineButtonGoldText, groupStyles.actionGridButtonText]}>
+                  {uploadingGroupImage ? 'Laster...' : hasCustomGroupImage ? 'Endre bilde' : 'Last opp bilde'}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {canManageGroupImage && hasCustomGroupImage && (
+              <TouchableOpacity
+                style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton, groupStyles.groupRemoveImageButton, uploadingGroupImage && globalStyles.disabledButton]}
+                onPress={handleRemoveGroupImage}
+                disabled={uploadingGroupImage}
+              >
+                <Text style={[globalStyles.outlineButtonGoldText, groupStyles.actionGridButtonText, groupStyles.groupRemoveImageButtonText]}>Fjern bilde</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           <View style={groupStyles.actionGridRow}>
             <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openMembersModal}>
@@ -2024,6 +2127,7 @@ const GroupScreen = () => {
               <Text style={[globalStyles.outlineButtonGoldText, groupStyles.actionGridButtonText]}>Ledertavler</Text>
             </TouchableOpacity>
           </View>
+
           <View style={groupStyles.actionGridRow}>
             <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openBetModal}>
               <Text style={[globalStyles.outlineButtonGoldText, groupStyles.actionGridButtonText]}>Opprett bett</Text>
