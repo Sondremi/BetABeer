@@ -771,6 +771,10 @@ export const groupStyles = StyleSheet.create({
     fontSize: theme.fonts.sm,
     fontWeight: '500',
   },
+  podiumUsernameText: {
+    marginTop: theme.spacing.xxxs,
+    textAlign: 'center',
+  },
   podiumPlacementBadge: {
     borderRadius: 999,
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -815,7 +819,7 @@ export const groupStyles = StyleSheet.create({
     flex: 1,
   },
   podiumStatsLabel: {
-    fontSize: theme.fonts.xxs + 2,
+    fontSize: theme.fonts.xxs,
     color: theme.colors.background,
     opacity: 0.9,
   },

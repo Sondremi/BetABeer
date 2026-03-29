@@ -123,6 +123,16 @@ const GroupScreen = () => {
     () => [...leaderboardData].sort((a, b) => b.currentBAC - a.currentBAC),
     [leaderboardData]
   );
+  const getMemberName = useCallback((member: Pick<MemberDrinkStats, 'name' | 'username'>) => {
+    const displayName = String(member.name || '').trim();
+    const username = String(member.username || 'ukjent').trim();
+    return displayName || username || 'Ukjent';
+  }, []);
+
+  const getMemberUsernameLabel = useCallback((member: Pick<MemberDrinkStats, 'username'>) => {
+    const username = String(member.username || 'ukjent').trim();
+    return `@${username}`;
+  }, []);
 
   const fetchMemberUsernames = useCallback(async (memberIds: string[]): Promise<{ [key: string]: string }> => {
     const usernames: { [key: string]: string } = { ...cachedUsernames };
@@ -168,6 +178,7 @@ const GroupScreen = () => {
 
           memberStats[userId] = {
             userId,
+            name: userData.name || '',
             username: usernames[userId] || 'Ukjent',
             betsWon: 0,
             betsLost: 0,
@@ -184,6 +195,7 @@ const GroupScreen = () => {
           console.error(`Error fetching member ${userId}:`, error);
           memberStats[userId] = {
             userId,
+            name: '',
             username: usernames[userId] || 'Ukjent',
             betsWon: 0,
             betsLost: 0,
@@ -1682,8 +1694,8 @@ const GroupScreen = () => {
             style={[globalStyles.circularImage, groupStyles.detailedMemberAvatar]} 
           />
           <View style={{ flex: 1 }}>
-            <Text style={groupStyles.detailedMemberName}>{item.username}</Text>
-            <Text style={groupStyles.detailedMemberSubtext}>{item.betsWon} seiere • {item.betsLost} tap</Text>
+            <Text style={groupStyles.detailedMemberName}>{getMemberName(item)}</Text>
+            <Text style={groupStyles.detailedMemberSubtext}>{getMemberUsernameLabel(item)} • {item.betsWon} seiere • {item.betsLost} tap</Text>
           </View>
         </View>
 
@@ -1771,7 +1783,15 @@ const GroupScreen = () => {
     );
   };
 
-  const renderPodiumCard = ({ member, placement }: { member: MemberDrinkStats; placement: 1 | 2 | 3 }) => {
+  const renderPodiumCard = ({
+    member,
+    placement,
+    mode = 'betsWon',
+  }: {
+    member: GroupLeaderboardMemberStats;
+    placement: 1 | 2 | 3;
+    mode?: 'betsWon' | 'bac';
+  }) => {
     const isFirst = placement === 1;
     const cardColor = placement === 1 ? theme.colors.primary : placement === 2 ? theme.colors.silver : theme.colors.bronze;
 
@@ -1791,11 +1811,11 @@ const GroupScreen = () => {
         />
 
         <View style={groupStyles.podiumNameWrap}>
-          <Text
-            style={[groupStyles.podiumNameText, isFirst ? groupStyles.podiumNameTextFirst : groupStyles.podiumNameTextOther]}
-            numberOfLines={2}
-          >
-            {member.username}
+          <Text style={[groupStyles.podiumNameText, isFirst ? groupStyles.podiumNameTextFirst : groupStyles.podiumNameTextOther]} numberOfLines={1}>
+            {getMemberName(member)}
+          </Text>
+          <Text style={[globalStyles.secondaryText, groupStyles.leaderboardMemberSubtext, groupStyles.podiumUsernameText]} numberOfLines={1}>
+            {getMemberUsernameLabel(member)}
           </Text>
         </View>
 
@@ -1804,16 +1824,25 @@ const GroupScreen = () => {
         </View>
 
         <View style={[groupStyles.podiumStatsCard, isFirst ? groupStyles.podiumStatsCardFirst : groupStyles.podiumStatsCardOther]}>
-          <View style={groupStyles.podiumStatsRow}>
-            <View style={groupStyles.podiumStatsColumn}>
-              <Text style={groupStyles.podiumStatsLabel}>VUNNET</Text>
-              <Text style={[groupStyles.podiumStatsValue, isFirst ? groupStyles.podiumStatsValueFirst : groupStyles.podiumStatsValueOther]}>{member.betsWon}</Text>
+          {mode === 'betsWon' ? (
+            <View style={groupStyles.podiumStatsRow}>
+              <View style={groupStyles.podiumStatsColumn}>
+                <Text style={groupStyles.podiumStatsLabel}>V</Text>
+                <Text style={[groupStyles.podiumStatsValue, isFirst ? groupStyles.podiumStatsValueFirst : groupStyles.podiumStatsValueOther]}>{member.betsWon}</Text>
+              </View>
+              <View style={groupStyles.podiumStatsColumn}>
+                <Text style={groupStyles.podiumStatsLabel}>T</Text>
+                <Text style={[groupStyles.podiumStatsValue, isFirst ? groupStyles.podiumStatsValueFirst : groupStyles.podiumStatsValueOther]}>{member.betsLost}</Text>
+              </View>
             </View>
+          ) : (
             <View style={groupStyles.podiumStatsColumn}>
-              <Text style={groupStyles.podiumStatsLabel}>TAPT</Text>
-              <Text style={[groupStyles.podiumStatsValue, isFirst ? groupStyles.podiumStatsValueFirst : groupStyles.podiumStatsValueOther]}>{member.betsLost}</Text>
+              <Text style={groupStyles.podiumStatsLabel}>PROMILLE</Text>
+              <Text style={[groupStyles.podiumStatsValue, isFirst ? groupStyles.podiumStatsValueFirst : groupStyles.podiumStatsValueOther]}>
+                {member.currentBAC.toFixed(3)}
+              </Text>
             </View>
-          </View>
+          )}
         </View>
       </View>
     );
@@ -1841,15 +1870,15 @@ const GroupScreen = () => {
 
         <View style={groupStyles.leaderboardMemberMeta}>
           <Text style={[groupStyles.wagerUser, groupStyles.leaderboardMemberName]} numberOfLines={1}>
-            {item.username}
+            {getMemberName(item)}
           </Text>
           {leaderboardView === 'betsWon' ? (
             <Text style={[globalStyles.secondaryText, groupStyles.leaderboardMemberSubtext]}> 
-              {item.betsWon} vunnet • {item.betsLost} tapt
+              {getMemberUsernameLabel(item)}
             </Text>
           ) : (
             <Text style={[globalStyles.secondaryText, groupStyles.leaderboardMemberSubtext]}> 
-              {totalReceived} mottatt, {totalDistributed} tilgjengelig
+              {getMemberUsernameLabel(item)} • {totalReceived} mottatt, {totalDistributed} tilgjengelig
             </Text>
           )}
         </View>
@@ -1872,6 +1901,37 @@ const GroupScreen = () => {
               <Text style={[groupStyles.leaderboardStatValue, groupStyles.leaderboardStatValueCompact]}>{totalDistributed}</Text>
             </View>
           )}
+        </View>
+      </View>
+    );
+  };
+
+  const renderBacLeaderboardItem = ({ item, index }: { item: GroupLeaderboardMemberStats; index: number }) => {
+    const rank = index + 4;
+
+    return (
+      <View style={groupStyles.leaderboardRow}>
+        <View style={groupStyles.leaderboardRankBadge}>
+          <Text style={groupStyles.leaderboardRankText}>#{rank}</Text>
+        </View>
+
+        <Image
+          source={item.profilePicture || DefaultProfilePicture}
+          style={[globalStyles.circularImage, groupStyles.leaderboardListAvatar]}
+        />
+
+        <View style={groupStyles.leaderboardMemberMeta}>
+          <Text style={[groupStyles.wagerUser, groupStyles.leaderboardMemberName]} numberOfLines={1}>
+            {getMemberName(item)}
+          </Text>
+          <Text style={[globalStyles.secondaryText, groupStyles.leaderboardMemberSubtext]}> 
+            {getMemberUsernameLabel(item)}
+          </Text>
+        </View>
+
+        <View style={[groupStyles.leaderboardStatsCard, groupStyles.leaderboardCenterAligned]}>
+          <Text style={[groupStyles.leaderboardStatLabel, groupStyles.leaderboardStatLabelWide]}>Promille</Text>
+          <Text style={[groupStyles.leaderboardStatValue, groupStyles.leaderboardStatValueCompact]}>{item.currentBAC.toFixed(3)}</Text>
         </View>
       </View>
     );
@@ -2539,7 +2599,7 @@ const GroupScreen = () => {
           <View style={[globalStyles.modalContent, groupStyles.leaderboardModalContent]}> 
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
               <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.sm, fontSize: 18, fontWeight: '600', color: theme.colors.text }]}>
-                {leaderboardView === 'betsWon' ? 'Bet Statistikk' : leaderboardView === 'drinkStats' ? 'Drikke Statistikk' : 'BAC Leaderboard'}
+                {leaderboardView === 'betsWon' ? 'Bet Statistikk' : leaderboardView === 'drinkStats' ? 'Drikke Statistikk' : 'Promille Statistikk'}
               </Text>
               {leaderboardLoading && (
                 <Text style={groupStyles.modalLoadingText}>Laster...</Text>
@@ -2582,7 +2642,7 @@ const GroupScreen = () => {
                     globalStyles.outlineButtonGoldText,
                     { color: leaderboardView === 'bac' ? theme.colors.background : theme.colors.primary, fontSize: 14 }
                   ]}>
-                    BAC
+                    Promille
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -2632,36 +2692,21 @@ const GroupScreen = () => {
                   ) : leaderboardView === 'bac' ? (
                     <View>
                       <Text style={groupStyles.modalSectionSubtitle}>
-                        Medlemmer sortert på nåværende BAC (høyest først)
+                        Medlemmer sortert på nåværende Promille
                       </Text>
-                      <View style={[globalStyles.listContainer, groupStyles.leaderboardListWrap]}> 
-                        {bacLeaderboardData.map((member, idx) => (
-                          <View key={member.userId} style={groupStyles.leaderboardRow}>
-                            <View style={groupStyles.leaderboardRankBadge}>
-                              <Text style={groupStyles.leaderboardRankText}>#{idx + 1}</Text>
-                            </View>
-
-                            <Image
-                              source={member.profilePicture || DefaultProfilePicture}
-                              style={[globalStyles.circularImage, groupStyles.leaderboardListAvatar]}
-                            />
-
-                            <View style={groupStyles.leaderboardMemberMeta}>
-                              <Text style={[groupStyles.wagerUser, groupStyles.leaderboardMemberName]} numberOfLines={1}>
-                                {member.username}
-                              </Text>
-                              <Text style={[globalStyles.secondaryText, groupStyles.leaderboardMemberSubtext]}> 
-                                {member.betsWon} vunnet • {member.betsLost} tapt
-                              </Text>
-                            </View>
-
-                            <View style={[groupStyles.leaderboardStatsCard, groupStyles.leaderboardCenterAligned]}>
-                              <Text style={[groupStyles.leaderboardStatLabel, groupStyles.leaderboardStatLabelWide]}>BAC</Text>
-                              <Text style={[groupStyles.leaderboardStatValue, groupStyles.leaderboardStatValueCompact]}>{member.currentBAC.toFixed(3)}</Text>
-                            </View>
-                          </View>
-                        ))}
+                      <View style={groupStyles.leaderboardPodiumRow}>
+                        {bacLeaderboardData[1] && renderPodiumCard({ member: bacLeaderboardData[1], placement: 2, mode: 'bac' })}
+                        {bacLeaderboardData[0] && renderPodiumCard({ member: bacLeaderboardData[0], placement: 1, mode: 'bac' })}
+                        {bacLeaderboardData[2] && renderPodiumCard({ member: bacLeaderboardData[2], placement: 3, mode: 'bac' })}
                       </View>
+
+                      {bacLeaderboardData.length > 3 && (
+                        <View style={[globalStyles.listContainer, groupStyles.leaderboardListWrap]}> 
+                          {bacLeaderboardData.slice(3).map((member, idx) => (
+                            <View key={member.userId}>{renderBacLeaderboardItem({ item: member, index: idx })}</View>
+                          ))}
+                        </View>
+                      )}
                     </View>
                   ) : (
                     <View>
