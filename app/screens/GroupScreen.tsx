@@ -1196,8 +1196,6 @@ const GroupScreen = () => {
     distributionHistory.forEach((dist: DrinkTransaction) => {
       const receiverStats = memberStats[dist.toUserId];
       if (receiverStats) {
-  const drinkTypeObj = receiverStats.drinksToConsume[dist.drinkType] ?? (receiverStats.drinksToConsume[dist.drinkType] = {});
-  drinkTypeObj[dist.measureType] = (drinkTypeObj[dist.measureType] ?? 0) + dist.amount;
         receiverStats.transactions.push(dist);
       }
     });
