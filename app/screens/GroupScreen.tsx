@@ -31,6 +31,88 @@ type GroupLeaderboardMemberStats = MemberDrinkStats & {
   currentBAC: number;
 };
 
+type BacRangeTone = {
+  rowBackground: string;
+  rowBorder: string;
+  badgeBackground: string;
+  badgeBorder: string;
+  badgeText: string;
+  valueCardBackground: string;
+  valueCardBorder: string;
+  valueText: string;
+  averageFill: string;
+};
+
+const getBacRangeTone = (bac: number): BacRangeTone => {
+  if (bac < 0.5) {
+    return {
+      rowBackground: 'rgba(56, 147, 232, 0.12)',
+      rowBorder: 'rgba(92, 170, 238, 0.42)',
+      badgeBackground: 'rgba(56, 147, 232, 0.22)',
+      badgeBorder: 'rgba(92, 170, 238, 0.62)',
+      badgeText: '#8FC5F2',
+      valueCardBackground: 'rgba(56, 147, 232, 0.18)',
+      valueCardBorder: 'rgba(92, 170, 238, 0.52)',
+      valueText: '#B7DDF8',
+      averageFill: '#3893E8',
+    };
+  }
+
+  if (bac <= 1.09) {
+    return {
+      rowBackground: 'rgba(255, 215, 0, 0.12)',
+      rowBorder: 'rgba(255, 215, 0, 0.40)',
+      badgeBackground: 'rgba(255, 215, 0, 0.24)',
+      badgeBorder: 'rgba(255, 215, 0, 0.62)',
+      badgeText: '#FFE279',
+      valueCardBackground: 'rgba(255, 215, 0, 0.18)',
+      valueCardBorder: 'rgba(255, 215, 0, 0.55)',
+      valueText: '#FFE9A8',
+      averageFill: theme.colors.primary,
+    };
+  }
+
+  if (bac <= 1.59) {
+    return {
+      rowBackground: 'rgba(255, 165, 0, 0.12)',
+      rowBorder: 'rgba(255, 165, 0, 0.42)',
+      badgeBackground: 'rgba(255, 165, 0, 0.24)',
+      badgeBorder: 'rgba(255, 165, 0, 0.62)',
+      badgeText: '#FFC97A',
+      valueCardBackground: 'rgba(255, 165, 0, 0.18)',
+      valueCardBorder: 'rgba(255, 165, 0, 0.55)',
+      valueText: '#FFD8A3',
+      averageFill: '#FFA500',
+    };
+  }
+
+  if (bac <= 2.49) {
+    return {
+      rowBackground: 'rgba(255, 99, 71, 0.12)',
+      rowBorder: 'rgba(255, 99, 71, 0.42)',
+      badgeBackground: 'rgba(255, 99, 71, 0.24)',
+      badgeBorder: 'rgba(255, 99, 71, 0.62)',
+      badgeText: '#FFAD9B',
+      valueCardBackground: 'rgba(255, 99, 71, 0.18)',
+      valueCardBorder: 'rgba(255, 99, 71, 0.55)',
+      valueText: '#FFC2B5',
+      averageFill: '#FF6347',
+    };
+  }
+
+  return {
+    rowBackground: 'rgba(255, 90, 110, 0.14)',
+    rowBorder: 'rgba(255, 112, 130, 0.52)',
+    badgeBackground: 'rgba(255, 90, 110, 0.26)',
+    badgeBorder: 'rgba(255, 136, 150, 0.70)',
+    badgeText: '#FFD1DA',
+    valueCardBackground: 'rgba(255, 90, 110, 0.22)',
+    valueCardBorder: 'rgba(255, 136, 150, 0.66)',
+    valueText: '#FFE2E8',
+    averageFill: '#FF5A6E',
+  };
+};
+
 const getGroupScopedDrinkStats = (userData: any, groupId?: string) => {
   const groupStats = groupId ? userData?.groupDrinkStats?.[groupId] : null;
   return {
@@ -147,6 +229,7 @@ const GroupScreen = () => {
     if (bacVisualMax <= 0) return 0;
     return Math.min(1, groupAverageBAC / bacVisualMax);
   }, [groupAverageBAC, bacVisualMax]);
+  const groupAverageBacTone = useMemo(() => getBacRangeTone(groupAverageBAC), [groupAverageBAC]);
 
   useEffect(() => {
     if (!user) return;
@@ -2632,7 +2715,7 @@ const GroupScreen = () => {
           <View style={[globalStyles.modalContent, groupStyles.leaderboardModalContent]}> 
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
               <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.sm, fontSize: 18, fontWeight: '600', color: theme.colors.text }]}>
-                {leaderboardView === 'betsWon' ? 'Bet Statistikk' : leaderboardView === 'drinkStats' ? 'Drikke Statistikk' : 'BAC Leaderboard'}
+                {leaderboardView === 'betsWon' ? 'Bet Statistikk' : leaderboardView === 'drinkStats' ? 'Drikke Statistikk' : 'Promille Leaderboard'}
               </Text>
               {leaderboardLoading && (
                 <Text style={groupStyles.modalLoadingText}>Laster...</Text>
@@ -2675,7 +2758,7 @@ const GroupScreen = () => {
                     globalStyles.outlineButtonGoldText,
                     { color: leaderboardView === 'bac' ? theme.colors.background : theme.colors.primary, fontSize: 14 }
                   ]}>
-                    BAC
+                    Promille
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -2725,17 +2808,20 @@ const GroupScreen = () => {
                   ) : leaderboardView === 'bac' ? (
                     <View>
                       <Text style={groupStyles.modalSectionSubtitle}>
-                        Medlemmer sortert på nåværende BAC (høyest først)
+                        Medlemmer sortert på nåværende promille (høyest først)
                       </Text>
                       <View style={groupStyles.bacAverageCard}>
                         <View style={groupStyles.bacAverageHeaderRow}>
-                          <Text style={groupStyles.bacAverageTitle}>Gjennomsnittlig BAC</Text>
-                          <Text style={groupStyles.bacAverageValue}>{groupAverageBAC.toFixed(3)}</Text>
+                          <Text style={groupStyles.bacAverageTitle}>Gjennomsnittlig promille</Text>
+                          <Text style={[groupStyles.bacAverageValue, { color: groupAverageBacTone.valueText }]}>
+                            {groupAverageBAC.toFixed(3)}‰
+                          </Text>
                         </View>
                         <View style={groupStyles.bacAverageTrack}>
                           <View
                             style={[
                               groupStyles.bacAverageFill,
+                              { backgroundColor: groupAverageBacTone.averageFill },
                               { width: `${Math.max(4, Math.round(averageBacBarProgress * 100))}%` },
                             ]}
                           />
@@ -2749,16 +2835,19 @@ const GroupScreen = () => {
                         </Text>
                       </View>
                       <View style={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}> 
-                        {bacLeaderboardData.map((member, idx) => (
-                          <View
+                        {bacLeaderboardData.map((member, idx) => {
+                          const bacTone = getBacRangeTone(member.currentBAC);
+
+                          return (
+                            <View
                             key={member.userId}
                             style={{
                               flexDirection: 'row',
                               alignItems: 'center',
                               borderWidth: 1,
-                              borderColor: theme.colors.border,
+                              borderColor: bacTone.rowBorder,
                               borderRadius: theme.borderRadius.md,
-                              backgroundColor: theme.colors.surface,
+                              backgroundColor: bacTone.rowBackground,
                               paddingVertical: 10,
                               paddingHorizontal: 12,
                               marginBottom: 8,
@@ -2769,15 +2858,15 @@ const GroupScreen = () => {
                                 paddingHorizontal: 10,
                                 paddingVertical: 4,
                                 borderRadius: 999,
-                                backgroundColor: theme.colors.primary + '1F',
+                                backgroundColor: bacTone.badgeBackground,
                                 borderWidth: 1,
-                                borderColor: theme.colors.primary + '55',
+                                borderColor: bacTone.badgeBorder,
                                 marginRight: 10,
                                 minWidth: 46,
                                 alignItems: 'center',
                               }}
                             >
-                              <Text style={{ fontSize: 12, color: theme.colors.primary, fontWeight: '700' }}>#{idx + 1}</Text>
+                              <Text style={{ fontSize: 12, color: bacTone.badgeText, fontWeight: '700' }}>#{idx + 1}</Text>
                             </View>
 
                             <Image
@@ -2799,18 +2888,19 @@ const GroupScreen = () => {
                                 minWidth: 84,
                                 borderRadius: theme.borderRadius.md,
                                 borderWidth: 1,
-                                borderColor: theme.colors.border,
-                                backgroundColor: theme.colors.background,
+                                borderColor: bacTone.valueCardBorder,
+                                backgroundColor: bacTone.valueCardBackground,
                                 paddingVertical: 6,
                                 paddingHorizontal: 8,
                                 alignItems: 'center',
                               }}
                             >
-                              <Text style={{ fontSize: 10, color: theme.colors.textSecondary, letterSpacing: 0.4 }}>BAC</Text>
-                              <Text style={{ fontSize: 16, color: theme.colors.text, fontWeight: '700' }}>{member.currentBAC.toFixed(3)}</Text>
+                              <Text style={{ fontSize: 10, color: bacTone.badgeText, letterSpacing: 0.4 }}>PROMILLE</Text>
+                              <Text style={{ fontSize: 16, color: bacTone.valueText, fontWeight: '700' }}>{member.currentBAC.toFixed(3)}‰</Text>
                             </View>
-                          </View>
-                        ))}
+                            </View>
+                          );
+                        })}
                       </View>
                     </View>
                   ) : (
