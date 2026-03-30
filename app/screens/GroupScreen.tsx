@@ -51,9 +51,9 @@ const getBacRangeTone = (bac: number): BacRangeTone => {
       badgeBackground: 'rgba(56, 147, 232, 0.22)',
       badgeBorder: 'rgba(92, 170, 238, 0.62)',
       badgeText: '#8FC5F2',
-      valueCardBackground: 'rgba(56, 147, 232, 0.18)',
-      valueCardBorder: 'rgba(92, 170, 238, 0.52)',
-      valueText: '#B7DDF8',
+      valueCardBackground: 'rgba(56, 147, 232, 0.62)',
+      valueCardBorder: '#8CC7F8',
+      valueText: '#F2F9FF',
       averageFill: '#3893E8',
     };
   }
@@ -64,10 +64,10 @@ const getBacRangeTone = (bac: number): BacRangeTone => {
       rowBorder: 'rgba(255, 215, 0, 0.40)',
       badgeBackground: 'rgba(255, 215, 0, 0.24)',
       badgeBorder: 'rgba(255, 215, 0, 0.62)',
-      badgeText: '#FFE279',
-      valueCardBackground: 'rgba(255, 215, 0, 0.18)',
-      valueCardBorder: 'rgba(255, 215, 0, 0.55)',
-      valueText: '#FFE9A8',
+      badgeText: '#FFF0A8',
+      valueCardBackground: 'rgba(201, 150, 0, 0.94)',
+      valueCardBorder: '#FFE978',
+      valueText: '#FFF9E2',
       averageFill: theme.colors.primary,
     };
   }
@@ -78,10 +78,10 @@ const getBacRangeTone = (bac: number): BacRangeTone => {
       rowBorder: 'rgba(255, 165, 0, 0.42)',
       badgeBackground: 'rgba(255, 165, 0, 0.24)',
       badgeBorder: 'rgba(255, 165, 0, 0.62)',
-      badgeText: '#FFC97A',
-      valueCardBackground: 'rgba(255, 165, 0, 0.18)',
-      valueCardBorder: 'rgba(255, 165, 0, 0.55)',
-      valueText: '#FFD8A3',
+      badgeText: '#FFD18E',
+      valueCardBackground: 'rgba(255, 165, 0, 0.82)',
+      valueCardBorder: '#FFD08A',
+      valueText: '#241400',
       averageFill: '#FFA500',
     };
   }
@@ -92,10 +92,10 @@ const getBacRangeTone = (bac: number): BacRangeTone => {
       rowBorder: 'rgba(255, 99, 71, 0.42)',
       badgeBackground: 'rgba(255, 99, 71, 0.24)',
       badgeBorder: 'rgba(255, 99, 71, 0.62)',
-      badgeText: '#FFAD9B',
-      valueCardBackground: 'rgba(255, 99, 71, 0.18)',
-      valueCardBorder: 'rgba(255, 99, 71, 0.55)',
-      valueText: '#FFC2B5',
+      badgeText: '#FFB7A5',
+      valueCardBackground: 'rgba(255, 99, 71, 0.82)',
+      valueCardBorder: '#FFC5B3',
+      valueText: '#2A0900',
       averageFill: '#FF6347',
     };
   }
@@ -105,11 +105,11 @@ const getBacRangeTone = (bac: number): BacRangeTone => {
     rowBorder: 'rgba(255, 112, 130, 0.52)',
     badgeBackground: 'rgba(255, 90, 110, 0.26)',
     badgeBorder: 'rgba(255, 136, 150, 0.70)',
-    badgeText: '#FFD1DA',
-    valueCardBackground: 'rgba(255, 90, 110, 0.22)',
-    valueCardBorder: 'rgba(255, 136, 150, 0.66)',
-    valueText: '#FFE2E8',
-    averageFill: '#FF5A6E',
+    badgeText: '#FFD6DE',
+    valueCardBackground: 'rgba(255, 36, 36, 0.90)',
+    valueCardBorder: '#FFB3B3',
+    valueText: '#FFF5F5',
+    averageFill: '#FF2424',
   };
 };
 
@@ -396,6 +396,32 @@ const GroupScreen = () => {
       isMounted = false;
     };
   }, [leaderboardModalVisible, bets, selectedGroup]);
+
+  useEffect(() => {
+    if (!leaderboardModalVisible || leaderboardView !== 'bac' || !selectedGroup) return;
+
+    let isMounted = true;
+    const refreshPromille = async () => {
+      try {
+        const data = await getLeaderboardData();
+        if (isMounted) setLeaderboardData(data);
+      } catch (error) {
+        console.error('Error refreshing promille leaderboard:', error);
+      }
+    };
+
+    refreshPromille();
+
+    // Keep Promille values fresh as metabolism changes over time.
+    const interval = setInterval(() => {
+      refreshPromille();
+    }, 15 * 1000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [leaderboardModalVisible, leaderboardView, selectedGroup, bets]);
 
   useEffect(() => {
     if (!selectedGroup || !selectedGroup.members) {
@@ -2887,7 +2913,7 @@ const GroupScreen = () => {
                               style={{
                                 minWidth: 84,
                                 borderRadius: theme.borderRadius.md,
-                                borderWidth: 1,
+                                borderWidth: 2,
                                 borderColor: bacTone.valueCardBorder,
                                 backgroundColor: bacTone.valueCardBackground,
                                 paddingVertical: 6,
@@ -2896,7 +2922,15 @@ const GroupScreen = () => {
                               }}
                             >
                               <Text style={{ fontSize: 10, color: bacTone.badgeText, letterSpacing: 0.4 }}>PROMILLE</Text>
-                              <Text style={{ fontSize: 16, color: bacTone.valueText, fontWeight: '700' }}>{member.currentBAC.toFixed(3)}‰</Text>
+                              <Text
+                                style={{
+                                  fontSize: 16,
+                                  color: bacTone.valueText,
+                                  fontWeight: '700',
+                                }}
+                              >
+                                {member.currentBAC.toFixed(3)}‰
+                              </Text>
                             </View>
                             </View>
                           );
