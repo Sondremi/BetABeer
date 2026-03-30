@@ -134,6 +134,19 @@ const GroupScreen = () => {
     () => [...leaderboardData].sort((a, b) => b.currentBAC - a.currentBAC),
     [leaderboardData]
   );
+  const groupAverageBAC = useMemo(() => {
+    if (bacLeaderboardData.length === 0) return 0;
+    const totalBAC = bacLeaderboardData.reduce((sum, member) => sum + member.currentBAC, 0);
+    return totalBAC / bacLeaderboardData.length;
+  }, [bacLeaderboardData]);
+  const bacVisualMax = useMemo(() => {
+    const highestMemberBAC = bacLeaderboardData[0]?.currentBAC || 0;
+    return Math.max(0.08, highestMemberBAC);
+  }, [bacLeaderboardData]);
+  const averageBacBarProgress = useMemo(() => {
+    if (bacVisualMax <= 0) return 0;
+    return Math.min(1, groupAverageBAC / bacVisualMax);
+  }, [groupAverageBAC, bacVisualMax]);
 
   useEffect(() => {
     if (!user) return;
@@ -2714,6 +2727,27 @@ const GroupScreen = () => {
                       <Text style={groupStyles.modalSectionSubtitle}>
                         Medlemmer sortert på nåværende BAC (høyest først)
                       </Text>
+                      <View style={groupStyles.bacAverageCard}>
+                        <View style={groupStyles.bacAverageHeaderRow}>
+                          <Text style={groupStyles.bacAverageTitle}>Gjennomsnittlig BAC</Text>
+                          <Text style={groupStyles.bacAverageValue}>{groupAverageBAC.toFixed(3)}</Text>
+                        </View>
+                        <View style={groupStyles.bacAverageTrack}>
+                          <View
+                            style={[
+                              groupStyles.bacAverageFill,
+                              { width: `${Math.max(4, Math.round(averageBacBarProgress * 100))}%` },
+                            ]}
+                          />
+                        </View>
+                        <View style={groupStyles.bacAverageScaleRow}>
+                          <Text style={groupStyles.bacAverageScaleText}>0.000</Text>
+                          <Text style={groupStyles.bacAverageScaleText}>{bacVisualMax.toFixed(3)}</Text>
+                        </View>
+                        <Text style={groupStyles.bacAverageHint}>
+                          Basert på {bacLeaderboardData.length} medlemmer i gruppen.
+                        </Text>
+                      </View>
                       <View style={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}> 
                         {bacLeaderboardData.map((member, idx) => (
                           <View
