@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, doc, getDoc, getDocs, getFirestore, increment, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, FieldPath, getDoc, getDocs, getFirestore, increment, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
@@ -29,6 +29,15 @@ type SentGroupInvitation = {
 
 type GroupLeaderboardMemberStats = MemberDrinkStats & {
   currentBAC: number;
+};
+
+const getGroupScopedDrinkStats = (userData: any, groupId?: string) => {
+  const groupStats = groupId ? userData?.groupDrinkStats?.[groupId] : null;
+  return {
+    drinksToConsume: groupStats?.drinksToConsume || userData?.drinksToConsume || {},
+    drinksConsumed: groupStats?.drinksConsumed || userData?.drinksConsumed || {},
+    drinksToDistribute: groupStats?.drinksToDistribute || userData?.drinksToDistribute || {},
+  };
 };
 
 const GroupScreen = () => {
@@ -979,14 +988,18 @@ const GroupScreen = () => {
             
             if (wager.optionId === optionId) {
               // Winner: gets their own bet amount as distributable drinks
-              await updateDoc(userRef, {
-                [`drinksToDistribute.${wager.drinkType}.${wager.measureType}`]: increment(wager.amount)
-              });
+              await updateDoc(
+                userRef,
+                new FieldPath('groupDrinkStats', selectedGroup.id, 'drinksToDistribute', wager.drinkType, wager.measureType),
+                increment(wager.amount)
+              );
             } else {
               // Loser: gets their own bet amount as drinks to consume
-              await updateDoc(userRef, {
-                [`drinksToConsume.${wager.drinkType}.${wager.measureType}`]: increment(wager.amount)
-              });
+              await updateDoc(
+                userRef,
+                new FieldPath('groupDrinkStats', selectedGroup.id, 'drinksToConsume', wager.drinkType, wager.measureType),
+                increment(wager.amount)
+              );
             }
           }));
         }
@@ -1109,6 +1122,7 @@ const GroupScreen = () => {
             ? profileService.calculateBAC(userData.drinks, userData.weight, userData.gender, Date.now())
             : 0;
           
+          const scopedDrinkStats = getGroupScopedDrinkStats(userData, selectedGroup.id);
           memberStats[userId] = {
             userId,
             username: usernames[userId] || 'Ukjent',
@@ -1118,9 +1132,9 @@ const GroupScreen = () => {
             profilePicture: userData.profileImage ? 
               defaultProfileImageMap[userData.profileImage] || DefaultProfilePicture 
               : DefaultProfilePicture,
-            drinksToConsume: userData.drinksToConsume || {},
-            drinksConsumed: userData.drinksConsumed || {},
-            drinksToDistribute: userData.drinksToDistribute || {},
+            drinksToConsume: scopedDrinkStats.drinksToConsume,
+            drinksConsumed: scopedDrinkStats.drinksConsumed,
+            drinksToDistribute: scopedDrinkStats.drinksToDistribute,
             transactions: [],
           };
         } catch (error) {
@@ -1182,8 +1196,6 @@ const GroupScreen = () => {
     distributionHistory.forEach((dist: DrinkTransaction) => {
       const receiverStats = memberStats[dist.toUserId];
       if (receiverStats) {
-  const drinkTypeObj = receiverStats.drinksToConsume[dist.drinkType] ?? (receiverStats.drinksToConsume[dist.drinkType] = {});
-  drinkTypeObj[dist.measureType] = (drinkTypeObj[dist.measureType] ?? 0) + dist.amount;
         receiverStats.transactions.push(dist);
       }
     });
@@ -1671,11 +1683,11 @@ const GroupScreen = () => {
           : 'Til utdeling';
 
     const handleRegisterConsumedDrink = async (drinkType: DrinkType, measureType: MeasureType) => {
-      if (!user?.id) return;
+      if (!user?.id || !selectedGroup?.id) return;
       const actionKey = `${drinkType}-${measureType}`;
       setConsumingDrinkKey(actionKey);
       try {
-        await registerConsumedDrinks(user.id, [{ drinkType, measureType, amount: 1 }]);
+        await registerConsumedDrinks(user.id, selectedGroup.id, [{ drinkType, measureType, amount: 1 }]);
         const updatedLeaderboard = await getLeaderboardData();
         setLeaderboardData(updatedLeaderboard);
       } catch (error) {

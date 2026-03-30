@@ -1,4 +1,4 @@
-import { addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, increment, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, FieldPath, getDoc, getDocs, increment, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { DrinkType, Group, MeasureType, MemberDrinkStats } from '../types/drinkTypes';
 import { auth, firestore } from './firebase/FirebaseConfig';
 
@@ -217,7 +217,9 @@ export const distributeDrinks = async (
     throw new Error('Bruker ikke funnet');
   }
   const userData = fromUserDoc.data();
-  const drinksToDistribute: MemberDrinkStats['drinksToDistribute'] = userData.drinksToDistribute || {};
+  const groupDrinkStats = userData.groupDrinkStats?.[groupId] || {};
+  const drinksToDistribute: MemberDrinkStats['drinksToDistribute'] =
+    groupDrinkStats.drinksToDistribute || userData.drinksToDistribute || {};
   const fromUsername = userData.username || userData.displayName || 'Ukjent';
 
   // Validate distributions
@@ -274,22 +276,27 @@ export const distributeDrinks = async (
     });
 
     // Update recipient's drinksToConsume
-    await updateDoc(toUserRef, {
-      [`drinksToConsume.${drinkType}.${measureType}`]: increment(amount)
-    });
+    await updateDoc(
+      toUserRef,
+      new FieldPath('groupDrinkStats', groupId, 'drinksToConsume', drinkType, measureType),
+      increment(amount)
+    );
 
     // Update distributor's drinksToDistribute
-    await updateDoc(fromUserRef, {
-      [`drinksToDistribute.${drinkType}.${measureType}`]: increment(-amount)
-    });
+    await updateDoc(
+      fromUserRef,
+      new FieldPath('groupDrinkStats', groupId, 'drinksToDistribute', drinkType, measureType),
+      increment(-amount)
+    );
   }));
 };
 
 export const registerConsumedDrinks = async (
   userId: string,
+  groupId: string,
   consumptions: { drinkType: DrinkType; measureType: MeasureType; amount: number }[]
 ): Promise<void> => {
-  if (!userId) {
+  if (!userId || !groupId) {
     throw new Error('Bruker ikke tilgjengelig');
   }
 
@@ -309,7 +316,9 @@ export const registerConsumedDrinks = async (
   }
 
   const userData = userDoc.data();
-  const drinksToConsume: MemberDrinkStats['drinksToConsume'] = userData.drinksToConsume || {};
+  const groupDrinkStats = userData.groupDrinkStats?.[groupId] || {};
+  const drinksToConsume: MemberDrinkStats['drinksToConsume'] =
+    groupDrinkStats.drinksToConsume || userData.drinksToConsume || {};
   const aggregated: { [key: string]: number } = {};
 
   consumptions.forEach(({ drinkType, measureType, amount }) => {
@@ -318,20 +327,24 @@ export const registerConsumedDrinks = async (
     aggregated[key] = (aggregated[key] || 0) + amount;
   });
 
-  const updatePayload: Record<string, any> = {};
+  const updateArgs: any[] = [];
   Object.entries(aggregated).forEach(([key, amount]) => {
     const [drinkType, measureType] = key.split('|') as [DrinkType, MeasureType];
     const available = drinksToConsume[drinkType]?.[measureType] || 0;
     if (amount > available) {
       throw new Error(`Du kan ikke registrere mer enn du har for ${measureType} ${drinkType}`);
     }
-    updatePayload[`drinksToConsume.${drinkType}.${measureType}`] = increment(-amount);
-    updatePayload[`drinksConsumed.${drinkType}.${measureType}`] = increment(amount);
+    updateArgs.push(
+      new FieldPath('groupDrinkStats', groupId, 'drinksToConsume', drinkType, measureType),
+      increment(-amount),
+      new FieldPath('groupDrinkStats', groupId, 'drinksConsumed', drinkType, measureType),
+      increment(amount)
+    );
   });
 
-  if (!Object.keys(updatePayload).length) {
+  if (!updateArgs.length) {
     throw new Error('Ingen gyldige endringer å lagre');
   }
 
-  await updateDoc(userRef, updatePayload);
+  await updateDoc(userRef, ...updateArgs);
 };
