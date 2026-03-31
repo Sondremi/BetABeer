@@ -197,8 +197,8 @@ const GroupScreen = () => {
   const currentGroup: Group & { image: any } = selectedGroup
     ? { ...selectedGroup, name: groupName, image: selectedGroup.image ?? ImageMissing }
     : { id: 'default', name: 'Gruppenavn', memberCount: 0, image: ImageMissing, createdBy: '', members: [] };
-  const drinkTypes: DrinkType[] = ['Øl', 'Cider', 'Hard selzer', 'Vin', 'Sprit'];
-  const measureTypes: MeasureType[] = ['Slurker', 'Shot', 'Chug'];
+  const drinkTypes: DrinkType[] = ['Øl', 'Cider', 'Hard selzer', 'Vin', 'Sprit', 'Drink' ];
+  const measureTypes: MeasureType[] = ['Slurker', 'Shot', 'Enhet', 'Chug'];
   const availableFriends = friends.filter(friend => !selectedGroup?.members.includes(friend.id));
   const shouldScrollMembers = memberData.length > 5;
   const shouldScrollAvailableFriends = availableFriends.length > 5;
@@ -1894,6 +1894,13 @@ const GroupScreen = () => {
           ? 'Drukket'
           : 'Til utdeling';
 
+    const memberDistributedTransactions = leaderboardData
+      .flatMap((member) => member.transactions)
+      .filter((transaction) => transaction.fromUserId === item.userId)
+      .sort((a, b) => b.timestamp - a.timestamp);
+    const totalDistributedOut = memberDistributedTransactions.reduce((sum, transaction) => sum + (Number(transaction.amount) || 0), 0);
+    const showDistributeTransferSection = selectedDetailView === 'distribute' && memberDistributedTransactions.length > 0;
+
     const handleRegisterConsumedDrink = async (drinkType: DrinkType, measureType: MeasureType) => {
       if (!user?.id || !selectedGroup?.id) return;
       const actionKey = `${drinkType}-${measureType}`;
@@ -1919,7 +1926,7 @@ const GroupScreen = () => {
           />
           <View style={{ flex: 1 }}>
             <Text style={groupStyles.detailedMemberName}>{getMemberName(item)}</Text>
-            <Text style={groupStyles.detailedMemberSubtext}>{getMemberUsernameLabel(item)} • {item.betsWon} seiere • {item.betsLost} tap</Text>
+            <Text style={groupStyles.detailedMemberSubtext}>{getMemberUsernameLabel(item)} • {item.betsWon} vunnet • {item.betsLost} tap</Text>
           </View>
         </View>
 
@@ -1928,7 +1935,7 @@ const GroupScreen = () => {
             onPress={() => setDrinkDetailViewByUser((prev) => ({ ...prev, [item.userId]: 'consume' }))}
             style={[groupStyles.statChip, selectedDetailView === 'consume' && groupStyles.statChipPrimary]}
           >
-            <Text style={groupStyles.statChipLabel}>Til konsum</Text>
+            <Text style={groupStyles.statChipLabel}>Må drikke</Text>
             <Text style={groupStyles.statChipValue}>{totalToConsume}</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -1947,7 +1954,7 @@ const GroupScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {selectedRows.length > 0 ? (
+        {selectedRows.length > 0 || showDistributeTransferSection ? (
           <View style={groupStyles.modalSectionCard}>
             <Text style={groupStyles.modalSectionTitle}>{selectedSectionTitle}</Text>
             {selectedDetailView === 'consume' && isOwnUser && (
@@ -1955,35 +1962,56 @@ const GroupScreen = () => {
                 Trykk &quot;Drikk&quot; for å registrere at du har drukket én av valgt type.
               </Text>
             )}
-            <ScrollView
-              style={selectedRows.length > 5 ? groupStyles.statsBreakdownScroll : undefined}
-              nestedScrollEnabled={selectedRows.length > 5}
-              showsVerticalScrollIndicator={selectedRows.length > 5}
-            >
-              {selectedRows.map((row) => (
-                <View key={row.key} style={groupStyles.statsBreakdownRow}>
-                  <Text style={groupStyles.statsBreakdownLabel}>{row.label}</Text>
-                  <View style={groupStyles.statsBreakdownActionRow}>
-                    <Text style={groupStyles.statsBreakdownValue}>{row.amount}</Text>
-                    {selectedDetailView === 'consume' && isOwnUser && row.amount > 0 && row.drinkType && row.measureType && (
-                      <TouchableOpacity
-                        onPress={() => handleRegisterConsumedDrink(row.drinkType!, row.measureType!)}
-                        disabled={Boolean(consumingDrinkKey)}
-                        style={[
-                          globalStyles.outlineButtonGold,
-                          groupStyles.consumeActionButton,
-                          consumingDrinkKey && globalStyles.disabledButton,
-                        ]}
-                      >
-                        <Text style={[globalStyles.outlineButtonGoldText, groupStyles.consumeActionButtonText]}>
-                          {consumingDrinkKey === row.key ? 'Laster...' : 'Drikk'}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
+            {selectedRows.length > 0 ? (
+              <ScrollView
+                style={selectedRows.length > 5 ? groupStyles.statsBreakdownScroll : undefined}
+                nestedScrollEnabled={selectedRows.length > 5}
+                showsVerticalScrollIndicator={selectedRows.length > 5}
+              >
+                {selectedRows.map((row) => (
+                  <View key={row.key} style={groupStyles.statsBreakdownRow}>
+                    <Text style={groupStyles.statsBreakdownLabel}>{row.label}</Text>
+                    <View style={groupStyles.statsBreakdownActionRow}>
+                      <Text style={groupStyles.statsBreakdownValue}>{row.amount}</Text>
+                      {selectedDetailView === 'consume' && isOwnUser && row.amount > 0 && row.drinkType && row.measureType && (
+                        <TouchableOpacity
+                          onPress={() => handleRegisterConsumedDrink(row.drinkType!, row.measureType!)}
+                          disabled={Boolean(consumingDrinkKey)}
+                          style={[
+                            globalStyles.outlineButtonGold,
+                            groupStyles.consumeActionButton,
+                            consumingDrinkKey && globalStyles.disabledButton,
+                          ]}
+                        >
+                          <Text style={[globalStyles.outlineButtonGoldText, groupStyles.consumeActionButtonText]}>
+                            {consumingDrinkKey === row.key ? 'Laster...' : 'Drikk'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
+                ))}
+              </ScrollView>
+            ) : (
+              selectedDetailView === 'distribute' && (
+                <Text style={[globalStyles.secondaryText, groupStyles.consumeHelperText]}>
+                  Ingen drikker tilgjengelig for utdeling akkurat nå.
+                </Text>
+              )
+            )}
+
+            {showDistributeTransferSection && (
+              <View>
+                <Text style={[groupStyles.modalSectionTitle, { marginTop: theme.spacing.sm }]}>Siste overføringer</Text>
+                <View style={[globalStyles.listContainer, groupStyles.leaderboardListWrap]}>
+                  {memberDistributedTransactions.slice(0, 6).map((transaction, idx) => (
+                    <View key={`${transaction.fromUserId}-${transaction.toUserId}-${transaction.timestamp}-${idx}`}>
+                      {renderTransactionItem({ item: transaction })}
+                    </View>
+                  ))}
                 </View>
-              ))}
-            </ScrollView>
+              </View>
+            )}
           </View>
         ) : (
           <View style={[groupStyles.modalSectionCard, { alignItems: 'center' }]}> 
@@ -2017,7 +2045,29 @@ const GroupScreen = () => {
     mode?: 'betsWon' | 'bac';
   }) => {
     const isFirst = placement === 1;
-    const cardColor = placement === 1 ? theme.colors.primary : placement === 2 ? theme.colors.silver : theme.colors.bronze;
+    const accentColor = placement === 1 ? theme.colors.primary : placement === 2 ? theme.colors.silver : theme.colors.bronze;
+    const podiumTitle = 'Vunnet';
+    const podiumGlowStyle = {
+      shadowColor: accentColor,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: isFirst ? 0.34 : 0.22,
+      shadowRadius: isFirst ? 24 : 14,
+      elevation: isFirst ? 10 : 6,
+    };
+    const avatarGlowStyle = {
+      shadowColor: accentColor,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: isFirst ? 0.42 : 0.28,
+      shadowRadius: isFirst ? 14 : 9,
+      elevation: isFirst ? 8 : 5,
+    };
+    const badgeGlowStyle = {
+      shadowColor: accentColor,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: isFirst ? 0.4 : 0.26,
+      shadowRadius: isFirst ? 10 : 7,
+      elevation: isFirst ? 7 : 4,
+    };
 
     return (
       <View
@@ -2026,13 +2076,24 @@ const GroupScreen = () => {
           isFirst ? groupStyles.podiumCardFirst : groupStyles.podiumCardOther,
           placement === 2 && groupStyles.podiumCardSecondOffset,
           placement === 3 && groupStyles.podiumCardThirdOffset,
-          { backgroundColor: cardColor },
+          groupStyles.podiumGlassCard,
+          podiumGlowStyle,
         ]}
       >
-        <Image
-          source={member.profilePicture || ImageMissing}
-          style={[globalStyles.circularImage, isFirst ? groupStyles.podiumAvatarFirst : groupStyles.podiumAvatarOther]}
-        />
+        <View style={[groupStyles.podiumAvatarRing, { borderColor: accentColor }, isFirst && groupStyles.podiumAvatarRingFirst, avatarGlowStyle]}>
+          <Image
+            source={member.profilePicture || ImageMissing}
+            style={[
+              globalStyles.circularImage,
+              isFirst ? groupStyles.podiumAvatarFirst : groupStyles.podiumAvatarOther,
+              { borderWidth: 0 },
+            ]}
+          />
+        </View>
+
+        <View style={[groupStyles.podiumPlacementBadge, { backgroundColor: accentColor }, isFirst ? groupStyles.podiumPlacementBadgeFirst : groupStyles.podiumPlacementBadgeOther, badgeGlowStyle]}>
+          <Text style={[groupStyles.podiumPlacementText, isFirst ? groupStyles.podiumPlacementTextFirst : groupStyles.podiumPlacementTextOther]}>{placement}</Text>
+        </View>
 
         <View style={groupStyles.podiumNameWrap}>
           <Text style={[groupStyles.podiumNameText, isFirst ? groupStyles.podiumNameTextFirst : groupStyles.podiumNameTextOther]} numberOfLines={1}>
@@ -2043,21 +2104,20 @@ const GroupScreen = () => {
           </Text>
         </View>
 
-        <View style={[groupStyles.podiumPlacementBadge, isFirst ? groupStyles.podiumPlacementBadgeFirst : groupStyles.podiumPlacementBadgeOther]}>
-          <Text style={[groupStyles.podiumPlacementText, isFirst ? groupStyles.podiumPlacementTextFirst : groupStyles.podiumPlacementTextOther]}>#{placement}</Text>
-        </View>
-
         <View style={[groupStyles.podiumStatsCard, isFirst ? groupStyles.podiumStatsCardFirst : groupStyles.podiumStatsCardOther]}>
           {mode === 'betsWon' ? (
-            <View style={groupStyles.podiumStatsRow}>
-              <View style={groupStyles.podiumStatsColumn}>
-                <Text style={groupStyles.podiumStatsLabel}>V</Text>
-                <Text style={[groupStyles.podiumStatsValue, isFirst ? groupStyles.podiumStatsValueFirst : groupStyles.podiumStatsValueOther]}>{member.betsWon}</Text>
-              </View>
-              <View style={groupStyles.podiumStatsColumn}>
-                <Text style={groupStyles.podiumStatsLabel}>T</Text>
-                <Text style={[groupStyles.podiumStatsValue, isFirst ? groupStyles.podiumStatsValueFirst : groupStyles.podiumStatsValueOther]}>{member.betsLost}</Text>
-              </View>
+            <View style={groupStyles.podiumStatsColumn}>
+              <Text
+                style={[
+                  groupStyles.podiumStatsValue,
+                  isFirst ? groupStyles.podiumStatsValueFirst : groupStyles.podiumStatsValueOther,
+                  { textShadowColor: accentColor, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: isFirst ? 12 : 8 },
+                ]}
+              >
+                {member.betsWon}
+              </Text>
+              <Text style={groupStyles.podiumStatsLabel}>{podiumTitle}</Text>
+              <Text style={groupStyles.podiumLossHint}>Tap: {member.betsLost}</Text>
             </View>
           ) : (
             <View style={groupStyles.podiumStatsColumn}>
@@ -2125,37 +2185,6 @@ const GroupScreen = () => {
               <Text style={[groupStyles.leaderboardStatValue, groupStyles.leaderboardStatValueCompact]}>{totalDistributed}</Text>
             </View>
           )}
-        </View>
-      </View>
-    );
-  };
-
-  const renderBacLeaderboardItem = ({ item, index }: { item: GroupLeaderboardMemberStats; index: number }) => {
-    const rank = index + 4;
-
-    return (
-      <View style={groupStyles.leaderboardRow}>
-        <View style={groupStyles.leaderboardRankBadge}>
-          <Text style={groupStyles.leaderboardRankText}>#{rank}</Text>
-        </View>
-
-        <Image
-          source={item.profilePicture || DefaultProfilePicture}
-          style={[globalStyles.circularImage, groupStyles.leaderboardListAvatar]}
-        />
-
-        <View style={groupStyles.leaderboardMemberMeta}>
-          <Text style={[groupStyles.wagerUser, groupStyles.leaderboardMemberName]} numberOfLines={1}>
-            {getMemberName(item)}
-          </Text>
-          <Text style={[globalStyles.secondaryText, groupStyles.leaderboardMemberSubtext]}> 
-            {getMemberUsernameLabel(item)}
-          </Text>
-        </View>
-
-        <View style={[groupStyles.leaderboardStatsCard, groupStyles.leaderboardCenterAligned]}>
-          <Text style={[groupStyles.leaderboardStatLabel, groupStyles.leaderboardStatLabelWide]}>Promille</Text>
-          <Text style={[groupStyles.leaderboardStatValue, groupStyles.leaderboardStatValueCompact]}>{item.currentBAC.toFixed(3)}</Text>
         </View>
       </View>
     );
@@ -2846,7 +2875,7 @@ const GroupScreen = () => {
           <View style={[globalStyles.modalContent, groupStyles.leaderboardModalContent]}> 
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
               <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.sm, fontSize: 18, fontWeight: '600', color: theme.colors.text }]}>
-                {leaderboardView === 'betsWon' ? 'Bet Statistikk' : leaderboardView === 'drinkStats' ? 'Drikke Statistikk' : 'Promille Leaderboard'}
+                {leaderboardView === 'betsWon' ? 'Betting Statistikk' : leaderboardView === 'drinkStats' ? 'Drikke Statistikk' : 'Promille Statistikk'}
               </Text>
               {leaderboardLoading && (
                 <Text style={groupStyles.modalLoadingText}>Laster...</Text>
@@ -2897,50 +2926,16 @@ const GroupScreen = () => {
                 <View style={groupStyles.leaderboardSectionWrap}>
                   {leaderboardView === 'drinkStats' ? (
                     <View>
-                      <Text style={groupStyles.modalSectionSubtitle}>Oversikt over drikkestatus per medlem.</Text>
-                      
                       {/* Detaljert medlemsoversikt */}
-                      <View style={groupStyles.leaderboardSectionTopGap}>
-                        <Text style={groupStyles.modalSectionTitle}>Medlemmer</Text>
-                        <View>
-                          {leaderboardData.map((member) => (
-                            <View key={member.userId}>{renderDetailedDrinkOverview({ item: member })}</View>
-                          ))}
-                        </View>
-                      </View>
-                      
-                      {/* Transaksjonshistorikk */}
-                      <View style={groupStyles.betSpacing}>
-                        <Text style={groupStyles.modalSectionTitle}>Siste overføringer</Text>
-                        {(() => {
-                          const recentTransactions = leaderboardData
-                            .flatMap(member => member.transactions)
-                            .sort((a, b) => b.timestamp - a.timestamp)
-                            .slice(0, 10);
-                          if (recentTransactions.length === 0) {
-                            return (
-                              <Text style={groupStyles.leaderboardEmptyStateText}>
-                                Ingen overføringer ennå
-                              </Text>
-                            );
-                          }
-                          return (
-                            <View style={[globalStyles.listContainer, groupStyles.leaderboardListWrap]}> 
-                              {recentTransactions.map((transaction, idx) => (
-                                <View key={`${transaction.fromUserId}-${transaction.toUserId}-${transaction.timestamp}-${idx}`}>
-                                  {renderTransactionItem({ item: transaction })}
-                                </View>
-                              ))}
-                            </View>
-                          );
-                        })()}
+                      <Text style={groupStyles.modalSectionTitle}>Medlemmer</Text>
+                      <View>
+                        {leaderboardData.map((member) => (
+                          <View key={member.userId}>{renderDetailedDrinkOverview({ item: member })}</View>
+                        ))}
                       </View>
                     </View>
                   ) : leaderboardView === 'bac' ? (
                     <View>
-                      <Text style={groupStyles.modalSectionSubtitle}>
-                        Medlemmer sortert på nåværende promille (høyest først)
-                      </Text>
                       <View style={groupStyles.bacAverageCard}>
                         <View style={groupStyles.bacAverageHeaderRow}>
                           <Text style={groupStyles.bacAverageTitle}>Gjennomsnittlig promille</Text>
@@ -2961,9 +2956,10 @@ const GroupScreen = () => {
                           <Text style={groupStyles.bacAverageScaleText}>0.000</Text>
                           <Text style={groupStyles.bacAverageScaleText}>{bacVisualMax.toFixed(3)}</Text>
                         </View>
-                        <Text style={groupStyles.bacAverageHint}>
-                          Basert på {bacLeaderboardData.length} medlemmer i gruppen.
-                        </Text>
+                        <Text style={groupStyles.bacAverageHint}>🟦 Lav: under 0.50‰</Text>
+                        <Text style={groupStyles.bacAverageHint}>🟨 Moderat: 0.50-1.09‰</Text>
+                        <Text style={groupStyles.bacAverageHint}>🟧 Høy: 1.10-1.59‰</Text>
+                        <Text style={groupStyles.bacAverageHint}>🟥 Svært høy: 1.60‰+</Text>
                       </View>
                       <View style={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}> 
                         {bacLeaderboardData.map((member, idx) => {
@@ -3041,20 +3037,9 @@ const GroupScreen = () => {
                           );
                         })}
                       </View>
-
-                      {bacLeaderboardData.length > 3 && (
-                        <View style={[globalStyles.listContainer, groupStyles.leaderboardListWrap]}> 
-                          {bacLeaderboardData.slice(3).map((member, idx) => (
-                            <View key={member.userId}>{renderBacLeaderboardItem({ item: member, index: idx })}</View>
-                          ))}
-                        </View>
-                      )}
                     </View>
                   ) : (
                     <View>
-                      <Text style={groupStyles.modalSectionSubtitle}>
-                        Oversikt over hvem som har vunnet flest bets
-                      </Text>
                       {/* Podium layout */}
                       <View style={groupStyles.leaderboardPodiumRow}>
                         {leaderboardData[1] && renderPodiumCard({ member: leaderboardData[1], placement: 2 })}

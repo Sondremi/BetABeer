@@ -417,23 +417,23 @@ export const groupStyles = StyleSheet.create({
     fontWeight: '700',
   },
   transactionRow: {
-    paddingVertical: theme.spacing.sm + theme.spacing.xxxs,
-    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.xs,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
     backgroundColor: theme.colors.backgroundCard,
-    borderRadius: theme.borderRadius.sm,
-    marginBottom: theme.spacing.xs,
+    borderRadius: theme.borderRadius.xs,
+    marginBottom: theme.spacing.xxxs,
   },
   transactionTitleText: {
-    fontSize: theme.fonts.sm,
+    fontSize: theme.fonts.xs,
     color: theme.colors.text,
     fontWeight: '600',
   },
   transactionDetailText: {
-    fontSize: theme.fonts.xs,
+    fontSize: theme.fonts.xs - 1,
     color: theme.colors.textSecondary,
-    marginTop: theme.spacing.xxxs,
+    marginTop: 1,
   },
   detailedMemberCard: {
     backgroundColor: theme.colors.surface,
@@ -691,6 +691,8 @@ export const groupStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'flex-end',
     marginBottom: theme.spacing.lg,
+    paddingTop: 0,
+    minHeight: 280,
   },
   leaderboardRow: {
     flexDirection: 'row',
@@ -786,17 +788,26 @@ export const groupStyles = StyleSheet.create({
   },
   podiumCardBase: {
     alignItems: 'center',
-    borderRadius: theme.borderRadius.lg,
+    borderTopLeftRadius: 48,
+    borderTopRightRadius: 48,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     padding: theme.spacing.md,
     justifyContent: 'space-between',
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: theme.effects.white08,
+  },
+  podiumGlassCard: {
+    backgroundColor: 'rgba(40, 40, 40, 0.7)',
   },
   podiumCardFirst: {
     width: '34%',
-    height: 200,
+    height: 250,
   },
   podiumCardOther: {
     width: '30%',
-    height: 170,
+    height: 200,
   },
   podiumCardSecondOffset: {
     marginRight: theme.spacing.sm,
@@ -805,12 +816,22 @@ export const groupStyles = StyleSheet.create({
     marginLeft: theme.spacing.sm,
   },
   podiumAvatarFirst: {
-    width: 60,
-    height: 60,
+    width: 66,
+    height: 66,
   },
   podiumAvatarOther: {
-    width: 50,
-    height: 50,
+    width: 54,
+    height: 54,
+  },
+  podiumAvatarRing: {
+    borderWidth: 2,
+    borderRadius: 999,
+    padding: 0,
+    marginTop: -32,
+    backgroundColor: 'transparent',
+  },
+  podiumAvatarRingFirst: {
+    marginTop: -42,
   },
   podiumNameWrap: {
     paddingHorizontal: theme.spacing.xs,
@@ -834,7 +855,7 @@ export const groupStyles = StyleSheet.create({
   },
   podiumPlacementBadge: {
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginTop: theme.spacing.xxxs,
   },
   podiumPlacementBadgeFirst: {
     paddingHorizontal: theme.spacing.md - 2,
@@ -860,11 +881,11 @@ export const groupStyles = StyleSheet.create({
     paddingHorizontal: theme.spacing.sm,
   },
   podiumStatsCardFirst: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(255, 215, 0, 0.08)',
     paddingVertical: theme.spacing.sm,
   },
   podiumStatsCardOther: {
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     paddingVertical: theme.spacing.sm - 2,
   },
   podiumStatsRow: {
@@ -877,11 +898,12 @@ export const groupStyles = StyleSheet.create({
   },
   podiumStatsLabel: {
     fontSize: theme.fonts.xxs,
-    color: theme.colors.background,
-    opacity: 0.9,
+    color: theme.colors.textSecondary,
+    letterSpacing: 1,
+    opacity: 0.95,
   },
   podiumStatsValue: {
-    color: theme.colors.background,
+    color: theme.colors.primary,
     fontWeight: '700',
   },
   podiumStatsValueFirst: {
@@ -889,6 +911,12 @@ export const groupStyles = StyleSheet.create({
   },
   podiumStatsValueOther: {
     fontSize: theme.fonts.xl,
+  },
+  podiumLossHint: {
+    marginTop: theme.spacing.xxxs,
+    fontSize: theme.fonts.xxs,
+    color: theme.colors.textSecondary,
+    letterSpacing: 0.4,
   },
   createBetSection: {
     paddingHorizontal: theme.spacing.md,
