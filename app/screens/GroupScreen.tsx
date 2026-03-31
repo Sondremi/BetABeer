@@ -1,13 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-<<<<<<< emailAndPassword
-import { collection, doc, getDoc, getDocs, getFirestore, increment, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-=======
 import { collection, doc, FieldPath, getDoc, getDocs, getFirestore, increment, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
-import React, { useEffect, useMemo, useState } from 'react';
->>>>>>> main
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/firebase/authService';
@@ -225,7 +220,6 @@ const GroupScreen = () => {
     () => [...leaderboardData].sort((a, b) => b.currentBAC - a.currentBAC),
     [leaderboardData]
   );
-<<<<<<< emailAndPassword
   const getMemberName = useCallback((member: Pick<MemberDrinkStats, 'name' | 'username'>) => {
     const displayName = String(member.name || '').trim();
     const username = String(member.username || 'ukjent').trim();
@@ -360,7 +354,6 @@ const GroupScreen = () => {
 
     return Object.values(memberStats).sort((a, b) => b.betsWon - a.betsWon);
   }, [selectedGroup, fetchMemberUsernames, bets]);
-=======
   const groupAverageBAC = useMemo(() => {
     if (bacLeaderboardData.length === 0) return 0;
     const totalBAC = bacLeaderboardData.reduce((sum, member) => sum + member.currentBAC, 0);
@@ -375,7 +368,6 @@ const GroupScreen = () => {
     return Math.min(1, groupAverageBAC / bacVisualMax);
   }, [groupAverageBAC, bacVisualMax]);
   const groupAverageBacTone = useMemo(() => getBacRangeTone(groupAverageBAC), [groupAverageBAC]);
->>>>>>> main
 
   useEffect(() => {
     if (!user) return;
@@ -1438,110 +1430,6 @@ const GroupScreen = () => {
     }
   };
 
-<<<<<<< emailAndPassword
-=======
-  const getLeaderboardData = async (): Promise<GroupLeaderboardMemberStats[]> => {
-    if (!selectedGroup || !selectedGroup.members) return [];
-
-    const usernames = await fetchMemberUsernames(selectedGroup.members);
-    const memberStats: { [userId: string]: GroupLeaderboardMemberStats } = {};
-
-    await Promise.all(
-      selectedGroup.members.map(async (userId: string) => {
-        try {
-          const userDoc = await getDoc(doc(firestore, 'users', userId));
-          const userData = userDoc.exists() ? userDoc.data() : {};
-          const hasBacData =
-            Array.isArray(userData.drinks) &&
-            typeof userData.weight === 'number' &&
-            (userData.gender === 'male' || userData.gender === 'female');
-          const currentBAC = hasBacData
-            ? profileService.calculateBAC(userData.drinks, userData.weight, userData.gender, Date.now())
-            : 0;
-          
-          const scopedDrinkStats = getGroupScopedDrinkStats(userData, selectedGroup.id);
-          memberStats[userId] = {
-            userId,
-            username: usernames[userId] || 'Ukjent',
-            betsWon: 0,
-            betsLost: 0,
-            currentBAC,
-            profilePicture: userData.profileImage ? 
-              defaultProfileImageMap[userData.profileImage] || DefaultProfilePicture 
-              : DefaultProfilePicture,
-            drinksToConsume: scopedDrinkStats.drinksToConsume,
-            drinksConsumed: scopedDrinkStats.drinksConsumed,
-            drinksToDistribute: scopedDrinkStats.drinksToDistribute,
-            transactions: [],
-          };
-        } catch (error) {
-          console.error(`Error fetching member ${userId}:`, error);
-          memberStats[userId] = {
-            userId,
-            username: usernames[userId] || 'Ukjent',
-            betsWon: 0,
-            betsLost: 0,
-            currentBAC: 0,
-            profilePicture: DefaultProfilePicture,
-            drinksToConsume: {},
-            drinksConsumed: {},
-            drinksToDistribute: {},
-            transactions: [],
-          };
-        }
-      })
-    );
-
-    const finishedBets = bets.filter(bet => bet.isFinished && bet.correctOptionId);
-    finishedBets.forEach(bet => {
-      const wagers = bet.wagers || [];
-      
-      // Only count wins and losses, don't modify drink amounts since they're already in Firestore
-      wagers.forEach(wager => {
-        const stats = memberStats[wager.userId];
-        if (!stats) return;
-
-        stats.username = usernames[wager.userId] || wager.username || 'Ukjent';
-        
-        if (wager.optionId === bet.correctOptionId) {
-          stats.betsWon += 1;
-        } else {
-          stats.betsLost += 1;
-        }
-      });
-    });
-
-    // Collect distribution transactions from Firestore
-    const transactionsRef = collection(firestore, `groups/${selectedGroup.id}/transactions`);
-    const transactionsSnapshot = await getDocs(transactionsRef);
-    const distributionHistory: DrinkTransaction[] = transactionsSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        fromUserId: data.fromUserId,
-        fromUsername: data.fromUsername,
-        toUserId: data.toUserId,
-        toUsername: data.toUsername,
-        drinkType: data.drinkType,
-        measureType: data.measureType,
-        amount: data.amount,
-        source: data.source,
-        timestamp: data.timestamp,
-      } as DrinkTransaction;
-    });
-    
-    distributionHistory.forEach((dist: DrinkTransaction) => {
-      const receiverStats = memberStats[dist.toUserId];
-      if (receiverStats) {
-        receiverStats.transactions.push(dist);
-      }
-    });
-    
-    // Sort by bets won descending
-    return Object.values(memberStats).sort((a, b) => b.betsWon - a.betsWon);
-  };
-
->>>>>>> main
   const handleMemberTap = (userId: string) => {
     setSelectedMember(userId);
     setSelectedDistribution(null);
@@ -2958,11 +2846,7 @@ const GroupScreen = () => {
           <View style={[globalStyles.modalContent, groupStyles.leaderboardModalContent]}> 
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
               <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.sm, fontSize: 18, fontWeight: '600', color: theme.colors.text }]}>
-<<<<<<< emailAndPassword
-                {leaderboardView === 'betsWon' ? 'Bet Statistikk' : leaderboardView === 'drinkStats' ? 'Drikke Statistikk' : 'Promille Statistikk'}
-=======
                 {leaderboardView === 'betsWon' ? 'Bet Statistikk' : leaderboardView === 'drinkStats' ? 'Drikke Statistikk' : 'Promille Leaderboard'}
->>>>>>> main
               </Text>
               {leaderboardLoading && (
                 <Text style={groupStyles.modalLoadingText}>Laster...</Text>
@@ -3055,14 +2939,6 @@ const GroupScreen = () => {
                   ) : leaderboardView === 'bac' ? (
                     <View>
                       <Text style={groupStyles.modalSectionSubtitle}>
-<<<<<<< emailAndPassword
-                        Medlemmer sortert på nåværende Promille
-                      </Text>
-                      <View style={groupStyles.leaderboardPodiumRow}>
-                        {bacLeaderboardData[1] && renderPodiumCard({ member: bacLeaderboardData[1], placement: 2, mode: 'bac' })}
-                        {bacLeaderboardData[0] && renderPodiumCard({ member: bacLeaderboardData[0], placement: 1, mode: 'bac' })}
-                        {bacLeaderboardData[2] && renderPodiumCard({ member: bacLeaderboardData[2], placement: 3, mode: 'bac' })}
-=======
                         Medlemmer sortert på nåværende promille (høyest først)
                       </Text>
                       <View style={groupStyles.bacAverageCard}>
@@ -3164,7 +3040,6 @@ const GroupScreen = () => {
                             </View>
                           );
                         })}
->>>>>>> main
                       </View>
 
                       {bacLeaderboardData.length > 3 && (
