@@ -1,5 +1,6 @@
 import { loginScreenTokens, loginStyles } from '@/app/styles/components/loginStyles';
 import { Ionicons } from '@expo/vector-icons';
+import * as AuthSession from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -11,6 +12,7 @@ import { sendFriendRequest } from '../services/friendService';
 import { consumePendingGroupInviteId, parseGroupInviteIdFromParams, parseGroupInviteIdFromUrl } from '../services/groupInviteLinkService';
 import { joinGroupFromInviteLink } from '../services/groupService';
 import { globalStyles } from '../styles/globalStyles';
+import { INPUT_LIMITS, normalizeSingleLineText } from '../utils/inputValidation';
 import { showAlert } from '../utils/platformAlert';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -18,6 +20,7 @@ WebBrowser.maybeCompleteAuthSession();
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
 const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+const GOOGLE_WEB_REDIRECT_URI = process.env.EXPO_PUBLIC_GOOGLE_WEB_REDIRECT_URI;
 
 const LoginScreen: React.FC = () => {
   const router = useRouter();
@@ -39,16 +42,37 @@ const LoginScreen: React.FC = () => {
   const [modeSwitchWidth, setModeSwitchWidth] = useState(0);
   const shineAnim = useRef(new Animated.Value(-1)).current;
   const modeAnim = useRef(new Animated.Value(0)).current;
+  const webRedirectUri = useMemo(() => {
+    if (Platform.OS !== 'web') {
+      return undefined;
+    }
+
+    if (GOOGLE_WEB_REDIRECT_URI?.trim()) {
+      return GOOGLE_WEB_REDIRECT_URI.trim();
+    }
+
+    const fallbackOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
+    return fallbackOrigin ? `${fallbackOrigin}/` : undefined;
+  }, []);
+
+  const nativeRedirectUri = useMemo(
+    () => AuthSession.makeRedirectUri({
+      path: 'oauth2redirect/google',
+    }),
+    []
+  );
+
   const googleAuthRequestConfig = useMemo(() => ({
     webClientId: GOOGLE_WEB_CLIENT_ID,
     iosClientId: GOOGLE_IOS_CLIENT_ID,
     androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+    redirectUri: Platform.OS === 'web' ? webRedirectUri : nativeRedirectUri,
     responseType: 'id_token',
     // Avoid PKCE digest requirement on insecure web origins (e.g. local network HTTP on mobile browser).
     usePKCE: false,
     scopes: ['openid', 'profile', 'email'],
     selectAccount: true,
-  }), []);
+  }), [nativeRedirectUri, webRedirectUri]);
   const [googleRequest, , promptGoogleSignIn] = Google.useAuthRequest(googleAuthRequestConfig);
 
   useEffect(() => {
@@ -177,20 +201,37 @@ const LoginScreen: React.FC = () => {
   };
 
   const validateForm = async () => {
+    const normalizedEmail = formData.email.trim();
+
     if (isLoginMode) {
-      if (!formData.email.trim()) {
+      if (!normalizedEmail) {
         showAlert('Feil', 'E-postadresse er påkrevd');
+        return false;
+      }
+      if (normalizedEmail.length > INPUT_LIMITS.emailMax) {
+        showAlert('Feil', `E-postadresse kan maks være ${INPUT_LIMITS.emailMax} tegn.`);
         return false;
       }
       if (!formData.password.trim()) {
         showAlert('Feil', 'Passord er påkrevd');
         return false;
       }
+      if (formData.password.length > INPUT_LIMITS.passwordMax) {
+        showAlert('Feil', `Passord kan maks være ${INPUT_LIMITS.passwordMax} tegn.`);
+        return false;
+      }
       return true;
     }
 
-    if (!formData.username.trim()) {
+    const normalizedUsername = normalizeSingleLineText(formData.username);
+    const normalizedName = normalizeSingleLineText(formData.name);
+
+    if (!normalizedUsername) {
       showAlert('Feil', 'Brukernavn er påkrevd');
+      return false;
+    }
+    if (normalizedUsername.length < INPUT_LIMITS.usernameMin || normalizedUsername.length > INPUT_LIMITS.usernameMax) {
+      showAlert('Feil', `Brukernavn må være mellom ${INPUT_LIMITS.usernameMin} og ${INPUT_LIMITS.usernameMax} tegn.`);
       return false;
     }
 
@@ -198,14 +239,26 @@ const LoginScreen: React.FC = () => {
       showAlert('Feil', 'Passord er påkrevd');
       return false;
     }
-
-    if (!formData.name.trim()) {
-      showAlert('Feil', 'Navn er påkrevd');
+    if (formData.password.length > INPUT_LIMITS.passwordMax) {
+      showAlert('Feil', `Passord kan maks være ${INPUT_LIMITS.passwordMax} tegn.`);
       return false;
     }
 
-    if (!formData.email.trim()) {
+    if (!normalizedName) {
+      showAlert('Feil', 'Navn er påkrevd');
+      return false;
+    }
+    if (normalizedName.length > INPUT_LIMITS.profileNameMax) {
+      showAlert('Feil', `Navn kan maks være ${INPUT_LIMITS.profileNameMax} tegn.`);
+      return false;
+    }
+
+    if (!normalizedEmail) {
       showAlert('Feil', 'E-postadresse er påkrevd');
+      return false;
+    }
+    if (normalizedEmail.length > INPUT_LIMITS.emailMax) {
+      showAlert('Feil', `E-postadresse kan maks være ${INPUT_LIMITS.emailMax} tegn.`);
       return false;
     }
 
@@ -220,15 +273,15 @@ const LoginScreen: React.FC = () => {
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       showAlert('Feil', 'Ugyldig e-postadresse');
       return false;
     }
 
     try {
       const [usernameExists, emailExists] = await Promise.all([
-        authService.checkUsernameExistsInsensitive(formData.username),
-        authService.checkEmailExistsInsensitive(formData.email),
+        authService.checkUsernameExistsInsensitive(normalizedUsername),
+        authService.checkEmailExistsInsensitive(normalizedEmail),
       ]);
 
       if (usernameExists) {
@@ -250,8 +303,13 @@ const LoginScreen: React.FC = () => {
   };
 
   const handleLogin = async () => {
-    if (!formData.email.trim()) {
+    const normalizedEmail = formData.email.trim();
+    if (!normalizedEmail) {
       showAlert('Feil', 'E-postadresse er påkrevd');
+      return;
+    }
+    if (normalizedEmail.length > INPUT_LIMITS.emailMax) {
+      showAlert('Feil', `E-postadresse kan maks være ${INPUT_LIMITS.emailMax} tegn.`);
       return;
     }
 
@@ -263,7 +321,7 @@ const LoginScreen: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await authService.loginUser(formData.email, formData.password);
+      await authService.loginUser(normalizedEmail, formData.password);
       await tryAutoJoinGroupFromInvite();
       setIsLoading(false);
       router.replace('/(tabs)/profile');
@@ -280,7 +338,12 @@ const LoginScreen: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const createdUser = await authService.createUser(formData);
+      const createdUser = await authService.createUser({
+        ...formData,
+        username: normalizeSingleLineText(formData.username),
+        name: normalizeSingleLineText(formData.name),
+        email: formData.email.trim(),
+      });
 
       if (inviterId && inviterId !== createdUser.id) {
         try {
@@ -364,7 +427,11 @@ const LoginScreen: React.FC = () => {
       await tryAutoJoinGroupFromInvite();
       router.replace('/(tabs)/profile');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Noe gikk galt under Google-innlogging.';
+      const rawErrorMessage = error instanceof Error ? error.message : 'Noe gikk galt under Google-innlogging.';
+      const hasRedirectUriMismatch = /redirect_uri_mismatch/i.test(rawErrorMessage);
+      const errorMessage = hasRedirectUriMismatch
+        ? `Google avviser redirect URI. Legg denne URI-en inn i Google Cloud Console (OAuth client -> Authorized redirect URIs): ${googleRequest?.redirectUri || webRedirectUri || 'ukjent URI'}`
+        : rawErrorMessage;
       showAlert('Google-innlogging feilet', errorMessage);
     } finally {
       setIsLoading(false);
@@ -391,11 +458,12 @@ const LoginScreen: React.FC = () => {
   return (
     <KeyboardAvoidingView
       style={[
-        Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container,
+        globalStyles.containerWeb,
         loginStyles.darkContainer,
         loginStyles.pageContainer,
       ]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 18 : 0}
     >
       <ScrollView
         contentContainerStyle={[
@@ -405,6 +473,7 @@ const LoginScreen: React.FC = () => {
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        contentInsetAdjustmentBehavior="automatic"
       >
         <View style={loginStyles.backgroundLayer} pointerEvents="none">
           <LinearGradient
@@ -503,7 +572,7 @@ const LoginScreen: React.FC = () => {
                   <TextInput
                     style={[globalStyles.input, loginStyles.authInput]}
                     value={formData.email}
-                    onChangeText={(text) => setFormData({ ...formData, email: text })}
+                    onChangeText={(text) => setFormData({ ...formData, email: text.slice(0, INPUT_LIMITS.emailMax) })}
                     onFocus={() => setActiveField('email')}
                     onBlur={() => setActiveField(null)}
                     placeholder="Skriv inn e-postadresse"
@@ -511,6 +580,7 @@ const LoginScreen: React.FC = () => {
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
+                    maxLength={INPUT_LIMITS.emailMax}
                   />
                 </View>
               </View>
@@ -522,13 +592,14 @@ const LoginScreen: React.FC = () => {
                     <TextInput
                       style={[globalStyles.input, loginStyles.authInput]}
                       value={formData.username}
-                      onChangeText={(text) => setFormData({ ...formData, username: text })}
+                      onChangeText={(text) => setFormData({ ...formData, username: text.slice(0, INPUT_LIMITS.usernameMax) })}
                       onFocus={() => setActiveField('username')}
                       onBlur={() => setActiveField(null)}
                       placeholder="Skriv inn brukernavn"
                       placeholderTextColor={loginScreenTokens.placeholderTextColor}
                       autoCapitalize="none"
                       autoCorrect={false}
+                      maxLength={INPUT_LIMITS.usernameMax}
                     />
                   </View>
                 </View>
@@ -538,11 +609,12 @@ const LoginScreen: React.FC = () => {
                     <TextInput
                       style={[globalStyles.input, loginStyles.authInput]}
                       value={formData.name}
-                      onChangeText={(text) => setFormData({ ...formData, name: text })}
+                      onChangeText={(text) => setFormData({ ...formData, name: text.slice(0, INPUT_LIMITS.profileNameMax) })}
                       onFocus={() => setActiveField('name')}
                       onBlur={() => setActiveField(null)}
                       placeholder="Skriv inn navn"
                       placeholderTextColor={loginScreenTokens.placeholderTextColor}
+                      maxLength={INPUT_LIMITS.profileNameMax}
                     />
                   </View>
                 </View>
@@ -552,7 +624,7 @@ const LoginScreen: React.FC = () => {
                     <TextInput
                       style={[globalStyles.input, loginStyles.authInput]}
                       value={formData.email}
-                      onChangeText={(text) => setFormData({ ...formData, email: text })}
+                      onChangeText={(text) => setFormData({ ...formData, email: text.slice(0, INPUT_LIMITS.emailMax) })}
                       onFocus={() => setActiveField('registerEmail')}
                       onBlur={() => setActiveField(null)}
                       placeholder="Skriv inn e-postadresse"
@@ -560,6 +632,7 @@ const LoginScreen: React.FC = () => {
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
+                      maxLength={INPUT_LIMITS.emailMax}
                     />
                   </View>
                 </View>
@@ -572,7 +645,7 @@ const LoginScreen: React.FC = () => {
                 <TextInput
                   style={[globalStyles.input, loginStyles.authInput, loginStyles.authInputWithIcon]}
                   value={formData.password}
-                  onChangeText={(text) => setFormData({ ...formData, password: text })}
+                  onChangeText={(text) => setFormData({ ...formData, password: text.slice(0, INPUT_LIMITS.passwordMax) })}
                   onFocus={() => setActiveField('password')}
                   onBlur={() => setActiveField(null)}
                   placeholder="Skriv inn passord"
@@ -580,7 +653,8 @@ const LoginScreen: React.FC = () => {
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
-                  textContentType="oneTimeCode"
+                  textContentType="password"
+                  maxLength={INPUT_LIMITS.passwordMax}
                 />
                 <TouchableOpacity
                   style={loginStyles.eyeButton}
@@ -602,7 +676,7 @@ const LoginScreen: React.FC = () => {
                   <TextInput
                     style={[globalStyles.input, loginStyles.authInput, loginStyles.authInputWithIcon]}
                     value={formData.confirmPassword}
-                    onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+                    onChangeText={(text) => setFormData({ ...formData, confirmPassword: text.slice(0, INPUT_LIMITS.passwordMax) })}
                     onFocus={() => setActiveField('confirmPassword')}
                     onBlur={() => setActiveField(null)}
                     placeholder="Bekreft passord"
@@ -610,7 +684,8 @@ const LoginScreen: React.FC = () => {
                     secureTextEntry={!showConfirmPassword}
                     autoCapitalize="none"
                     autoCorrect={false}
-                    textContentType="oneTimeCode"
+                    textContentType="password"
+                    maxLength={INPUT_LIMITS.passwordMax}
                   />
                   <TouchableOpacity
                     style={loginStyles.eyeButton}

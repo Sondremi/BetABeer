@@ -18,6 +18,7 @@ import { theme } from '../styles/theme';
 import type { Bet, BettingOption, BetWager, DrinkTransaction, DrinkType, MeasureType, MemberDrinkStats } from '../types/drinkTypes';
 import { Group } from '../types/drinkTypes';
 import { Friend, FriendRequest } from '../types/userTypes';
+import { clampDigits, INPUT_LIMITS, isIntInRange, normalizeSingleLineText } from '../utils/inputValidation';
 import { showAlert } from '../utils/platformAlert';
 import { getDefaultProfilePicture, resolveProfileImageSource } from '../utils/profileImage';
 
@@ -202,7 +203,15 @@ const GroupScreen = () => {
   const availableFriends = friends.filter(friend => !selectedGroup?.members.includes(friend.id));
   const shouldScrollMembers = memberData.length > 5;
   const shouldScrollAvailableFriends = availableFriends.length > 5;
-  const canSaveBet = betTitle.trim().length > 0 && betOptions.length > 0 && betOptions.every(opt => opt.name.trim().length > 0);
+  const canSaveBet =
+    normalizeSingleLineText(betTitle).length > 0 &&
+    normalizeSingleLineText(betTitle).length <= INPUT_LIMITS.betTitleMax &&
+    betOptions.length > 0 &&
+    betOptions.length <= INPUT_LIMITS.betOptionCountMax &&
+    betOptions.every((opt) => {
+      const name = normalizeSingleLineText(opt.name);
+      return name.length > 0 && name.length <= INPUT_LIMITS.betOptionNameMax;
+    });
   const canEditGroupName = Boolean(selectedGroup && user?.id && selectedGroup.members?.includes(user.id));
   const canManageGroupImage = Boolean(selectedGroup && user?.id && selectedGroup.createdBy === user.id);
   const hasCustomGroupImage = Boolean(selectedGroup?.imageUrl);
@@ -730,6 +739,10 @@ const GroupScreen = () => {
     try {
       const data = await getLeaderboardData();
       setLeaderboardData(data);
+    } catch (error) {
+      console.error('Failed to load leaderboard data:', error);
+      setLeaderboardData([]);
+      showAlert('Feil', 'Kunne ikke laste ledertavle. Prøv igjen.');
     } finally {
       setLeaderboardLoading(false);
     }
@@ -960,9 +973,13 @@ const GroupScreen = () => {
 
   const handleCreateGroup = async () => {
     if (!user) return;
-    const trimmedGroupName = createGroupName.trim();
+    const trimmedGroupName = normalizeSingleLineText(createGroupName);
     if (!trimmedGroupName) {
       showAlert('Feil', 'Gruppenavn kan ikke være tomt');
+      return;
+    }
+    if (trimmedGroupName.length > INPUT_LIMITS.groupNameMax) {
+      showAlert('Feil', `Gruppenavn kan maks være ${INPUT_LIMITS.groupNameMax} tegn.`);
       return;
     }
     setCreatingGroup(true);
@@ -1010,9 +1027,13 @@ const GroupScreen = () => {
       showAlert('Ikke tilgang', 'Du har ikke tilgang til å endre gruppenavn.');
       return;
     }
-    const trimmedName = groupName.trim();
+    const trimmedName = normalizeSingleLineText(groupName);
     if (!trimmedName) {
       showAlert('Feil', 'Gruppenavn kan ikke være tomt');
+      return;
+    }
+    if (trimmedName.length > INPUT_LIMITS.groupNameMax) {
+      showAlert('Feil', `Gruppenavn kan maks være ${INPUT_LIMITS.groupNameMax} tegn.`);
       return;
     }
     setSaving(true);
@@ -1134,6 +1155,10 @@ const GroupScreen = () => {
   };
 
   const addBetOption = () => {
+    if (betOptions.length >= INPUT_LIMITS.betOptionCountMax) {
+      showAlert('Feil', `Maks ${INPUT_LIMITS.betOptionCountMax} alternativer per bet.`);
+      return;
+    }
     setBetOptions([...betOptions, { name: '' }]);
   };
 
@@ -1143,12 +1168,24 @@ const GroupScreen = () => {
 
   const handleSaveBet = async () => {
     if (!selectedGroup || !user?.id) return;
-    if (!betTitle.trim()) {
+    const trimmedBetTitle = normalizeSingleLineText(betTitle);
+    if (!trimmedBetTitle) {
       showAlert('Feil', 'Bet-tittel kan ikke være tom');
       return;
     }
-    if (betOptions.some(opt => !opt.name.trim())) {
+
+    if (trimmedBetTitle.length > INPUT_LIMITS.betTitleMax) {
+      showAlert('Feil', `Bet-tittel kan maks være ${INPUT_LIMITS.betTitleMax} tegn.`);
+      return;
+    }
+
+    const normalizedOptions = betOptions.map((opt) => normalizeSingleLineText(opt.name));
+    if (normalizedOptions.some((name) => !name)) {
       showAlert('Feil', 'Alle alternativer må ha navn');
+      return;
+    }
+    if (normalizedOptions.some((name) => name.length > INPUT_LIMITS.betOptionNameMax)) {
+      showAlert('Feil', `Alternativ-navn kan maks være ${INPUT_LIMITS.betOptionNameMax} tegn.`);
       return;
     }
     setBetSaving(true);
@@ -1161,10 +1198,10 @@ const GroupScreen = () => {
       }
       const newBet: Bet = {
         id: Date.now().toString(),
-        title: betTitle,
-        options: betOptions.map((opt, idx) => ({
+        title: trimmedBetTitle,
+        options: normalizedOptions.map((name, idx) => ({
           id: `${Date.now()}_${idx}`,
-          name: opt.name,
+          name,
         })),
         wagers: [],
         hiddenFromUserIds: hiddenBetMemberIds,
@@ -1196,8 +1233,8 @@ const GroupScreen = () => {
     if (!selectedBetOption || !user || !selectedGroup) return;
 
     const amount = parseInt(betAmount);
-    if (isNaN(amount) || amount <= 0) {
-      showAlert('Feil', 'Ugyldig antall');
+    if (!isIntInRange(amount, INPUT_LIMITS.betAmountMin, INPUT_LIMITS.betAmountMax)) {
+      showAlert('Feil', `Antall må være mellom ${INPUT_LIMITS.betAmountMin} og ${INPUT_LIMITS.betAmountMax}.`);
       return;
     }
 
@@ -1351,17 +1388,33 @@ const GroupScreen = () => {
   };
 
   const addEditBetOption = () => {
+    if (editBetOptions.length >= INPUT_LIMITS.betOptionCountMax) {
+      showAlert('Feil', `Maks ${INPUT_LIMITS.betOptionCountMax} alternativer per bet.`);
+      return;
+    }
     setEditBetOptions([...editBetOptions, { name: '' }]);
   };
 
   const handleSaveEditBet = async () => {
     if (editBetIdx === null || !selectedGroup) return;
-    if (!editBetTitle.trim()) {
+    const trimmedEditBetTitle = normalizeSingleLineText(editBetTitle);
+    if (!trimmedEditBetTitle) {
       showAlert('Feil', 'Bet-tittel kan ikke være tom');
       return;
     }
-    if (editBetOptions.some(opt => !opt.name.trim())) {
+
+    if (trimmedEditBetTitle.length > INPUT_LIMITS.betTitleMax) {
+      showAlert('Feil', `Bet-tittel kan maks være ${INPUT_LIMITS.betTitleMax} tegn.`);
+      return;
+    }
+
+    const normalizedEditOptions = editBetOptions.map((opt) => normalizeSingleLineText(opt.name));
+    if (normalizedEditOptions.some((name) => !name)) {
       showAlert('Feil', 'Alle alternativer må ha navn');
+      return;
+    }
+    if (normalizedEditOptions.some((name) => name.length > INPUT_LIMITS.betOptionNameMax)) {
+      showAlert('Feil', `Alternativ-navn kan maks være ${INPUT_LIMITS.betOptionNameMax} tegn.`);
       return;
     }
     setEditBetSaving(true);
@@ -1379,10 +1432,10 @@ const GroupScreen = () => {
       }
       const updatedBet = {
         ...originalBet,
-        title: editBetTitle,
-        options: editBetOptions.map((opt, idx) => ({
+        title: trimmedEditBetTitle,
+        options: normalizedEditOptions.map((name, idx) => ({
           id: `${originalBet.id}_${idx}`,
-          name: opt.name,
+          name,
         })),
         hiddenFromUserIds: editHiddenBetMemberIds,
         isAnonymous: editBetAnonymous,
@@ -1776,7 +1829,7 @@ const GroupScreen = () => {
                 showsVerticalScrollIndicator={shouldScrollWagers}
               >
                 {item.wagers.map((wager, idx) => (
-                  <View key={idx} style={groupStyles.wagerListItem}>
+                  <View key={`${wager.userId}-${wager.optionId}-${wager.measureType}-${wager.drinkType}-${idx}`} style={groupStyles.wagerListItem}>
                     <Text style={groupStyles.wagerUser}>{wager.username}</Text>
                     <Text style={groupStyles.wagerDetails}>
                       {wager.amount} {wager.measureType} {wager.drinkType} på {getOptionName(item, wager.optionId)}
@@ -2192,7 +2245,7 @@ const GroupScreen = () => {
 
   return (
     <KeyboardAvoidingView
-      style={[Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container, groupStyles.screenContainer]}
+      style={[globalStyles.containerWeb, groupStyles.screenContainer]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {!selectedGroup ? (
@@ -2221,12 +2274,13 @@ const GroupScreen = () => {
                   <View style={globalStyles.rowCenter}>
                     <TextInput
                       value={groupName}
-                      onChangeText={setGroupName}
+                      onChangeText={(text) => setGroupName(text.slice(0, INPUT_LIMITS.groupNameMax))}
                       style={[groupStyles.groupNameInput, groupStyles.groupNameInputCompact]}
                       editable={!saving}
                       autoFocus
                       placeholder="Gruppenavn"
                       placeholderTextColor={theme.colors.textSecondary}
+                      maxLength={INPUT_LIMITS.groupNameMax}
                       onSubmitEditing={handleSaveGroupName}
                       returnKeyType="done"
                     />
@@ -2362,7 +2416,7 @@ const GroupScreen = () => {
                     {distributions.map((dist, idx) => {
                       const member = memberData.find(m => m.id === dist.userId);
                       return (
-                        <View key={idx} style={{ 
+                        <View key={`${dist.userId}-${dist.drinkType}-${dist.measureType}-${dist.amount}-${idx}`} style={{ 
                           flexDirection: 'row', 
                           justifyContent: 'space-between',
                           alignItems: 'center',
@@ -2528,15 +2582,16 @@ const GroupScreen = () => {
                     placeholder="Tittel på bet"
                     placeholderTextColor={theme.colors.textSecondary}
                     value={betTitle}
-                    onChangeText={setBetTitle}
+                    onChangeText={(text) => setBetTitle(text.slice(0, INPUT_LIMITS.betTitleMax))}
                     onFocus={() => setBetTitleFocused(true)}
                     onBlur={() => setBetTitleFocused(false)}
                     style={[globalStyles.input, groupStyles.inputInsideShell]}
+                    maxLength={INPUT_LIMITS.betTitleMax}
                   />
                 </View>
               </View>
               {betOptions.map((opt, idx) => (
-                <View key={idx} style={globalStyles.inputGroup}>
+                <View key={`bet-option-${idx}-${opt.name || 'empty'}`} style={globalStyles.inputGroup}>
                   <View style={globalStyles.rowSpread}>
                     <View style={{ flex: 1, marginRight: theme.spacing.sm }}>
                       <Text style={globalStyles.label}>Alternativ {idx + 1}</Text>
@@ -2545,10 +2600,11 @@ const GroupScreen = () => {
                           placeholder={`Alternativ ${idx + 1}`}
                           placeholderTextColor={theme.colors.textSecondary}
                           value={opt.name}
-                          onChangeText={text => updateBetOption(idx, 'name', text)}
+                          onChangeText={text => updateBetOption(idx, 'name', text.slice(0, INPUT_LIMITS.betOptionNameMax))}
                           onFocus={() => setFocusedBetOptionIndex(idx)}
                           onBlur={() => setFocusedBetOptionIndex(null)}
                           style={[globalStyles.input, groupStyles.inputInsideShell]}
+                          maxLength={INPUT_LIMITS.betOptionNameMax}
                         />
                       </View>
                     </View>
@@ -2693,11 +2749,12 @@ const GroupScreen = () => {
                     placeholder="Antall"
                     placeholderTextColor={theme.colors.textSecondary}
                     value={betAmount}
-                    onChangeText={setBetAmount}
+                    onChangeText={(text) => setBetAmount(clampDigits(text, 2))}
                     onFocus={() => setBetAmountFocused(true)}
                     onBlur={() => setBetAmountFocused(false)}
                     keyboardType="numeric"
                     style={[globalStyles.input, groupStyles.inputInsideShell]}
+                    maxLength={2}
                   />
                 </View>
               </View>
@@ -2726,15 +2783,16 @@ const GroupScreen = () => {
                     placeholder="Tittel på bett"
                     placeholderTextColor={theme.colors.textSecondary}
                     value={editBetTitle}
-                    onChangeText={setEditBetTitle}
+                    onChangeText={(text) => setEditBetTitle(text.slice(0, INPUT_LIMITS.betTitleMax))}
                     onFocus={() => setEditBetTitleFocused(true)}
                     onBlur={() => setEditBetTitleFocused(false)}
                     style={[globalStyles.input, groupStyles.inputInsideShell]}
+                    maxLength={INPUT_LIMITS.betTitleMax}
                   />
                 </View>
               </View>
               {editBetOptions.map((opt, idx) => (
-                <View key={idx} style={globalStyles.inputGroup}>
+                <View key={`edit-bet-option-${idx}-${opt.name || 'empty'}`} style={globalStyles.inputGroup}>
                   <View>
                     <Text style={globalStyles.label}>Alternativ {idx + 1}</Text>
                     <View style={[globalStyles.inputShellDark, groupStyles.inputShell, focusedEditBetOptionIndex === idx && globalStyles.inputShellFocusedGold]}>
@@ -2742,10 +2800,11 @@ const GroupScreen = () => {
                         placeholder={`Alternativ ${idx + 1}`}
                         placeholderTextColor={theme.colors.textSecondary}
                         value={opt.name}
-                        onChangeText={text => updateEditBetOption(idx, 'name', text)}
+                        onChangeText={text => updateEditBetOption(idx, 'name', text.slice(0, INPUT_LIMITS.betOptionNameMax))}
                         onFocus={() => setFocusedEditBetOptionIndex(idx)}
                         onBlur={() => setFocusedEditBetOptionIndex(null)}
                         style={[globalStyles.input, groupStyles.inputInsideShell]}
+                        maxLength={INPUT_LIMITS.betOptionNameMax}
                       />
                     </View>
                   </View>
@@ -3159,11 +3218,11 @@ const GroupScreen = () => {
                   placeholder="Skriv gruppenavn"
                   placeholderTextColor={theme.colors.textSecondary}
                   value={createGroupName}
-                  onChangeText={setCreateGroupName}
+                  onChangeText={(text) => setCreateGroupName(text.slice(0, INPUT_LIMITS.groupNameMax))}
                   onFocus={() => setCreateGroupNameFocused(true)}
                   onBlur={() => setCreateGroupNameFocused(false)}
                   style={[globalStyles.input, groupStyles.inputInsideShell]}
-                  maxLength={40}
+                  maxLength={INPUT_LIMITS.groupNameMax}
                 />
               </View>
             </View>

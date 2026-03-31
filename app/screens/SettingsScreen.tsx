@@ -10,6 +10,7 @@ import { firestore } from '../services/firebase/FirebaseConfig';
 import { settingsScreenTokens, settingsStyles } from '../styles/components/settingsStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { Gender } from '../types/userTypes';
+import { INPUT_LIMITS, clampDigits, normalizeSingleLineText } from '../utils/inputValidation';
 import { showAlert } from '../utils/platformAlert';
 
 const SettingsScreen = () => {
@@ -87,24 +88,37 @@ const SettingsScreen = () => {
   );
 
   const validateEditedData = () => {
-    if (!editedInfo.name.trim()) {
+    const normalizedName = normalizeSingleLineText(editedInfo.name);
+    const normalizedEmail = editedInfo.email.trim();
+
+    if (!normalizedName) {
       showAlert('Feil', 'Navn er påkrevd');
       return false;
     }
 
-    if (!editedInfo.email.trim()) {
+    if (normalizedName.length > INPUT_LIMITS.profileNameMax) {
+      showAlert('Feil', `Navn kan maks være ${INPUT_LIMITS.profileNameMax} tegn.`);
+      return false;
+    }
+
+    if (!normalizedEmail) {
       showAlert('Feil', 'E-postadresse er påkrevd');
       return false;
     }
 
+    if (normalizedEmail.length > INPUT_LIMITS.emailMax) {
+      showAlert('Feil', `E-postadresse kan maks være ${INPUT_LIMITS.emailMax} tegn.`);
+      return false;
+    }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(editedInfo.email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       showAlert('Feil', 'Ugyldig e-postadresse');
       return false;
     }
 
-    if (editedInfo.weight != null && (isNaN(editedInfo.weight) || editedInfo.weight <= 0)) {
-      showAlert('Feil', 'Vekt må være et positivt tall');
+    if (editedInfo.weight != null && (isNaN(editedInfo.weight) || editedInfo.weight < INPUT_LIMITS.weightMinKg || editedInfo.weight > INPUT_LIMITS.weightMaxKg)) {
+      showAlert('Feil', `Vekt må være mellom ${INPUT_LIMITS.weightMinKg} og ${INPUT_LIMITS.weightMaxKg} kg.`);
       return false;
     }
 
@@ -112,13 +126,18 @@ const SettingsScreen = () => {
   };
 
   const canSaveEditedData = useMemo(() => {
-    if (!editedInfo.name.trim()) return false;
-    if (!editedInfo.email.trim()) return false;
+    const normalizedName = normalizeSingleLineText(editedInfo.name);
+    const normalizedEmail = editedInfo.email.trim();
+
+    if (!normalizedName) return false;
+    if (normalizedName.length > INPUT_LIMITS.profileNameMax) return false;
+    if (!normalizedEmail) return false;
+    if (normalizedEmail.length > INPUT_LIMITS.emailMax) return false;
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(editedInfo.email)) return false;
+    if (!emailRegex.test(normalizedEmail)) return false;
 
-    if (editedInfo.weight != null && (isNaN(editedInfo.weight) || editedInfo.weight <= 0)) {
+    if (editedInfo.weight != null && (isNaN(editedInfo.weight) || editedInfo.weight < INPUT_LIMITS.weightMinKg || editedInfo.weight > INPUT_LIMITS.weightMaxKg)) {
       return false;
     }
 
@@ -133,10 +152,11 @@ const SettingsScreen = () => {
 
       const normalizedCurrentEmail = userInfo.email.trim().toLowerCase();
       const normalizedEditedEmail = editedInfo.email.trim().toLowerCase();
+      const trimmedEditedEmail = editedInfo.email.trim();
       const hasEmailChanged = normalizedEditedEmail !== normalizedCurrentEmail;
 
       if (hasEmailChanged) {
-        await authService.requestEmailChange(editedInfo.email);
+        await authService.requestEmailChange(trimmedEditedEmail);
       }
 
       const updateData: {
@@ -145,13 +165,13 @@ const SettingsScreen = () => {
         gender: Gender | null;
         email?: string;
       } = {
-        name: editedInfo.name,
+        name: normalizeSingleLineText(editedInfo.name),
         weight: editedInfo.weight ?? null,
         gender: editedInfo.gender ?? null,
       };
 
       if (!hasEmailChanged) {
-        updateData.email = editedInfo.email;
+        updateData.email = trimmedEditedEmail;
       }
 
       await authService.updateUser(userInfo.id, updateData);
@@ -167,7 +187,7 @@ const SettingsScreen = () => {
       if (hasEmailChanged) {
         showAlert(
           'Bekreft e-postendring',
-          `Vi har sendt en bekreftelse til ${editedInfo.email.trim()}. Når du bekrefter, blir e-postadressen oppdatert.`
+          `Vi har sendt en bekreftelse til ${trimmedEditedEmail}. Når du bekrefter, blir e-postadressen oppdatert.`
         );
       }
     } catch (error) {
@@ -369,9 +389,10 @@ const SettingsScreen = () => {
                   <TextInput
                     style={[globalStyles.input, settingsStyles.compactInput]}
                     value={editedInfo.name}
-                    onChangeText={(text) => setEditedInfo({ ...editedInfo, name: text })}
+                    onChangeText={(text) => setEditedInfo({ ...editedInfo, name: text.slice(0, INPUT_LIMITS.profileNameMax) })}
                     placeholder="Skriv inn navn"
                     placeholderTextColor={settingsScreenTokens.inputPlaceholderTextColor}
+                    maxLength={INPUT_LIMITS.profileNameMax}
                     onFocus={() => setFocusedField('name')}
                     onBlur={() => setFocusedField('')}
                   />
@@ -391,11 +412,12 @@ const SettingsScreen = () => {
                   <TextInput
                     style={[globalStyles.input, settingsStyles.compactInput]}
                     value={editedInfo.email}
-                    onChangeText={(text) => setEditedInfo({ ...editedInfo, email: text })}
+                    onChangeText={(text) => setEditedInfo({ ...editedInfo, email: text.slice(0, INPUT_LIMITS.emailMax) })}
                     placeholder="Skriv inn e-postadresse"
                     placeholderTextColor={settingsScreenTokens.inputPlaceholderTextColor}
                     keyboardType="email-address"
                     autoCapitalize="none"
+                    maxLength={INPUT_LIMITS.emailMax}
                     onFocus={() => setFocusedField('email')}
                     onBlur={() => setFocusedField('')}
                   />
@@ -436,7 +458,7 @@ const SettingsScreen = () => {
                     style={[globalStyles.input, settingsStyles.compactInput]}
                     value={editedInfo.weight ? editedInfo.weight.toString() : ''}
                     onChangeText={(text) => {
-                      const value = text ? parseInt(text) : undefined;
+                      const value = text ? parseInt(clampDigits(text, 3), 10) : undefined;
                       if (value === undefined || !isNaN(value)) {
                         setEditedInfo({ ...editedInfo, weight: value });
                       }
@@ -444,6 +466,7 @@ const SettingsScreen = () => {
                     placeholder="Skriv inn vekt (kg)"
                     placeholderTextColor={settingsScreenTokens.inputPlaceholderTextColor}
                     keyboardType="numeric"
+                    maxLength={3}
                     onFocus={() => setFocusedField('weight')}
                     onBlur={() => setFocusedField('')}
                   />

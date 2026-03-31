@@ -8,6 +8,7 @@ import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, friendS
 import { friendsScreenTokens, friendsStyles } from '../styles/components/friendsStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { Friend, FriendRequest, FriendWithPending } from '../types/userTypes';
+import { INPUT_LIMITS, normalizeSingleLineText } from '../utils/inputValidation';
 import { showAlert } from '../utils/platformAlert';
 import { getDefaultProfilePicture, resolveProfileImageSource } from '../utils/profileImage';
 
@@ -111,12 +112,17 @@ const FriendsScreen = () => {
   }, [fetchFriends, loading]);
 
   const performSearch = useCallback(async (term: string) => {
-    if (!term.trim()) {
+    const normalizedTerm = normalizeSingleLineText(term);
+    if (!normalizedTerm) {
       setSearchResults([]);
       return;
     }
+    if (normalizedTerm.length > INPUT_LIMITS.friendSearchMax) {
+      showAlert('Feil', `Søket er for langt (maks ${INPUT_LIMITS.friendSearchMax} tegn).`);
+      return;
+    }
     try {
-      const results = await friendSearch(term);
+      const results = await friendSearch(normalizedTerm);
       const filteredResults = (results as Friend[]).filter(
         (result) => !friends.some((friend) => friend.id === result.id)
       );
@@ -345,10 +351,11 @@ const FriendsScreen = () => {
                   placeholderTextColor={friendsScreenTokens.searchPlaceholderTextColor}
                   value={searchTerm}
                   onChangeText={(text) => {
-                    setSearchTerm(text);
+                    setSearchTerm(text.slice(0, INPUT_LIMITS.friendSearchMax));
                   }}
                   autoCapitalize="none"
                   style={friendsStyles.searchInput}
+                  maxLength={INPUT_LIMITS.friendSearchMax}
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setSearchFocused(false)}
                 />

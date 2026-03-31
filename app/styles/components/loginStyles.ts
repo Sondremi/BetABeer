@@ -29,7 +29,7 @@ export const loginStyles: any = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: theme.spacing.xxl,
-    paddingTop: Platform.OS === 'web' ? theme.spacing.huge - theme.spacing.xxs : theme.spacing.xl,
+    paddingTop: theme.spacing.huge - theme.spacing.xxs,
     paddingBottom: theme.spacing.xxl,
     overflow: 'hidden',
   },
@@ -183,6 +183,7 @@ export const loginStyles: any = StyleSheet.create({
   inputShellWithIcon: {
     flexDirection: 'row',
     alignItems: 'center',
+    height: 56,
   },
   authInput: {
     borderWidth: 0,
@@ -191,6 +192,7 @@ export const loginStyles: any = StyleSheet.create({
     fontSize: theme.fonts.md,
     paddingVertical: theme.fonts.sm - theme.spacing.xxxs,
     paddingHorizontal: theme.fonts.sm,
+    height: 56,
   },
   authInputWithIcon: {
     flex: 1,
@@ -200,7 +202,7 @@ export const loginStyles: any = StyleSheet.create({
     width: theme.spacing.xxl * 2,
     alignItems: 'center',
     justifyContent: 'center',
-    height: '100%',
+    height: 56,
   },
   forgotPasswordButton: {
     alignSelf: 'flex-end',

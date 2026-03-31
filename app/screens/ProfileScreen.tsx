@@ -18,6 +18,7 @@ import { globalStyles } from '../styles/globalStyles';
 import { DrinkCategory, DrinkEntry, Group, GroupInvitation } from '../types/drinkTypes';
 import { Friend } from '../types/userTypes';
 import { defaultProfileImageMap, defaultProfileImages } from '../utils/defaultProfileImages';
+import { INPUT_LIMITS, isNumberInRange, normalizeSingleLineText } from '../utils/inputValidation';
 import { showAlert } from '../utils/platformAlert';
 import { getDefaultProfilePicture, isDefaultProfileImageKey, resolveProfileImageSource } from '../utils/profileImage';
 
@@ -95,9 +96,13 @@ const ProfileScreen: React.FC = () => {
 
   const handleProfileSave = async () => {
     if (!user) return;
-    const trimmedName = displayName.trim();
+    const trimmedName = normalizeSingleLineText(displayName);
     if (!trimmedName) {
       showAlert('Feil', 'Name cannot be empty');
+      return;
+    }
+    if (trimmedName.length > INPUT_LIMITS.profileNameMax) {
+      showAlert('Feil', `Navn kan maks være ${INPUT_LIMITS.profileNameMax} tegn.`);
       return;
     }
 
@@ -734,6 +739,7 @@ const ProfileScreen: React.FC = () => {
       ? parseNumericInput(drinkForm.customQuantity)
       : Number(drinkForm.quantity);
     if (isNaN(quantityValue) || quantityValue <= 0) return false;
+    if (!isNumberInRange(quantityValue, 0.1, INPUT_LIMITS.drinkQuantityMax)) return false;
     if (drinkForm.quantity === 'custom' && !hasMaxOneDecimal(drinkForm.customQuantity)) return false;
 
     if (drinkForm.category === 'custom') {
@@ -750,7 +756,8 @@ const ProfileScreen: React.FC = () => {
       if (drinkForm.sizeDl === 'custom' && !hasMaxOneDecimal(drinkForm.customSizeValue)) return false;
       if (!drinkForm.alcoholPercent) return false;
       if (drinkForm.alcoholPercent === 'custom' && !hasMaxOneDecimal(drinkForm.customAlcoholPercentManual)) return false;
-      if (isNaN(alcoholPercent) || alcoholPercent <= 0 || alcoholPercent > 100) return false;
+      if (!isNumberInRange(sizeValue, 0.1, INPUT_LIMITS.drinkSizeDlMax * 10)) return false;
+      if (!isNumberInRange(alcoholPercent, INPUT_LIMITS.drinkAlcoholPercentMin, INPUT_LIMITS.drinkAlcoholPercentMax)) return false;
       return true;
     }
 
@@ -760,12 +767,14 @@ const ProfileScreen: React.FC = () => {
       const customSizeValue = parseNumericInput(drinkForm.customSizeValue);
       if (isNaN(customSizeValue) || customSizeValue <= 0) return false;
       if (!hasMaxOneDecimal(drinkForm.customSizeValue)) return false;
+      if (!isNumberInRange(customSizeValue, 0.1, INPUT_LIMITS.drinkSizeDlMax * 10)) return false;
     }
 
     if (drinkForm.alcoholPercent === 'custom') {
       const value = parseNumericInput(drinkForm.customAlcoholPercent);
       if (!hasMaxOneDecimal(drinkForm.customAlcoholPercent)) return false;
       if (isNaN(value)) return false;
+      if (!isNumberInRange(value, INPUT_LIMITS.drinkAlcoholPercentMin, INPUT_LIMITS.drinkAlcoholPercentMax)) return false;
       if (drinkForm.category === 'vin' && (value < 10 || value > 20)) return false;
       if (drinkForm.category === 'sprit' && (value < 22 || value > 70)) return false;
       if (drinkForm.category === 'øl' && (value <= 0 || value > 20)) return false;
@@ -815,6 +824,10 @@ const ProfileScreen: React.FC = () => {
 
     if (isNaN(quantity) || quantity <= 0) {
       showAlert('Feil', 'Antall må være et tall større enn 0');
+      return;
+    }
+    if (!isNumberInRange(quantity, 0.1, INPUT_LIMITS.drinkQuantityMax)) {
+      showAlert('Feil', `Antall må være mellom 0.1 og ${INPUT_LIMITS.drinkQuantityMax}.`);
       return;
     }
     if (drinkForm.quantity === 'custom' && !hasMaxOneDecimal(drinkForm.customQuantity)) {
@@ -879,10 +892,20 @@ const ProfileScreen: React.FC = () => {
         sizeDl = parseFloat(drinkForm.sizeDl.toString());
       }
 
+      if (!isNumberInRange(sizeDl, 0.1, INPUT_LIMITS.drinkSizeDlMax)) {
+        showAlert('Feil', `Størrelse må være realistisk (maks ${INPUT_LIMITS.drinkSizeDlMax} liter).`);
+        return;
+      }
+
       const alcoholPercent =
         drinkForm.alcoholPercent === 'custom'
           ? parseNumericInput(drinkForm.customAlcoholPercent)
           : parseFloat(drinkForm.alcoholPercent.toString());
+
+      if (!isNumberInRange(alcoholPercent, INPUT_LIMITS.drinkAlcoholPercentMin, INPUT_LIMITS.drinkAlcoholPercentMax)) {
+        showAlert('Feil', `Alkoholprosent må være mellom ${INPUT_LIMITS.drinkAlcoholPercentMin} og ${INPUT_LIMITS.drinkAlcoholPercentMax}.`);
+        return;
+      }
 
       drink = {
         category: drinkForm.category,
@@ -893,7 +916,11 @@ const ProfileScreen: React.FC = () => {
         ...(typeof endTimestamp === 'number' ? { endTimestamp } : {}),
       };
     } else {
-      const trimmedName = drinkForm.customDrinkName.trim();
+      const trimmedName = normalizeSingleLineText(drinkForm.customDrinkName);
+      if (trimmedName.length > INPUT_LIMITS.drinkNameMax) {
+        showAlert('Feil', `Drikkenavn kan maks være ${INPUT_LIMITS.drinkNameMax} tegn.`);
+        return;
+      }
       if (!drinkForm.sizeDl) {
         showAlert('Feil', 'Velg en størrelse');
         return;
@@ -913,12 +940,16 @@ const ProfileScreen: React.FC = () => {
         showAlert('Feil', 'Velg en alkoholprosent');
         return;
       }
-      if (isNaN(alcoholPercent) || alcoholPercent <= 0 || alcoholPercent > 100) {
-        showAlert('Feil', 'Alkoholprosent må være mellom 0 og 100');
+      if (!isNumberInRange(alcoholPercent, INPUT_LIMITS.drinkAlcoholPercentMin, INPUT_LIMITS.drinkAlcoholPercentMax)) {
+        showAlert('Feil', `Alkoholprosent må være mellom ${INPUT_LIMITS.drinkAlcoholPercentMin} og ${INPUT_LIMITS.drinkAlcoholPercentMax}.`);
         return;
       }
       if (isNaN(sizeValue) || sizeValue <= 0) {
         showAlert('Feil', 'Størrelse må være større enn 0');
+        return;
+      }
+      if (!isNumberInRange(sizeValue, 0.1, INPUT_LIMITS.drinkSizeDlMax * 10)) {
+        showAlert('Feil', `Størrelse må være realistisk (maks ${INPUT_LIMITS.drinkSizeDlMax} liter).`);
         return;
       }
       if (drinkForm.sizeDl === 'custom' && !hasMaxOneDecimal(drinkForm.customSizeValue)) {
@@ -927,6 +958,10 @@ const ProfileScreen: React.FC = () => {
       }
       if (drinkForm.alcoholPercent === 'custom' && !hasMaxOneDecimal(drinkForm.customAlcoholPercentManual)) {
         showAlert('Feil', 'Alkoholprosent kan ha maks ett desimal');
+        return;
+      }
+      if (!isNumberInRange(sizeDl, 0.1, INPUT_LIMITS.drinkSizeDlMax)) {
+        showAlert('Feil', `Størrelse må være realistisk (maks ${INPUT_LIMITS.drinkSizeDlMax} liter).`);
         return;
       }
 
@@ -985,9 +1020,13 @@ const ProfileScreen: React.FC = () => {
 
   const handleCreateGroup = async () => {
     if (!user) return;
-    const trimmedGroupName = createGroupName.trim();
+    const trimmedGroupName = normalizeSingleLineText(createGroupName);
     if (!trimmedGroupName) {
       showAlert('Feil', 'Gruppenavn kan ikke være tomt');
+      return;
+    }
+    if (trimmedGroupName.length > INPUT_LIMITS.groupNameMax) {
+      showAlert('Feil', `Gruppenavn kan maks være ${INPUT_LIMITS.groupNameMax} tegn.`);
       return;
     }
     setCreatingGroup(true);
@@ -1244,10 +1283,10 @@ const ProfileScreen: React.FC = () => {
                   <TextInput
                     style={[globalStyles.input, profileStyles.profileNameInput]}
                     value={displayName}
-                    onChangeText={setDisplayName}
+                    onChangeText={(text) => setDisplayName(text.slice(0, INPUT_LIMITS.profileNameMax))}
                     placeholder="Your name"
                     placeholderTextColor={profileScreenTokens.nameInputPlaceholderTextColor}
-                    maxLength={40}
+                    maxLength={INPUT_LIMITS.profileNameMax}
                     autoCapitalize="words"
                     onFocus={() => setProfileNameFocused(true)}
                     onBlur={() => setProfileNameFocused(false)}
@@ -1524,9 +1563,9 @@ const ProfileScreen: React.FC = () => {
                         placeholder="Skriv gruppenavn"
                         placeholderTextColor={profileScreenTokens.createGroupPlaceholderTextColor}
                         value={createGroupName}
-                        onChangeText={setCreateGroupName}
+                        onChangeText={(text) => setCreateGroupName(text.slice(0, INPUT_LIMITS.groupNameMax))}
                         style={[globalStyles.input, profileStyles.createGroupInput]}
-                        maxLength={40}
+                        maxLength={INPUT_LIMITS.groupNameMax}
                         onFocus={() => setCreateGroupNameFocused(true)}
                         onBlur={() => setCreateGroupNameFocused(false)}
                       />
@@ -1776,10 +1815,10 @@ const ProfileScreen: React.FC = () => {
                           <TextInput
                             style={[globalStyles.input, profileStyles.customAlcoholInput]}
                             value={drinkForm.customDrinkName}
-                            onChangeText={(text) => setDrinkForm({ ...drinkForm, customDrinkName: text })}
+                            onChangeText={(text) => setDrinkForm({ ...drinkForm, customDrinkName: text.slice(0, INPUT_LIMITS.drinkNameMax) })}
                             placeholder={DRINK_TEXT_PLACEHOLDER}
                             placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                            maxLength={40}
+                            maxLength={INPUT_LIMITS.drinkNameMax}
                           />
                         </View>
                       </View>

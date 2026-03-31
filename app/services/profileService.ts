@@ -1,5 +1,6 @@
 import { addDoc, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { DrinkEntry, Group, GroupInvitation } from '../types/drinkTypes';
+import { INPUT_LIMITS, normalizeSingleLineText } from '../utils/inputValidation';
 import { auth, firestore } from './firebase/FirebaseConfig';
 
 const GROUP_INVITATIONS_COLLECTION = 'group_invitations';
@@ -66,9 +67,12 @@ export const createGroup = async (userId: string, groupName = 'Gruppenavn'): Pro
         console.log("Bruker ikke autorisert");
         throw new Error('Faaaaah')
     }
-  const trimmedGroupName = groupName.trim();
+  const trimmedGroupName = normalizeSingleLineText(groupName);
   if (!trimmedGroupName) {
     throw new Error('Group name cannot be empty');
+  }
+  if (trimmedGroupName.length > INPUT_LIMITS.groupNameMax) {
+    throw new Error(`Group name too long (max ${INPUT_LIMITS.groupNameMax})`);
   }
     try {
         const groupDoc = await addDoc(collection(firestore, 'groups'), {
@@ -99,14 +103,21 @@ export const createGroup = async (userId: string, groupName = 'Gruppenavn'): Pro
 
 export const updateGroupName = async(groupId: string, newName: string): Promise<void> => {
     try {
+        const trimmedName = normalizeSingleLineText(newName);
+        if (!trimmedName) {
+          throw new Error('Group name cannot be empty');
+        }
+        if (trimmedName.length > INPUT_LIMITS.groupNameMax) {
+          throw new Error(`Group name too long (max ${INPUT_LIMITS.groupNameMax})`);
+        }
         const groupRef = doc(firestore, 'groups', groupId)
-        await updateDoc(groupRef, {name: newName})
+        await updateDoc(groupRef, {name: trimmedName})
         const inviteQuery = query(collection(firestore, GROUP_INVITATIONS_COLLECTION), where('groupId', '==', groupId))
         const inviteSnapshot = await getDocs(inviteQuery)
         const updatePromises = inviteSnapshot.docs.map((invDoc) => (
           updateDoc(doc(firestore, GROUP_INVITATIONS_COLLECTION, invDoc.id), {
-            groupName: newName,
-            group_name: newName,
+            groupName: trimmedName,
+            group_name: trimmedName,
           })
         ));
         const updateResults = await Promise.allSettled(updatePromises);
