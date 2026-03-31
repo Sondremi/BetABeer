@@ -1,7 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+<<<<<<< emailAndPassword
 import { collection, doc, getDoc, getDocs, getFirestore, increment, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+=======
+import { collection, doc, FieldPath, getDoc, getDocs, getFirestore, increment, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
+import React, { useEffect, useMemo, useState } from 'react';
+>>>>>>> main
 import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { firestore } from '../services/firebase/FirebaseConfig';
@@ -29,6 +34,97 @@ type SentGroupInvitation = {
 
 type GroupLeaderboardMemberStats = MemberDrinkStats & {
   currentBAC: number;
+};
+
+type BacRangeTone = {
+  rowBackground: string;
+  rowBorder: string;
+  badgeBackground: string;
+  badgeBorder: string;
+  badgeText: string;
+  valueCardBackground: string;
+  valueCardBorder: string;
+  valueText: string;
+  averageFill: string;
+};
+
+const getBacRangeTone = (bac: number): BacRangeTone => {
+  if (bac < 0.5) {
+    return {
+      rowBackground: 'rgba(56, 147, 232, 0.12)',
+      rowBorder: 'rgba(92, 170, 238, 0.42)',
+      badgeBackground: 'rgba(56, 147, 232, 0.22)',
+      badgeBorder: 'rgba(92, 170, 238, 0.62)',
+      badgeText: '#8FC5F2',
+      valueCardBackground: 'rgba(56, 147, 232, 0.62)',
+      valueCardBorder: '#8CC7F8',
+      valueText: '#F2F9FF',
+      averageFill: '#3893E8',
+    };
+  }
+
+  if (bac <= 1.09) {
+    return {
+      rowBackground: 'rgba(255, 215, 0, 0.12)',
+      rowBorder: 'rgba(255, 215, 0, 0.40)',
+      badgeBackground: 'rgba(255, 215, 0, 0.24)',
+      badgeBorder: 'rgba(255, 215, 0, 0.62)',
+      badgeText: '#FFF0A8',
+      valueCardBackground: 'rgba(201, 150, 0, 0.94)',
+      valueCardBorder: '#FFE978',
+      valueText: '#FFF9E2',
+      averageFill: theme.colors.primary,
+    };
+  }
+
+  if (bac <= 1.59) {
+    return {
+      rowBackground: 'rgba(255, 165, 0, 0.12)',
+      rowBorder: 'rgba(255, 165, 0, 0.42)',
+      badgeBackground: 'rgba(255, 165, 0, 0.24)',
+      badgeBorder: 'rgba(255, 165, 0, 0.62)',
+      badgeText: '#FFD18E',
+      valueCardBackground: 'rgba(255, 165, 0, 0.82)',
+      valueCardBorder: '#FFD08A',
+      valueText: '#241400',
+      averageFill: '#FFA500',
+    };
+  }
+
+  if (bac <= 2.49) {
+    return {
+      rowBackground: 'rgba(255, 99, 71, 0.12)',
+      rowBorder: 'rgba(255, 99, 71, 0.42)',
+      badgeBackground: 'rgba(255, 99, 71, 0.24)',
+      badgeBorder: 'rgba(255, 99, 71, 0.62)',
+      badgeText: '#FFB7A5',
+      valueCardBackground: 'rgba(255, 99, 71, 0.82)',
+      valueCardBorder: '#FFC5B3',
+      valueText: '#2A0900',
+      averageFill: '#FF6347',
+    };
+  }
+
+  return {
+    rowBackground: 'rgba(255, 90, 110, 0.14)',
+    rowBorder: 'rgba(255, 112, 130, 0.52)',
+    badgeBackground: 'rgba(255, 90, 110, 0.26)',
+    badgeBorder: 'rgba(255, 136, 150, 0.70)',
+    badgeText: '#FFD6DE',
+    valueCardBackground: 'rgba(255, 36, 36, 0.90)',
+    valueCardBorder: '#FFB3B3',
+    valueText: '#FFF5F5',
+    averageFill: '#FF2424',
+  };
+};
+
+const getGroupScopedDrinkStats = (userData: any, groupId?: string) => {
+  const groupStats = groupId ? userData?.groupDrinkStats?.[groupId] : null;
+  return {
+    drinksToConsume: groupStats?.drinksToConsume || userData?.drinksToConsume || {},
+    drinksConsumed: groupStats?.drinksConsumed || userData?.drinksConsumed || {},
+    drinksToDistribute: groupStats?.drinksToDistribute || userData?.drinksToDistribute || {},
+  };
 };
 
 const GroupScreen = () => {
@@ -123,6 +219,7 @@ const GroupScreen = () => {
     () => [...leaderboardData].sort((a, b) => b.currentBAC - a.currentBAC),
     [leaderboardData]
   );
+<<<<<<< emailAndPassword
   const getMemberName = useCallback((member: Pick<MemberDrinkStats, 'name' | 'username'>) => {
     const displayName = String(member.name || '').trim();
     const username = String(member.username || 'ukjent').trim();
@@ -257,6 +354,22 @@ const GroupScreen = () => {
 
     return Object.values(memberStats).sort((a, b) => b.betsWon - a.betsWon);
   }, [selectedGroup, fetchMemberUsernames, bets]);
+=======
+  const groupAverageBAC = useMemo(() => {
+    if (bacLeaderboardData.length === 0) return 0;
+    const totalBAC = bacLeaderboardData.reduce((sum, member) => sum + member.currentBAC, 0);
+    return totalBAC / bacLeaderboardData.length;
+  }, [bacLeaderboardData]);
+  const bacVisualMax = useMemo(() => {
+    const highestMemberBAC = bacLeaderboardData[0]?.currentBAC || 0;
+    return Math.max(0.08, highestMemberBAC);
+  }, [bacLeaderboardData]);
+  const averageBacBarProgress = useMemo(() => {
+    if (bacVisualMax <= 0) return 0;
+    return Math.min(1, groupAverageBAC / bacVisualMax);
+  }, [groupAverageBAC, bacVisualMax]);
+  const groupAverageBacTone = useMemo(() => getBacRangeTone(groupAverageBAC), [groupAverageBAC]);
+>>>>>>> main
 
   useEffect(() => {
     if (!user) return;
@@ -419,6 +532,32 @@ const GroupScreen = () => {
       isMounted = false;
     };
   }, [leaderboardModalVisible, getLeaderboardData]);
+
+  useEffect(() => {
+    if (!leaderboardModalVisible || leaderboardView !== 'bac' || !selectedGroup) return;
+
+    let isMounted = true;
+    const refreshPromille = async () => {
+      try {
+        const data = await getLeaderboardData();
+        if (isMounted) setLeaderboardData(data);
+      } catch (error) {
+        console.error('Error refreshing promille leaderboard:', error);
+      }
+    };
+
+    refreshPromille();
+
+    // Keep Promille values fresh as metabolism changes over time.
+    const interval = setInterval(() => {
+      refreshPromille();
+    }, 15 * 1000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [leaderboardModalVisible, leaderboardView, selectedGroup, bets]);
 
   useEffect(() => {
     if (!selectedGroup || !selectedGroup.members) {
@@ -1095,14 +1234,18 @@ const GroupScreen = () => {
             
             if (wager.optionId === optionId) {
               // Winner: gets their own bet amount as distributable drinks
-              await updateDoc(userRef, {
-                [`drinksToDistribute.${wager.drinkType}.${wager.measureType}`]: increment(wager.amount)
-              });
+              await updateDoc(
+                userRef,
+                new FieldPath('groupDrinkStats', selectedGroup.id, 'drinksToDistribute', wager.drinkType, wager.measureType),
+                increment(wager.amount)
+              );
             } else {
               // Loser: gets their own bet amount as drinks to consume
-              await updateDoc(userRef, {
-                [`drinksToConsume.${wager.drinkType}.${wager.measureType}`]: increment(wager.amount)
-              });
+              await updateDoc(
+                userRef,
+                new FieldPath('groupDrinkStats', selectedGroup.id, 'drinksToConsume', wager.drinkType, wager.measureType),
+                increment(wager.amount)
+              );
             }
           }));
         }
@@ -1206,6 +1349,110 @@ const GroupScreen = () => {
     }
   };
 
+<<<<<<< emailAndPassword
+=======
+  const getLeaderboardData = async (): Promise<GroupLeaderboardMemberStats[]> => {
+    if (!selectedGroup || !selectedGroup.members) return [];
+
+    const usernames = await fetchMemberUsernames(selectedGroup.members);
+    const memberStats: { [userId: string]: GroupLeaderboardMemberStats } = {};
+
+    await Promise.all(
+      selectedGroup.members.map(async (userId: string) => {
+        try {
+          const userDoc = await getDoc(doc(firestore, 'users', userId));
+          const userData = userDoc.exists() ? userDoc.data() : {};
+          const hasBacData =
+            Array.isArray(userData.drinks) &&
+            typeof userData.weight === 'number' &&
+            (userData.gender === 'male' || userData.gender === 'female');
+          const currentBAC = hasBacData
+            ? profileService.calculateBAC(userData.drinks, userData.weight, userData.gender, Date.now())
+            : 0;
+          
+          const scopedDrinkStats = getGroupScopedDrinkStats(userData, selectedGroup.id);
+          memberStats[userId] = {
+            userId,
+            username: usernames[userId] || 'Ukjent',
+            betsWon: 0,
+            betsLost: 0,
+            currentBAC,
+            profilePicture: userData.profileImage ? 
+              defaultProfileImageMap[userData.profileImage] || DefaultProfilePicture 
+              : DefaultProfilePicture,
+            drinksToConsume: scopedDrinkStats.drinksToConsume,
+            drinksConsumed: scopedDrinkStats.drinksConsumed,
+            drinksToDistribute: scopedDrinkStats.drinksToDistribute,
+            transactions: [],
+          };
+        } catch (error) {
+          console.error(`Error fetching member ${userId}:`, error);
+          memberStats[userId] = {
+            userId,
+            username: usernames[userId] || 'Ukjent',
+            betsWon: 0,
+            betsLost: 0,
+            currentBAC: 0,
+            profilePicture: DefaultProfilePicture,
+            drinksToConsume: {},
+            drinksConsumed: {},
+            drinksToDistribute: {},
+            transactions: [],
+          };
+        }
+      })
+    );
+
+    const finishedBets = bets.filter(bet => bet.isFinished && bet.correctOptionId);
+    finishedBets.forEach(bet => {
+      const wagers = bet.wagers || [];
+      
+      // Only count wins and losses, don't modify drink amounts since they're already in Firestore
+      wagers.forEach(wager => {
+        const stats = memberStats[wager.userId];
+        if (!stats) return;
+
+        stats.username = usernames[wager.userId] || wager.username || 'Ukjent';
+        
+        if (wager.optionId === bet.correctOptionId) {
+          stats.betsWon += 1;
+        } else {
+          stats.betsLost += 1;
+        }
+      });
+    });
+
+    // Collect distribution transactions from Firestore
+    const transactionsRef = collection(firestore, `groups/${selectedGroup.id}/transactions`);
+    const transactionsSnapshot = await getDocs(transactionsRef);
+    const distributionHistory: DrinkTransaction[] = transactionsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        fromUserId: data.fromUserId,
+        fromUsername: data.fromUsername,
+        toUserId: data.toUserId,
+        toUsername: data.toUsername,
+        drinkType: data.drinkType,
+        measureType: data.measureType,
+        amount: data.amount,
+        source: data.source,
+        timestamp: data.timestamp,
+      } as DrinkTransaction;
+    });
+    
+    distributionHistory.forEach((dist: DrinkTransaction) => {
+      const receiverStats = memberStats[dist.toUserId];
+      if (receiverStats) {
+        receiverStats.transactions.push(dist);
+      }
+    });
+    
+    // Sort by bets won descending
+    return Object.values(memberStats).sort((a, b) => b.betsWon - a.betsWon);
+  };
+
+>>>>>>> main
   const handleMemberTap = (userId: string) => {
     setSelectedMember(userId);
     setSelectedDistribution(null);
@@ -1671,11 +1918,11 @@ const GroupScreen = () => {
           : 'Til utdeling';
 
     const handleRegisterConsumedDrink = async (drinkType: DrinkType, measureType: MeasureType) => {
-      if (!user?.id) return;
+      if (!user?.id || !selectedGroup?.id) return;
       const actionKey = `${drinkType}-${measureType}`;
       setConsumingDrinkKey(actionKey);
       try {
-        await registerConsumedDrinks(user.id, [{ drinkType, measureType, amount: 1 }]);
+        await registerConsumedDrinks(user.id, selectedGroup.id, [{ drinkType, measureType, amount: 1 }]);
         const updatedLeaderboard = await getLeaderboardData();
         setLeaderboardData(updatedLeaderboard);
       } catch (error) {
@@ -2599,7 +2846,11 @@ const GroupScreen = () => {
           <View style={[globalStyles.modalContent, groupStyles.leaderboardModalContent]}> 
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
               <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.sm, fontSize: 18, fontWeight: '600', color: theme.colors.text }]}>
+<<<<<<< emailAndPassword
                 {leaderboardView === 'betsWon' ? 'Bet Statistikk' : leaderboardView === 'drinkStats' ? 'Drikke Statistikk' : 'Promille Statistikk'}
+=======
+                {leaderboardView === 'betsWon' ? 'Bet Statistikk' : leaderboardView === 'drinkStats' ? 'Drikke Statistikk' : 'Promille Leaderboard'}
+>>>>>>> main
               </Text>
               {leaderboardLoading && (
                 <Text style={groupStyles.modalLoadingText}>Laster...</Text>
@@ -2692,12 +2943,116 @@ const GroupScreen = () => {
                   ) : leaderboardView === 'bac' ? (
                     <View>
                       <Text style={groupStyles.modalSectionSubtitle}>
+<<<<<<< emailAndPassword
                         Medlemmer sortert på nåværende Promille
                       </Text>
                       <View style={groupStyles.leaderboardPodiumRow}>
                         {bacLeaderboardData[1] && renderPodiumCard({ member: bacLeaderboardData[1], placement: 2, mode: 'bac' })}
                         {bacLeaderboardData[0] && renderPodiumCard({ member: bacLeaderboardData[0], placement: 1, mode: 'bac' })}
                         {bacLeaderboardData[2] && renderPodiumCard({ member: bacLeaderboardData[2], placement: 3, mode: 'bac' })}
+=======
+                        Medlemmer sortert på nåværende promille (høyest først)
+                      </Text>
+                      <View style={groupStyles.bacAverageCard}>
+                        <View style={groupStyles.bacAverageHeaderRow}>
+                          <Text style={groupStyles.bacAverageTitle}>Gjennomsnittlig promille</Text>
+                          <Text style={[groupStyles.bacAverageValue, { color: groupAverageBacTone.valueText }]}>
+                            {groupAverageBAC.toFixed(3)}‰
+                          </Text>
+                        </View>
+                        <View style={groupStyles.bacAverageTrack}>
+                          <View
+                            style={[
+                              groupStyles.bacAverageFill,
+                              { backgroundColor: groupAverageBacTone.averageFill },
+                              { width: `${Math.max(4, Math.round(averageBacBarProgress * 100))}%` },
+                            ]}
+                          />
+                        </View>
+                        <View style={groupStyles.bacAverageScaleRow}>
+                          <Text style={groupStyles.bacAverageScaleText}>0.000</Text>
+                          <Text style={groupStyles.bacAverageScaleText}>{bacVisualMax.toFixed(3)}</Text>
+                        </View>
+                        <Text style={groupStyles.bacAverageHint}>
+                          Basert på {bacLeaderboardData.length} medlemmer i gruppen.
+                        </Text>
+                      </View>
+                      <View style={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}> 
+                        {bacLeaderboardData.map((member, idx) => {
+                          const bacTone = getBacRangeTone(member.currentBAC);
+
+                          return (
+                            <View
+                            key={member.userId}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              borderWidth: 1,
+                              borderColor: bacTone.rowBorder,
+                              borderRadius: theme.borderRadius.md,
+                              backgroundColor: bacTone.rowBackground,
+                              paddingVertical: 10,
+                              paddingHorizontal: 12,
+                              marginBottom: 8,
+                            }}
+                          >
+                            <View
+                              style={{
+                                paddingHorizontal: 10,
+                                paddingVertical: 4,
+                                borderRadius: 999,
+                                backgroundColor: bacTone.badgeBackground,
+                                borderWidth: 1,
+                                borderColor: bacTone.badgeBorder,
+                                marginRight: 10,
+                                minWidth: 46,
+                                alignItems: 'center',
+                              }}
+                            >
+                              <Text style={{ fontSize: 12, color: bacTone.badgeText, fontWeight: '700' }}>#{idx + 1}</Text>
+                            </View>
+
+                            <Image
+                              source={member.profilePicture || DefaultProfilePicture}
+                              style={[globalStyles.circularImage, { width: 42, height: 42, marginRight: 10 }]}
+                            />
+
+                            <View style={{ flex: 1, marginRight: 10 }}>
+                              <Text style={[groupStyles.wagerUser, { fontSize: 14, color: theme.colors.text }]} numberOfLines={1}>
+                                {member.username}
+                              </Text>
+                              <Text style={[globalStyles.secondaryText, { fontSize: 11, color: theme.colors.textSecondary }]}> 
+                                {member.betsWon} vunnet • {member.betsLost} tapt
+                              </Text>
+                            </View>
+
+                            <View
+                              style={{
+                                minWidth: 84,
+                                borderRadius: theme.borderRadius.md,
+                                borderWidth: 2,
+                                borderColor: bacTone.valueCardBorder,
+                                backgroundColor: bacTone.valueCardBackground,
+                                paddingVertical: 6,
+                                paddingHorizontal: 8,
+                                alignItems: 'center',
+                              }}
+                            >
+                              <Text style={{ fontSize: 10, color: bacTone.badgeText, letterSpacing: 0.4 }}>PROMILLE</Text>
+                              <Text
+                                style={{
+                                  fontSize: 16,
+                                  color: bacTone.valueText,
+                                  fontWeight: '700',
+                                }}
+                              >
+                                {member.currentBAC.toFixed(3)}‰
+                              </Text>
+                            </View>
+                            </View>
+                          );
+                        })}
+>>>>>>> main
                       </View>
 
                       {bacLeaderboardData.length > 3 && (
