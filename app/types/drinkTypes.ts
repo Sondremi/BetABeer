@@ -28,6 +28,7 @@ export interface DrinkTransaction {
 
 export interface MemberDrinkStats {
   userId: string;
+  name?: string;
   username: string;
   profilePicture: any;
   betsWon: number;

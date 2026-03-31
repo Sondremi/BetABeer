@@ -48,7 +48,8 @@
     "react-native-svg": "^15.12.1",
     "react-native-web": "~0.20.0",
     "react-native-web-refresh-control": "^1.1.2",
-    "react-native-webview": "13.13.5"
+    "react-native-webview": "13.13.5",
+    "expo-auth-session": "~6.2.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

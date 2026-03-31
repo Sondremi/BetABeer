@@ -1133,8 +1133,8 @@ const ProfileScreen: React.FC = () => {
             </View>
 
             {/* Name and username */}
-            <Text style={[globalStyles.largeBoldText, profileStyles.profileName]}>{user?.name || 'Navn'}</Text>
-            <Text style={[globalStyles.secondaryText, profileStyles.profileUsername]}>{user?.username || 'Brukernavn'}</Text>
+            <Text style={[globalStyles.largeBoldText, profileStyles.profileName]}>{user?.name || userInfo.name || 'Navn'}</Text>
+            <Text style={[globalStyles.secondaryText, profileStyles.profileUsername]}>{user?.username || userInfo.username || 'Brukernavn'}</Text>
           </View>
         {/* Modal to change profilepicture */}
         <Modal

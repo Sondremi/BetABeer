@@ -28,6 +28,22 @@ export const friendsStyles = StyleSheet.create({
     color: theme.colors.primary,
     letterSpacing: 0.8,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  collapsedHeaderRow: {
+    marginBottom: 0,
+  },
+  sectionToggleButton: {
+    ...globalStyles.sectionToggleIconButton,
+  },
+  sectionToggleButtonText: {
+    ...globalStyles.sectionToggleIconButtonText,
+  },
   friendName: {
     fontSize: theme.fonts.md,
     fontWeight: '700',
@@ -40,15 +56,7 @@ export const friendsStyles = StyleSheet.create({
     marginTop: theme.spacing.xxxs,
   },
   button: {
-    padding: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: theme.sizes.iconButton,
-    minHeight: theme.sizes.iconButton,
+    ...globalStyles.iconActionButtonSm,
   },
   friendSpacing: {
     marginBottom: theme.spacing.md,
@@ -71,30 +79,16 @@ export const friendsStyles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   searchSectionCard: {
-    borderRadius: theme.borderRadius.xl,
-    borderWidth: 1,
-    borderColor: theme.colors.borderPremium,
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.lg,
+    ...globalStyles.premiumSectionCard,
   },
   listSectionCard: {
-    borderRadius: theme.borderRadius.xl,
-    borderWidth: 1,
-    borderColor: theme.colors.borderPremium,
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.lg,
+    ...globalStyles.premiumSectionCard,
   },
   inviteDescription: {
     marginBottom: 0,
   },
   searchResultBox: {
-    borderRadius: theme.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.borderWarm,
-    backgroundColor: theme.colors.backgroundListCard,
-    paddingHorizontal: theme.spacing.sm,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.xs,
+    ...globalStyles.warmListPanel,
   },
   searchInputShell: {
     flex: 1,
@@ -128,13 +122,7 @@ export const friendsStyles = StyleSheet.create({
   },
   listScrollBox: {
     maxHeight: theme.sizes.maxListHeightXxl,
-    borderRadius: theme.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.borderWarm,
-    backgroundColor: theme.colors.backgroundListCard,
-    paddingHorizontal: theme.spacing.sm,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.xs,
+    ...globalStyles.warmListPanel,
   },
   listScrollContent: {
     paddingBottom: theme.spacing.xs,

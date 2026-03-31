@@ -1,9 +1,87 @@
-import { createUserWithEmailAndPassword, onAuthStateChanged as firebaseOnAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { GoogleAuthProvider, createUserWithEmailAndPassword, onAuthStateChanged as firebaseOnAuthStateChanged, sendEmailVerification, sendPasswordResetEmail, signInWithCredential, signInWithEmailAndPassword, signOut, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { auth } from './FirebaseConfig';
 
 const firestore = getFirestore();
 const normalizeValue = (value) => String(value || '').trim().toLowerCase();
+const toDisplayValue = (value) => String(value || '').trim();
+
+const buildFallbackUsername = (email, uid) => {
+  const emailPrefix = String(email || '')
+    .split('@')[0]
+    .replace(/[^a-zA-Z0-9._-]/g, '')
+    .slice(0, 18);
+  const uidSuffix = String(uid || '').slice(0, 6);
+  return (emailPrefix || 'user') + (uidSuffix ? `_${uidSuffix}` : '');
+};
+
+const ensureUserDocument = async (firebaseUser) => {
+  const userRef = doc(firestore, 'users', firebaseUser.uid);
+  const userDoc = await getDoc(userRef);
+
+  const email = toDisplayValue(firebaseUser.email);
+  const emailLower = normalizeValue(firebaseUser.email);
+  const displayName = toDisplayValue(firebaseUser.displayName);
+
+  if (!userDoc.exists()) {
+    const username = buildFallbackUsername(firebaseUser.email, firebaseUser.uid);
+
+    await setDoc(userRef, {
+      username,
+      usernameLower: normalizeValue(username),
+      name: displayName || username,
+      email,
+      emailLower,
+      phone: firebaseUser.phoneNumber || null,
+      weight: null,
+      gender: null,
+      friends: [],
+      groups: [],
+      createdAt: serverTimestamp(),
+    });
+
+    return {
+      id: firebaseUser.uid,
+      username,
+      name: displayName || username,
+      email,
+      phone: firebaseUser.phoneNumber || null,
+      weight: null,
+      gender: null,
+      friends: [],
+      groups: [],
+    };
+  }
+
+  const userData = userDoc.data();
+  const updates = {};
+
+  if (email && normalizeValue(userData.email) !== emailLower) {
+    updates.email = email;
+    updates.emailLower = emailLower;
+  }
+
+  if (displayName && !toDisplayValue(userData.name)) {
+    updates.name = displayName;
+  }
+
+  if (Object.keys(updates).length > 0) {
+    updates.updatedAt = serverTimestamp();
+    await updateDoc(userRef, updates);
+  }
+
+  return {
+    id: firebaseUser.uid,
+    username: userData.username,
+    name: userData.name,
+    email: userData.email || email,
+    phone: userData.phone,
+    weight: userData.weight,
+    gender: userData.gender,
+    friends: userData.friends || [],
+    groups: userData.groups || [],
+  };
+};
 
 export const authService = {
   createUser: async (userData) => {
@@ -16,6 +94,14 @@ export const authService = {
         userData.password
       );
       const user = userCredential.user;
+
+      try {
+        await sendEmailVerification(user);
+      } catch (verificationError) {
+        // Do not block account creation if verification email fails.
+        console.error('Send verification email error:', verificationError);
+      }
+
       await setDoc(doc(firestore, 'users', user.uid), {
         username: trimmedUsername,
         usernameLower: normalizeValue(trimmedUsername),
@@ -70,6 +156,36 @@ export const authService = {
     }
   },
 
+  loginWithGoogleIdToken: async (idToken) => {
+    try {
+      if (!idToken) {
+        throw new Error('missing-google-id-token');
+      }
+
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      return await ensureUserDocument(userCredential.user);
+    } catch (error) {
+      console.error('Google login error:', error);
+
+      if (error && typeof error === 'object' && 'code' in error) {
+        const errorCode = String(error.code);
+        if (errorCode === 'auth/account-exists-with-different-credential') {
+          throw new Error('Denne e-posten er allerede registrert med en annen innloggingsmetode');
+        }
+        if (errorCode === 'auth/popup-closed-by-user' || errorCode === 'auth/cancelled-popup-request') {
+          throw new Error('Google-innlogging ble avbrutt');
+        }
+      }
+
+      if (error instanceof Error && error.message === 'missing-google-id-token') {
+        throw new Error('Mangler Google ID-token. Sjekk OAuth-oppsett i appen.');
+      }
+
+      throw new Error('Kunne ikke logge inn med Google');
+    }
+  },
+
   logoutUser: async () => {
     try {
       await signOut(auth);
@@ -85,14 +201,99 @@ export const authService = {
 
   updateUser: async (userId, updateData) => {
     try {
-      await updateDoc(doc(firestore, 'users', userId), {
+      const payload = {
         ...updateData,
         updatedAt: serverTimestamp(),
+      };
+
+      if (typeof updateData.email === 'string') {
+        const trimmedEmail = String(updateData.email).trim();
+        payload.email = trimmedEmail;
+        payload.emailLower = normalizeValue(trimmedEmail);
+      }
+
+      await updateDoc(doc(firestore, 'users', userId), {
+        ...payload,
       });
-      return updateData;
+      return payload;
     } catch (error) {
       console.error('Update user error:', error);
       throw new Error('Kunne ikke oppdatere bruker');
+    }
+  },
+
+  requestEmailChange: async (newEmail) => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('unauthorized-email-change-attempt');
+      }
+
+      const normalizedNewEmail = normalizeValue(newEmail);
+      const currentEmail = normalizeValue(currentUser.email);
+      if (!normalizedNewEmail) {
+        throw new Error('invalid-email');
+      }
+      if (normalizedNewEmail === currentEmail) {
+        return { status: 'unchanged' };
+      }
+
+      await verifyBeforeUpdateEmail(currentUser, normalizedNewEmail);
+      return { status: 'verification-sent' };
+    } catch (error) {
+      console.error('Request email change error:', error);
+
+      if (error && typeof error === 'object' && 'code' in error) {
+        const errorCode = String(error.code);
+        if (errorCode === 'auth/requires-recent-login') {
+          throw new Error('Du må logge inn på nytt for å endre e-postadresse');
+        }
+        if (errorCode === 'auth/email-already-in-use') {
+          throw new Error('E-postadressen er allerede i bruk');
+        }
+        if (errorCode === 'auth/invalid-email') {
+          throw new Error('Ugyldig e-postadresse');
+        }
+      }
+
+      if (error instanceof Error && error.message === 'unauthorized-email-change-attempt') {
+        throw new Error('Bruker ikke autorisert');
+      }
+
+      throw new Error('Kunne ikke starte e-postendring');
+    }
+  },
+
+  requestPasswordReset: async (email) => {
+    try {
+      const normalizedEmail = normalizeValue(email);
+      if (!normalizedEmail) {
+        throw new Error('invalid-email');
+      }
+
+      await sendPasswordResetEmail(auth, normalizedEmail);
+      return { status: 'sent' };
+    } catch (error) {
+      console.error('Request password reset error:', error);
+
+      if (error && typeof error === 'object' && 'code' in error) {
+        const errorCode = String(error.code);
+        if (errorCode === 'auth/invalid-email') {
+          throw new Error('Ugyldig e-postadresse');
+        }
+        if (errorCode === 'auth/user-not-found') {
+          throw new Error('Fant ingen bruker med denne e-postadressen');
+        }
+        if (errorCode === 'auth/too-many-requests') {
+          throw new Error('For mange forsøk. Prøv igjen litt senere');
+        }
+      }
+
+      if (error instanceof Error && error.message === 'invalid-email') {
+        throw new Error('E-postadresse er påkrevd');
+      }
+
+      throw new Error('Kunne ikke sende passord-reset e-post');
     }
   },
 

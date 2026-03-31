@@ -6,6 +6,37 @@ import { auth, firestore } from './firebase/FirebaseConfig';
 const DefaultProfilePicture = require('../../assets/images/default/default_profilepicture.png');
 const FRIEND_REQUESTS_COLLECTION = 'friendRequests';
 
+export type SendFriendRequestResult =
+  | { status: 'sent'; requestId: string }
+  | { status: 'accepted'; requestId: string };
+
+const resolveProfilePicture = (profileImageKey?: string | null) => {
+  if (!profileImageKey) return DefaultProfilePicture;
+  return defaultProfileImageMap[profileImageKey] || DefaultProfilePicture;
+};
+
+const mapIncomingRequest = async (docSnap: any) => {
+  const data = docSnap.data();
+  const userDocRef = doc(firestore, 'users', data.fromUserId);
+  const userDoc = await getDoc(userDocRef);
+  const userData = userDoc.exists() ? userDoc.data() : null;
+
+  const fromUserName = data.fromUserName || userData?.name || 'Ukjent';
+  const fromUsername = data.fromUsername || userData?.username || 'ukjent';
+  const fromUserProfileImage = data.fromUserProfileImage || userData?.profileImage || null;
+
+  return {
+    id: docSnap.id,
+    ...data,
+    fromUserName,
+    fromUsername,
+    fromUserProfileImage,
+    name: fromUserName,
+    username: fromUsername,
+    profilePicture: resolveProfilePicture(fromUserProfileImage),
+  };
+};
+
 export const listenToIncomingRequests = (currentUserId: string, callback: (requests: FriendRequest[]) => void) => {
   const friendRequestRef = collection(firestore, FRIEND_REQUESTS_COLLECTION);
   const q = query(
@@ -14,20 +45,7 @@ export const listenToIncomingRequests = (currentUserId: string, callback: (reque
     where("status", "==", "pending")
   );
   return onSnapshot(q, async (snapshot) => {
-    const requests = await Promise.all(snapshot.docs.map(async (docSnap) => {
-      const data = docSnap.data();
-      const userDocRef = doc(firestore, "users", data.fromUserId);
-      const userDoc = await getDoc(userDocRef);
-      return {
-        id: docSnap.id,
-        ...data,
-        name: data.fromUserName || (userDoc.exists() ? userDoc.data().name || 'Ukjent' : 'Ukjent'),
-        username: data.fromUsername || (userDoc.exists() ? userDoc.data().username || 'ukjent' : 'ukjent'),
-        profilePicture: data.fromUserProfileImage ? 
-          defaultProfileImageMap[data.fromUserProfileImage] || DefaultProfilePicture 
-          : DefaultProfilePicture,
-      };
-    }));
+    const requests = await Promise.all(snapshot.docs.map((docSnap) => mapIncomingRequest(docSnap)));
     callback(requests as FriendRequest[]);
   });
 };
@@ -93,7 +111,7 @@ export const friendSearch = async (searchTerm: string): Promise<Friend[]> => {
   }
 };
 
-export const sendFriendRequest = async (toUserId: string) => {
+export const sendFriendRequest = async (toUserId: string): Promise<SendFriendRequestResult> => {
   const currentUser = auth.currentUser;
   if (!currentUser) {
     throw new Error('Bruker ikke autorisert');
@@ -135,7 +153,12 @@ export const sendFriendRequest = async (toUserId: string) => {
     throw new Error('Venneforespørsel er allerede sendt');
   }
   if (!existingIncomingSnapshot.empty) {
-    throw new Error('Denne brukeren har allerede sendt deg en forespørsel');
+    const incomingRequest = existingIncomingSnapshot.docs[0];
+    await acceptFriendRequest(incomingRequest.id, toUserId, currentUser.uid);
+    return {
+      status: 'accepted',
+      requestId: incomingRequest.id,
+    };
   }
 
   // Get current user's profile data
@@ -154,7 +177,10 @@ export const sendFriendRequest = async (toUserId: string) => {
 
   const docRef = await addDoc(friendRequestRef, payload);
   console.log("Venneforespørsel opprettet", docRef.id);
-  return docRef.id;
+  return {
+    status: 'sent',
+    requestId: docRef.id,
+  };
 };
 
 export const getIncomingRequest = async (currentUserId: string) : Promise<FriendRequest[]> => {
@@ -165,10 +191,8 @@ export const getIncomingRequest = async (currentUserId: string) : Promise<Friend
     where("status", "==", "pending")
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as FriendRequest[];
+  const requests = await Promise.all(snapshot.docs.map((docSnap) => mapIncomingRequest(docSnap)));
+  return requests as FriendRequest[];
 };
 
 export const cancelFriendRequest = async (requestId: string) => {

@@ -2,12 +2,12 @@ import { useRouter } from 'expo-router';
 import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { auth, firestore } from '../services/firebase/FirebaseConfig';
+import { useAuth } from '../context/AuthContext';
+import { firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, friendSearch, getIncomingRequest, getOutgoingRequest, listenToIncomingRequests, listenToOutgoingRequests, removeFriend, sendFriendRequest } from '../services/friendService';
 import { friendsScreenTokens, friendsStyles } from '../styles/components/friendsStyles';
 import { globalStyles } from '../styles/globalStyles';
 import { Friend, FriendRequest, FriendWithPending } from '../types/userTypes';
-import { debounce } from '../utils/debounce';
 import { defaultProfileImageMap } from '../utils/defaultProfileImages';
 import { showAlert } from '../utils/platformAlert';
 
@@ -20,37 +20,56 @@ const RejectIcon = require('../../assets/icons/noun-delete-7938028.png');
 
 const FriendsScreen = () => {
   const router = useRouter();
+  const { user, loading } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Friend[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
   const [friends, setFriends] = useState<FriendWithPending[]>([]);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [isFriendsExpanded, setIsFriendsExpanded] = useState(true);
+  const [isRequestsExpanded, setIsRequestsExpanded] = useState(true);
 
   useEffect(() => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
+    if (loading) return;
 
-    getIncomingRequest(currentUser.uid).then(setIncomingRequests);
-    getOutgoingRequest(currentUser.uid).then(setOutgoingRequests);
+    if (!user?.id) {
+      setIncomingRequests([]);
+      setOutgoingRequests([]);
+      return;
+    }
 
-    const unsubIncoming = listenToIncomingRequests(currentUser.uid, setIncomingRequests);
-    const unsubOutgoing = listenToOutgoingRequests(currentUser.uid, setOutgoingRequests);
+    const loadInitialRequests = async () => {
+      try {
+        const [incoming, outgoing] = await Promise.all([
+          getIncomingRequest(user.id),
+          getOutgoingRequest(user.id),
+        ]);
+        setIncomingRequests(incoming);
+        setOutgoingRequests(outgoing);
+      } catch (error) {
+        console.error('Failed to load initial friend requests:', error);
+      }
+    };
+
+    loadInitialRequests();
+
+    const unsubIncoming = listenToIncomingRequests(user.id, setIncomingRequests);
+    const unsubOutgoing = listenToOutgoingRequests(user.id, setOutgoingRequests);
     return () => {
       if (typeof unsubIncoming === 'function') unsubIncoming();
       if (typeof unsubOutgoing === 'function') unsubOutgoing();
     };
-  }, []);
+  }, [loading, user?.id]);
 
   const fetchFriends = useCallback(async () => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      console.log('No user authenticated');
+    if (!user?.id) {
+      setFriends([]);
       return;
     }
 
     try {
-      const userDocRef = doc(firestore, 'users', currentUser.uid);
+      const userDocRef = doc(firestore, 'users', user.id);
       const userDoc = await getDoc(userDocRef);
       const friendIds = userDoc.exists() ? userDoc.data().friends || [] : [];
 
@@ -84,13 +103,14 @@ const FriendsScreen = () => {
       console.error('Failed to fetch friends:', error);
       showAlert('Feil', `Kunne ikke hente venner: ${(error as Error).message}`);
     }
-  }, [outgoingRequests]);
+  }, [outgoingRequests, user?.id]);
 
   useEffect(() => {
+    if (loading) return;
     fetchFriends();
-  }, [fetchFriends, incomingRequests, outgoingRequests]);
+  }, [fetchFriends, loading]);
 
-  const handleSearch = useCallback(debounce(async (term: string) => {
+  const performSearch = useCallback(async (term: string) => {
     if (!term.trim()) {
       setSearchResults([]);
       return;
@@ -105,14 +125,25 @@ const FriendsScreen = () => {
       console.error('Error handling search: ', error);
       showAlert('Feil', `Kunne ikke søke ${(error as Error).message}`);
     }
-  }, 300), [friends]);
+  }, [friends]);
 
   useEffect(() => {
-    handleSearch(searchTerm);
-  }, [searchTerm, handleSearch]);
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      return;
+    }
 
-  const inviteLink = auth.currentUser
-    ? `http://bet-a-beer.netlify.app/login?inviter=${encodeURIComponent(auth.currentUser.uid)}`
+    const timeoutId = setTimeout(() => {
+      void performSearch(searchTerm);
+    }, 300);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [searchTerm, performSearch]);
+
+  const inviteLink = user?.id
+    ? `http://bet-a-beer.netlify.app/login?inviter=${encodeURIComponent(user.id)}`
     : 'http://bet-a-beer.netlify.app/login';
 
   const handleInviteFriends = async () => {
@@ -128,28 +159,33 @@ const FriendsScreen = () => {
   };
 
   const handleAddFriend = async (friend: Friend) => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
+    if (!user?.id) {
       showAlert('Ikke logget inn!');
       return;
     }
 
     try {
-      const requestId = await sendFriendRequest(friend.id);
-      
-      setOutgoingRequests((prev) => [
-        ...prev,
-        {
-          id: requestId,
-          fromUserId: currentUser.uid,
-          toUserId: friend.id,
-          status: 'pending',
-          createdAt: serverTimestamp(),
-          name: friend.name || 'Ukjent',
-          username: friend.username || 'ukjent',
-          profilePicture: friend.profilePicture || DefaultProfilePicture,
-        },
-      ]);
+      const result = await sendFriendRequest(friend.id);
+
+      if (result.status === 'accepted') {
+        setIncomingRequests((prev) => prev.filter((req) => req.fromUserId !== friend.id));
+        showAlert('Suksess', `Du er nå venn med ${friend.name || friend.username || 'brukeren'}`);
+        await fetchFriends();
+      } else {
+        setOutgoingRequests((prev) => [
+          ...prev,
+          {
+            id: result.requestId,
+            fromUserId: user.id,
+            toUserId: friend.id,
+            status: 'pending',
+            createdAt: serverTimestamp(),
+            name: friend.name || 'Ukjent',
+            username: friend.username || 'ukjent',
+            profilePicture: friend.profilePicture || DefaultProfilePicture,
+          },
+        ]);
+      }
       setSearchResults([]);
     } catch (error) {
       console.error(error);
@@ -158,8 +194,7 @@ const FriendsScreen = () => {
   };
 
   const handleRemoveFriend = (friend: FriendWithPending) => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
+    if (!user?.id) {
       showAlert("Ikke logget inn!");
       return;
     }
@@ -197,7 +232,7 @@ const FriendsScreen = () => {
             style: 'destructive',
             onPress: async () => {
               try {
-                await removeFriend(currentUser.uid, friend.id);
+                await removeFriend(user.id, friend.id);
                 setFriends((prev) => prev.filter((f) => f.id !== friend.id));
               } catch (error) {
                 console.error(error);
@@ -211,8 +246,7 @@ const FriendsScreen = () => {
   };
 
   const handleAcceptRequest = async (request: FriendRequest) => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
+    if (!user?.id) {
       showAlert('Ikke logget inn!');
       return;
     }
@@ -320,7 +354,9 @@ const FriendsScreen = () => {
                 />
               </View>
               <TouchableOpacity
-                onPress={() => handleSearch(searchTerm)}
+                onPress={() => {
+                  void performSearch(searchTerm);
+                }}
                 style={friendsStyles.searchButton}
               >
                 <Text style={friendsStyles.searchButtonText}>Søk</Text>
@@ -354,8 +390,20 @@ const FriendsScreen = () => {
         {/* Friends section */}
         <View style={[globalStyles.section, friendsStyles.compactSection]}>
           <View style={[globalStyles.premiumCard, friendsStyles.listSectionCard]}>
-            <Text style={globalStyles.sectionTitle}>Mine venner ({friends.length})</Text>
-            {friends.length > 0 ? (
+            <View style={[friendsStyles.sectionHeaderRow, !isFriendsExpanded && friendsStyles.collapsedHeaderRow]}>
+              <Text style={globalStyles.sectionTitle}>Mine venner ({friends.length})</Text>
+              <TouchableOpacity
+                style={[globalStyles.outlineButtonGold, friendsStyles.sectionToggleButton]}
+                onPress={() => setIsFriendsExpanded((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={isFriendsExpanded ? 'Minimer venner' : 'Utvid venner'}
+              >
+                <Text style={[globalStyles.outlineButtonGoldText, friendsStyles.sectionToggleButtonText]}>
+                  {isFriendsExpanded ? '▾' : '▸'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {isFriendsExpanded && friends.length > 0 ? (
               <View>
                 <View style={friendsStyles.listScrollBox}>
                   <ScrollView nestedScrollEnabled contentContainerStyle={friendsStyles.listScrollContent}>
@@ -365,21 +413,33 @@ const FriendsScreen = () => {
                   </ScrollView>
                 </View>
               </View>
-            ) : (
+            ) : isFriendsExpanded ? (
               <View style={globalStyles.emptyState}>
                 <Image source={PeopleIcon} style={globalStyles.primaryIcon} />
                 <Text style={globalStyles.emptyStateText}>Du har ingen venner enda</Text>
                 <Text style={globalStyles.emptyStateSubtext}>Bruk søkefeltet over for å finne venner</Text>
               </View>
-            )}
+            ) : null}
           </View>
         </View>
 
         {/* Friend Requests section */}
         <View style={[globalStyles.section, friendsStyles.compactSection]}>
           <View style={[globalStyles.premiumCard, friendsStyles.listSectionCard]}>
-            <Text style={globalStyles.sectionTitle}>Venneforespørsler</Text>
-            {incomingRequests.length > 0 ? (
+            <View style={[friendsStyles.sectionHeaderRow, !isRequestsExpanded && friendsStyles.collapsedHeaderRow]}>
+              <Text style={globalStyles.sectionTitle}>Venneforespørsler ({incomingRequests.length})</Text>
+              <TouchableOpacity
+                style={[globalStyles.outlineButtonGold, friendsStyles.sectionToggleButton]}
+                onPress={() => setIsRequestsExpanded((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={isRequestsExpanded ? 'Minimer venneforespørsler' : 'Utvid venneforespørsler'}
+              >
+                <Text style={[globalStyles.outlineButtonGoldText, friendsStyles.sectionToggleButtonText]}>
+                  {isRequestsExpanded ? '▾' : '▸'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {isRequestsExpanded && incomingRequests.length > 0 ? (
               <View>
                 <View style={friendsStyles.listScrollBox}>
                   <ScrollView nestedScrollEnabled contentContainerStyle={friendsStyles.listScrollContent}>
@@ -412,12 +472,12 @@ const FriendsScreen = () => {
                   </ScrollView>
                 </View>
               </View>
-            ) : (
+            ) : isRequestsExpanded ? (
               <View style={globalStyles.emptyState}>
                 <Image source={AddFriendIcon} style={globalStyles.primaryIcon} />
                 <Text style={globalStyles.emptyStateText}>Ingen forespørsler</Text>
               </View>
-            )}
+            ) : null}
           </View>
         </View>
       </ScrollView>

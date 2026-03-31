@@ -49,11 +49,7 @@ export const settingsStyles = StyleSheet.create({
     width: '50%',
   },
   buttonRowNoGap: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    gap: theme.spacing.xs,
+    ...globalStyles.buttonRowNoGap,
   },
   compactInput: {
     height: theme.sizes.iconButton,
@@ -68,5 +64,8 @@ export const settingsStyles = StyleSheet.create({
   dangerHelperText: {
     color: theme.colors.errorLight,
     lineHeight: 20,
+  },
+  neutralHelperText: {
+    color: theme.colors.textSecondary,
   },
 });
