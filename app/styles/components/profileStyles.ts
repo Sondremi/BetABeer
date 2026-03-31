@@ -468,6 +468,24 @@ export const profileStyles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
   },
+  profileUploadPreviewWrap: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  profileUploadPreviewImage: {
+    width: theme.sizes.avatarXl,
+    height: theme.sizes.avatarXl,
+    borderRadius: theme.sizes.avatarXl / 2,
+  },
+  profileUploadButton: {
+    marginBottom: theme.spacing.sm,
+  },
+  profileUploadHintText: {
+    color: theme.colors.textMuted,
+    fontSize: theme.fonts.xs,
+    textAlign: 'center',
+    marginBottom: theme.spacing.sm,
+  },
   profileImageChoice: {
     margin: theme.spacing.sm,
     borderRadius: theme.sizes.avatarXl,

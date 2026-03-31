@@ -139,6 +139,13 @@ export const groupStyles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.sm,
   },
+  groupRemoveImageButton: {
+    marginBottom: theme.spacing.sm,
+    borderColor: theme.colors.error,
+  },
+  groupRemoveImageButtonText: {
+    color: theme.colors.error,
+  },
   groupInviteLinkButtonText: {
     fontSize: theme.fonts.sm,
     fontWeight: '700',

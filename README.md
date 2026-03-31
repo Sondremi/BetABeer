@@ -59,7 +59,7 @@ Logg inn og deploy regler:
 
 ```bash
 firebase login
-firebase deploy --only firestore:rules
+firebase deploy --only firestore:rules,storage
 ```
 
 ---

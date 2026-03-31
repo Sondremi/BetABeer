@@ -46,6 +46,7 @@ export const AuthProvider = ({ children }) => {
               email: firebaseUser.email || userData.email,
               phone: userData.phone,
               profileImage: userData.profileImage || null,
+              emailVerified: Boolean(firebaseUser.emailVerified),
             });
           }
           else {
@@ -57,6 +58,7 @@ export const AuthProvider = ({ children }) => {
               email: firebaseUser.email || '',
               phone: null,
               profileImage: null,
+              emailVerified: Boolean(firebaseUser.emailVerified),
             });
           }
         } catch (error) {
@@ -68,6 +70,7 @@ export const AuthProvider = ({ children }) => {
             email: firebaseUser.email || '',
             phone: null,
             profileImage: null,
+            emailVerified: Boolean(firebaseUser.emailVerified),
           });
         }
       } else {
@@ -99,6 +102,7 @@ export const AuthProvider = ({ children }) => {
               email: firebaseUser.email || userData.email,
               phone: userData.phone,
               profileImage: userData.profileImage || null,
+              emailVerified: Boolean(authService.getCurrentUser()?.emailVerified ?? firebaseUser.emailVerified),
             }));
           } else {
             // The Firestore profile may be created shortly after auth signup.
@@ -109,6 +113,7 @@ export const AuthProvider = ({ children }) => {
               email: firebaseUser.email || '',
               phone: null,
               profileImage: null,
+              emailVerified: Boolean(firebaseUser.emailVerified),
             });
           }
 

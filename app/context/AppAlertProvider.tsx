@@ -46,6 +46,8 @@ export const AppAlertProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         visible={Boolean(currentAlert)}
         transparent
         animationType="fade"
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
         onRequestClose={() => {
           const cancelButton = currentAlert?.buttons.find((button) => button.style === 'cancel');
           handleButtonPress(cancelButton || currentAlert?.buttons[0]);
@@ -58,6 +60,8 @@ export const AppAlertProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             alignItems: 'center',
             backgroundColor: theme.colors.modalBackground,
             padding: theme.spacing.xl,
+            zIndex: 9999,
+            elevation: 9999,
           }}
           onPress={() => {
             const cancelButton = currentAlert?.buttons.find((button) => button.style === 'cancel');
