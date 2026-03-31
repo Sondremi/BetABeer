@@ -1,11 +1,11 @@
-<a href="https://bet-a-beer.netlify.app" target="_blank">
+<a href="https://bet-a-beer.netlify.app/login" target="_blank">
   <img src="./assets/images/logo/header.png" alt="BetABeer"/>
 </a>
 
 **BetABeer** er en sosial drikkelek-app der du og vennene dine kan lage og delta i morsomme bets – og betale med slurker eller shots. Perfekt for vors, fest eller en kveld på byen.
 
 ## Prøv appen her
-[https://bet-a-beer.netlify.app](https://bet-a-beer.netlify.app)
+[https://bet-a-beer.netlify.app/login](https://bet-a-beer.netlify.app/login)
 
 ## ✨ Hvordan fungerer det?
 
