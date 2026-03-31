@@ -154,6 +154,20 @@ function PersistedRouteStack() {
   return (
     <Stack initialRouteName="login">
       <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="terms"
+        options={{
+          title: 'Terms of Service',
+          headerBackTitle: 'Tilbake',
+        }}
+      />
+      <Stack.Screen
+        name="privacy"
+        options={{
+          title: 'Privacy Policy',
+          headerBackTitle: 'Tilbake',
+        }}
+      />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
     </Stack>
   );
