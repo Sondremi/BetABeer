@@ -563,6 +563,56 @@ export const groupStyles = StyleSheet.create({
   leaderboardToggleActive: {
     backgroundColor: theme.colors.primary,
   },
+  bacAverageCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.backgroundCard,
+    padding: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  bacAverageHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: theme.spacing.xs,
+  },
+  bacAverageTitle: {
+    fontSize: theme.fonts.sm,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  bacAverageValue: {
+    fontSize: theme.fonts.lg,
+    fontWeight: '700',
+    color: theme.colors.primary,
+  },
+  bacAverageTrack: {
+    width: '100%',
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: theme.effects.white08,
+    overflow: 'hidden',
+  },
+  bacAverageFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: theme.colors.primary,
+  },
+  bacAverageScaleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: theme.spacing.xxs,
+  },
+  bacAverageScaleText: {
+    fontSize: theme.fonts.xs,
+    color: theme.colors.textSecondary,
+  },
+  bacAverageHint: {
+    marginTop: theme.spacing.xs,
+    fontSize: theme.fonts.xs,
+    color: theme.colors.textSecondary,
+  },
   modalFooter: {
     marginTop: theme.spacing.md,
   },

@@ -31,6 +31,88 @@ type GroupLeaderboardMemberStats = MemberDrinkStats & {
   currentBAC: number;
 };
 
+type BacRangeTone = {
+  rowBackground: string;
+  rowBorder: string;
+  badgeBackground: string;
+  badgeBorder: string;
+  badgeText: string;
+  valueCardBackground: string;
+  valueCardBorder: string;
+  valueText: string;
+  averageFill: string;
+};
+
+const getBacRangeTone = (bac: number): BacRangeTone => {
+  if (bac < 0.5) {
+    return {
+      rowBackground: 'rgba(56, 147, 232, 0.12)',
+      rowBorder: 'rgba(92, 170, 238, 0.42)',
+      badgeBackground: 'rgba(56, 147, 232, 0.22)',
+      badgeBorder: 'rgba(92, 170, 238, 0.62)',
+      badgeText: '#8FC5F2',
+      valueCardBackground: 'rgba(56, 147, 232, 0.62)',
+      valueCardBorder: '#8CC7F8',
+      valueText: '#F2F9FF',
+      averageFill: '#3893E8',
+    };
+  }
+
+  if (bac <= 1.09) {
+    return {
+      rowBackground: 'rgba(255, 215, 0, 0.12)',
+      rowBorder: 'rgba(255, 215, 0, 0.40)',
+      badgeBackground: 'rgba(255, 215, 0, 0.24)',
+      badgeBorder: 'rgba(255, 215, 0, 0.62)',
+      badgeText: '#FFF0A8',
+      valueCardBackground: 'rgba(201, 150, 0, 0.94)',
+      valueCardBorder: '#FFE978',
+      valueText: '#FFF9E2',
+      averageFill: theme.colors.primary,
+    };
+  }
+
+  if (bac <= 1.59) {
+    return {
+      rowBackground: 'rgba(255, 165, 0, 0.12)',
+      rowBorder: 'rgba(255, 165, 0, 0.42)',
+      badgeBackground: 'rgba(255, 165, 0, 0.24)',
+      badgeBorder: 'rgba(255, 165, 0, 0.62)',
+      badgeText: '#FFD18E',
+      valueCardBackground: 'rgba(255, 165, 0, 0.82)',
+      valueCardBorder: '#FFD08A',
+      valueText: '#241400',
+      averageFill: '#FFA500',
+    };
+  }
+
+  if (bac <= 2.49) {
+    return {
+      rowBackground: 'rgba(255, 99, 71, 0.12)',
+      rowBorder: 'rgba(255, 99, 71, 0.42)',
+      badgeBackground: 'rgba(255, 99, 71, 0.24)',
+      badgeBorder: 'rgba(255, 99, 71, 0.62)',
+      badgeText: '#FFB7A5',
+      valueCardBackground: 'rgba(255, 99, 71, 0.82)',
+      valueCardBorder: '#FFC5B3',
+      valueText: '#2A0900',
+      averageFill: '#FF6347',
+    };
+  }
+
+  return {
+    rowBackground: 'rgba(255, 90, 110, 0.14)',
+    rowBorder: 'rgba(255, 112, 130, 0.52)',
+    badgeBackground: 'rgba(255, 90, 110, 0.26)',
+    badgeBorder: 'rgba(255, 136, 150, 0.70)',
+    badgeText: '#FFD6DE',
+    valueCardBackground: 'rgba(255, 36, 36, 0.90)',
+    valueCardBorder: '#FFB3B3',
+    valueText: '#FFF5F5',
+    averageFill: '#FF2424',
+  };
+};
+
 const getGroupScopedDrinkStats = (userData: any, groupId?: string) => {
   const groupStats = groupId ? userData?.groupDrinkStats?.[groupId] : null;
   return {
@@ -134,6 +216,20 @@ const GroupScreen = () => {
     () => [...leaderboardData].sort((a, b) => b.currentBAC - a.currentBAC),
     [leaderboardData]
   );
+  const groupAverageBAC = useMemo(() => {
+    if (bacLeaderboardData.length === 0) return 0;
+    const totalBAC = bacLeaderboardData.reduce((sum, member) => sum + member.currentBAC, 0);
+    return totalBAC / bacLeaderboardData.length;
+  }, [bacLeaderboardData]);
+  const bacVisualMax = useMemo(() => {
+    const highestMemberBAC = bacLeaderboardData[0]?.currentBAC || 0;
+    return Math.max(0.08, highestMemberBAC);
+  }, [bacLeaderboardData]);
+  const averageBacBarProgress = useMemo(() => {
+    if (bacVisualMax <= 0) return 0;
+    return Math.min(1, groupAverageBAC / bacVisualMax);
+  }, [groupAverageBAC, bacVisualMax]);
+  const groupAverageBacTone = useMemo(() => getBacRangeTone(groupAverageBAC), [groupAverageBAC]);
 
   useEffect(() => {
     if (!user) return;
@@ -300,6 +396,32 @@ const GroupScreen = () => {
       isMounted = false;
     };
   }, [leaderboardModalVisible, bets, selectedGroup]);
+
+  useEffect(() => {
+    if (!leaderboardModalVisible || leaderboardView !== 'bac' || !selectedGroup) return;
+
+    let isMounted = true;
+    const refreshPromille = async () => {
+      try {
+        const data = await getLeaderboardData();
+        if (isMounted) setLeaderboardData(data);
+      } catch (error) {
+        console.error('Error refreshing promille leaderboard:', error);
+      }
+    };
+
+    refreshPromille();
+
+    // Keep Promille values fresh as metabolism changes over time.
+    const interval = setInterval(() => {
+      refreshPromille();
+    }, 15 * 1000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [leaderboardModalVisible, leaderboardView, selectedGroup, bets]);
 
   useEffect(() => {
     if (!selectedGroup || !selectedGroup.members) {
@@ -2619,7 +2741,7 @@ const GroupScreen = () => {
           <View style={[globalStyles.modalContent, groupStyles.leaderboardModalContent]}> 
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
               <Text style={[globalStyles.modalTitle, { marginBottom: theme.spacing.sm, fontSize: 18, fontWeight: '600', color: theme.colors.text }]}>
-                {leaderboardView === 'betsWon' ? 'Bet Statistikk' : leaderboardView === 'drinkStats' ? 'Drikke Statistikk' : 'BAC Leaderboard'}
+                {leaderboardView === 'betsWon' ? 'Bet Statistikk' : leaderboardView === 'drinkStats' ? 'Drikke Statistikk' : 'Promille Leaderboard'}
               </Text>
               {leaderboardLoading && (
                 <Text style={groupStyles.modalLoadingText}>Laster...</Text>
@@ -2662,7 +2784,7 @@ const GroupScreen = () => {
                     globalStyles.outlineButtonGoldText,
                     { color: leaderboardView === 'bac' ? theme.colors.background : theme.colors.primary, fontSize: 14 }
                   ]}>
-                    BAC
+                    Promille
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -2712,19 +2834,46 @@ const GroupScreen = () => {
                   ) : leaderboardView === 'bac' ? (
                     <View>
                       <Text style={groupStyles.modalSectionSubtitle}>
-                        Medlemmer sortert på nåværende BAC (høyest først)
+                        Medlemmer sortert på nåværende promille (høyest først)
                       </Text>
-                      <View style={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}> 
-                        {bacLeaderboardData.map((member, idx) => (
+                      <View style={groupStyles.bacAverageCard}>
+                        <View style={groupStyles.bacAverageHeaderRow}>
+                          <Text style={groupStyles.bacAverageTitle}>Gjennomsnittlig promille</Text>
+                          <Text style={[groupStyles.bacAverageValue, { color: groupAverageBacTone.valueText }]}>
+                            {groupAverageBAC.toFixed(3)}‰
+                          </Text>
+                        </View>
+                        <View style={groupStyles.bacAverageTrack}>
                           <View
+                            style={[
+                              groupStyles.bacAverageFill,
+                              { backgroundColor: groupAverageBacTone.averageFill },
+                              { width: `${Math.max(4, Math.round(averageBacBarProgress * 100))}%` },
+                            ]}
+                          />
+                        </View>
+                        <View style={groupStyles.bacAverageScaleRow}>
+                          <Text style={groupStyles.bacAverageScaleText}>0.000</Text>
+                          <Text style={groupStyles.bacAverageScaleText}>{bacVisualMax.toFixed(3)}</Text>
+                        </View>
+                        <Text style={groupStyles.bacAverageHint}>
+                          Basert på {bacLeaderboardData.length} medlemmer i gruppen.
+                        </Text>
+                      </View>
+                      <View style={[globalStyles.listContainer, { paddingBottom: theme.spacing.md }]}> 
+                        {bacLeaderboardData.map((member, idx) => {
+                          const bacTone = getBacRangeTone(member.currentBAC);
+
+                          return (
+                            <View
                             key={member.userId}
                             style={{
                               flexDirection: 'row',
                               alignItems: 'center',
                               borderWidth: 1,
-                              borderColor: theme.colors.border,
+                              borderColor: bacTone.rowBorder,
                               borderRadius: theme.borderRadius.md,
-                              backgroundColor: theme.colors.surface,
+                              backgroundColor: bacTone.rowBackground,
                               paddingVertical: 10,
                               paddingHorizontal: 12,
                               marginBottom: 8,
@@ -2735,15 +2884,15 @@ const GroupScreen = () => {
                                 paddingHorizontal: 10,
                                 paddingVertical: 4,
                                 borderRadius: 999,
-                                backgroundColor: theme.colors.primary + '1F',
+                                backgroundColor: bacTone.badgeBackground,
                                 borderWidth: 1,
-                                borderColor: theme.colors.primary + '55',
+                                borderColor: bacTone.badgeBorder,
                                 marginRight: 10,
                                 minWidth: 46,
                                 alignItems: 'center',
                               }}
                             >
-                              <Text style={{ fontSize: 12, color: theme.colors.primary, fontWeight: '700' }}>#{idx + 1}</Text>
+                              <Text style={{ fontSize: 12, color: bacTone.badgeText, fontWeight: '700' }}>#{idx + 1}</Text>
                             </View>
 
                             <Image
@@ -2764,19 +2913,28 @@ const GroupScreen = () => {
                               style={{
                                 minWidth: 84,
                                 borderRadius: theme.borderRadius.md,
-                                borderWidth: 1,
-                                borderColor: theme.colors.border,
-                                backgroundColor: theme.colors.background,
+                                borderWidth: 2,
+                                borderColor: bacTone.valueCardBorder,
+                                backgroundColor: bacTone.valueCardBackground,
                                 paddingVertical: 6,
                                 paddingHorizontal: 8,
                                 alignItems: 'center',
                               }}
                             >
-                              <Text style={{ fontSize: 10, color: theme.colors.textSecondary, letterSpacing: 0.4 }}>BAC</Text>
-                              <Text style={{ fontSize: 16, color: theme.colors.text, fontWeight: '700' }}>{member.currentBAC.toFixed(3)}</Text>
+                              <Text style={{ fontSize: 10, color: bacTone.badgeText, letterSpacing: 0.4 }}>PROMILLE</Text>
+                              <Text
+                                style={{
+                                  fontSize: 16,
+                                  color: bacTone.valueText,
+                                  fontWeight: '700',
+                                }}
+                              >
+                                {member.currentBAC.toFixed(3)}‰
+                              </Text>
                             </View>
-                          </View>
-                        ))}
+                            </View>
+                          );
+                        })}
                       </View>
                     </View>
                   ) : (
