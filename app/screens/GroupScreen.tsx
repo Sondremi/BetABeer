@@ -282,6 +282,8 @@ const GroupScreen = () => {
             ? profileService.calculateBAC(userData.drinks, userData.weight, userData.gender, Date.now())
             : 0;
 
+          const scopedDrinkStats = getGroupScopedDrinkStats(userData, selectedGroup.id);
+
           memberStats[userId] = {
             userId,
             name: userData.name || '',
@@ -292,9 +294,9 @@ const GroupScreen = () => {
             profilePicture: userData.profileImage
               ? resolveProfileImageSource(userData.profileImage, DefaultProfilePicture)
               : DefaultProfilePicture,
-            drinksToConsume: userData.drinksToConsume || {},
-            drinksConsumed: userData.drinksConsumed || {},
-            drinksToDistribute: userData.drinksToDistribute || {},
+            drinksToConsume: scopedDrinkStats.drinksToConsume,
+            drinksConsumed: scopedDrinkStats.drinksConsumed,
+            drinksToDistribute: scopedDrinkStats.drinksToDistribute,
             transactions: [],
           };
         } catch (error) {
@@ -2591,7 +2593,7 @@ const GroupScreen = () => {
                 </View>
               </View>
               {betOptions.map((opt, idx) => (
-                <View key={`bet-option-${idx}-${opt.name || 'empty'}`} style={globalStyles.inputGroup}>
+                <View key={`bet-option-${idx}`} style={globalStyles.inputGroup}>
                   <View style={globalStyles.rowSpread}>
                     <View style={{ flex: 1, marginRight: theme.spacing.sm }}>
                       <Text style={globalStyles.label}>Alternativ {idx + 1}</Text>
@@ -2792,7 +2794,7 @@ const GroupScreen = () => {
                 </View>
               </View>
               {editBetOptions.map((opt, idx) => (
-                <View key={`edit-bet-option-${idx}-${opt.name || 'empty'}`} style={globalStyles.inputGroup}>
+                <View key={`edit-bet-option-${idx}`} style={globalStyles.inputGroup}>
                   <View>
                     <Text style={globalStyles.label}>Alternativ {idx + 1}</Text>
                     <View style={[globalStyles.inputShellDark, groupStyles.inputShell, focusedEditBetOptionIndex === idx && globalStyles.inputShellFocusedGold]}>
