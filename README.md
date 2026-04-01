@@ -1,11 +1,11 @@
-<a href="https://bet-a-beer.netlify.app/login" target="_blank">
+<a href="https://bet-a-beer.netlify.app" target="_blank">
   <img src="./assets/images/logo/header.png" alt="BetABeer"/>
 </a>
 
 **BetABeer** er en sosial drikkelek-app der du og vennene dine kan lage og delta i morsomme bets – og betale med slurker eller shots. Perfekt for vors, fest eller en kveld på byen.
 
 ## Prøv appen her
-[https://bet-a-beer.netlify.app/login](https://bet-a-beer.netlify.app/login)
+[https://bet-a-beer.netlify.app](https://bet-a-beer.netlify.app)
 
 ## ✨ Hvordan fungerer det?
 
@@ -19,9 +19,6 @@
 - Innebygd promillekalkulator basert på høyde, vekt og kjønn
 
 ## 👨‍💻 Vil du bidra eller teste appen selv?
-
-Følg stegene under for å sette opp prosjektet lokalt og bidra til videreutvikling.
-
 ### 🧰 Forutsetninger
 
 - Node.js (`brew install node`)
