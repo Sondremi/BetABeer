@@ -1,5 +1,8 @@
 # VsCode
 .vscode
+.idea/
+*.swp
+*.swo
 
 # dependencies
 node_modules/
@@ -26,6 +29,8 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
+pglite-debug.log
 
 # macOS
 .DS_Store
@@ -37,5 +42,12 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# Firebase local state/cache
+.firebase/
+
+# Local Copilot/agent artifacts
+.agents/
+skills-lock.json
 
 app-example
