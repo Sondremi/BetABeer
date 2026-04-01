@@ -599,6 +599,14 @@ export const profileStyles = StyleSheet.create({
     fontSize: theme.fonts.lg,
     fontWeight: '700',
   },
+  validationHelperText: {
+    color: theme.colors.errorLight,
+    fontSize: theme.fonts.xs,
+    marginTop: theme.spacing.xs,
+  },
+  disabledActionText: {
+    color: theme.colors.textMuted,
+  },
   listContainerCard: {
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,

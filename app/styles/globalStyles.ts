@@ -530,6 +530,10 @@ export const globalStyles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
     letterSpacing: 1,
   },
+  disabledGoldActionText: {
+    color: theme.colors.primarySoft,
+    opacity: 0.55,
+  },
 
   // Images
   circularImage: {

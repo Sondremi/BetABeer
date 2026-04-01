@@ -211,6 +211,7 @@ const ProfileScreen: React.FC = () => {
   }>({});
   const [isLoading, setIsLoading] = useState(true);
   const [drinkModalVisible, setDrinkModalVisible] = useState(false);
+  const [showDrinkValidationHint, setShowDrinkValidationHint] = useState(false);
   const [isBacExpanded, setIsBacExpanded] = useState(true);
   const [isInvitationsExpanded, setIsInvitationsExpanded] = useState(true);
   const [drinkForm, setDrinkForm] = useState<DrinkFormState>(() => createInitialDrinkForm());
@@ -726,6 +727,49 @@ const ProfileScreen: React.FC = () => {
     return null;
   };
 
+  const resolveSelectedAlcoholPercent = (): number | null => {
+    if (!drinkForm.category || !drinkForm.alcoholPercent) return null;
+
+    if (drinkForm.category === 'custom') {
+      const value = drinkForm.alcoholPercent === 'custom'
+        ? parseNumericInput(drinkForm.customAlcoholPercentManual)
+        : Number(drinkForm.alcoholPercent);
+      return Number.isFinite(value) ? value : null;
+    }
+
+    const value = drinkForm.alcoholPercent === 'custom'
+      ? parseNumericInput(drinkForm.customAlcoholPercent)
+      : Number(drinkForm.alcoholPercent);
+    return Number.isFinite(value) ? value : null;
+  };
+
+  const getRecommendedQuantityOptions = (): number[] => {
+    if (!drinkForm.category) return [1, 2, 3];
+
+    const alcoholPercent = resolveSelectedAlcoholPercent();
+    const sizeDl = resolveSelectedDrinkSizeDl();
+    let maxRecommended = 6;
+
+    if (drinkForm.category === 'sprit') maxRecommended = 3;
+    if (drinkForm.category === 'vin') maxRecommended = 4;
+    if (drinkForm.category === 'øl') maxRecommended = 8;
+
+    if (alcoholPercent !== null) {
+      if (alcoholPercent >= 40) maxRecommended = Math.min(maxRecommended, 2);
+      else if (alcoholPercent >= 22) maxRecommended = Math.min(maxRecommended, 3);
+      else if (alcoholPercent >= 10) maxRecommended = Math.min(maxRecommended, 5);
+    }
+
+    if (sizeDl !== null) {
+      if (sizeDl >= 7.5) maxRecommended = Math.min(maxRecommended, 2);
+      else if (sizeDl >= 5) maxRecommended = Math.min(maxRecommended, 3);
+      else if (sizeDl >= 3.3) maxRecommended = Math.min(maxRecommended, 5);
+    }
+
+    const cappedMax = Math.max(1, Math.min(maxRecommended, INPUT_LIMITS.drinkQuantityMax));
+    return Array.from({ length: cappedMax }, (_, index) => index + 1);
+  };
+
   const allowsEndTimeForSelection = (): boolean => {
     const sizeDl = resolveSelectedDrinkSizeDl();
     if (!sizeDl || !drinkForm.category) return false;
@@ -759,65 +803,88 @@ const ProfileScreen: React.FC = () => {
     return true;
   };
 
-  const canSaveDrink = (() => {
-    if (!drinkForm.category) return false;
+  const drinkValidationMessage = (() => {
+    if (!drinkForm.category) return 'Velg type drikke først.';
 
-    if (!isValidTimeInput(drinkForm.consumedAtTime)) return false;
+    if (!isValidTimeInput(drinkForm.consumedAtTime)) return 'Velg gyldig starttid.';
     if (drinkForm.hasEndTime) {
-      if (!allowsEndTimeForSelection()) return false;
-      if (!isValidTimeInput(drinkForm.consumedUntilTime)) return false;
+      if (!allowsEndTimeForSelection()) return 'Sluttid kan bare brukes for store enheter.';
+      if (!isValidTimeInput(drinkForm.consumedUntilTime)) return 'Velg gyldig sluttid.';
       const start = parseTimeToTimestamp(drinkForm.consumedAtTime);
       const end = parseTimeToTimestamp(drinkForm.consumedUntilTime);
-      if (!start || !end || end < start) return false;
+      if (!start || !end || end < start) return 'Sluttid må være etter starttid.';
     }
 
     const quantityValue = drinkForm.quantity === 'custom'
       ? parseNumericInput(drinkForm.customQuantity)
       : Number(drinkForm.quantity);
-    if (isNaN(quantityValue) || quantityValue <= 0) return false;
-    if (!isNumberInRange(quantityValue, 0.1, INPUT_LIMITS.drinkQuantityMax)) return false;
-    if (drinkForm.quantity === 'custom' && !hasMaxOneDecimal(drinkForm.customQuantity)) return false;
+    if (isNaN(quantityValue) || quantityValue <= 0) return 'Antall må være større enn 0.';
+    if (!isNumberInRange(quantityValue, 0.1, INPUT_LIMITS.drinkQuantityMax)) {
+      return `Antall må være mellom 0.1 og ${INPUT_LIMITS.drinkQuantityMax}.`;
+    }
+    if (drinkForm.quantity === 'custom' && !hasMaxOneDecimal(drinkForm.customQuantity)) {
+      return 'Antall kan ha maks ett desimal.';
+    }
 
     if (drinkForm.category === 'custom') {
-      if (!drinkForm.sizeDl) return false;
+      if (!drinkForm.sizeDl) return 'Velg størrelse.';
+      if (!drinkForm.alcoholPercent) return 'Velg alkoholprosent.';
 
       const sizeValue = drinkForm.sizeDl === 'custom'
         ? parseNumericInput(drinkForm.customSizeValue)
         : Number(drinkForm.sizeDl);
+      const resolvedSizeDl = drinkForm.sizeDl === 'custom'
+        ? convertSizeToDl(sizeValue, drinkForm.customSizeUnit)
+        : sizeValue;
       const alcoholPercent = drinkForm.alcoholPercent === 'custom'
         ? parseNumericInput(drinkForm.customAlcoholPercentManual)
         : Number(drinkForm.alcoholPercent);
 
-      if (isNaN(sizeValue) || sizeValue <= 0) return false;
-      if (drinkForm.sizeDl === 'custom' && !hasMaxOneDecimal(drinkForm.customSizeValue)) return false;
-      if (!drinkForm.alcoholPercent) return false;
-      if (drinkForm.alcoholPercent === 'custom' && !hasMaxOneDecimal(drinkForm.customAlcoholPercentManual)) return false;
-      if (!isNumberInRange(sizeValue, 0.1, INPUT_LIMITS.drinkSizeDlMax * 10)) return false;
-      if (!isNumberInRange(alcoholPercent, INPUT_LIMITS.drinkAlcoholPercentMin, INPUT_LIMITS.drinkAlcoholPercentMax)) return false;
-      return true;
+      if (isNaN(sizeValue) || sizeValue <= 0) return 'Størrelse må være større enn 0.';
+      if (drinkForm.sizeDl === 'custom' && !hasMaxOneDecimal(drinkForm.customSizeValue)) {
+        return 'Størrelse kan ha maks ett desimal.';
+      }
+      if (!isNumberInRange(resolvedSizeDl, 0.1, INPUT_LIMITS.drinkSizeDlMax)) {
+        return `Størrelse må være realistisk (maks ${INPUT_LIMITS.drinkSizeDlMax} liter).`;
+      }
+      if (drinkForm.alcoholPercent === 'custom' && !hasMaxOneDecimal(drinkForm.customAlcoholPercentManual)) {
+        return 'Alkoholprosent kan ha maks ett desimal.';
+      }
+      if (!isNumberInRange(alcoholPercent, INPUT_LIMITS.drinkAlcoholPercentMin, INPUT_LIMITS.drinkAlcoholPercentMax)) {
+        return `Alkoholprosent må være mellom ${INPUT_LIMITS.drinkAlcoholPercentMin} og ${INPUT_LIMITS.drinkAlcoholPercentMax}.`;
+      }
+      return null;
     }
 
-    if (!drinkForm.sizeDl || !drinkForm.alcoholPercent) return false;
+    if (!drinkForm.sizeDl) return 'Velg størrelse.';
+    if (!drinkForm.alcoholPercent) return 'Velg alkoholprosent.';
 
     if (drinkForm.sizeDl === 'custom') {
       const customSizeValue = parseNumericInput(drinkForm.customSizeValue);
-      if (isNaN(customSizeValue) || customSizeValue <= 0) return false;
-      if (!hasMaxOneDecimal(drinkForm.customSizeValue)) return false;
-      if (!isNumberInRange(customSizeValue, 0.1, INPUT_LIMITS.drinkSizeDlMax * 10)) return false;
+      const resolvedSizeDl = convertSizeToDl(customSizeValue, drinkForm.sizeUnit);
+      if (isNaN(customSizeValue) || customSizeValue <= 0) return 'Størrelse må være større enn 0.';
+      if (!hasMaxOneDecimal(drinkForm.customSizeValue)) return 'Størrelse kan ha maks ett desimal.';
+      if (!isNumberInRange(resolvedSizeDl, 0.1, INPUT_LIMITS.drinkSizeDlMax)) {
+        return `Størrelse må være realistisk (maks ${INPUT_LIMITS.drinkSizeDlMax} liter).`;
+      }
     }
 
     if (drinkForm.alcoholPercent === 'custom') {
       const value = parseNumericInput(drinkForm.customAlcoholPercent);
-      if (!hasMaxOneDecimal(drinkForm.customAlcoholPercent)) return false;
-      if (isNaN(value)) return false;
-      if (!isNumberInRange(value, INPUT_LIMITS.drinkAlcoholPercentMin, INPUT_LIMITS.drinkAlcoholPercentMax)) return false;
-      if (drinkForm.category === 'vin' && (value < 10 || value > 20)) return false;
-      if (drinkForm.category === 'sprit' && (value < 22 || value > 70)) return false;
-      if (drinkForm.category === 'øl' && (value <= 0 || value > 20)) return false;
+      if (!hasMaxOneDecimal(drinkForm.customAlcoholPercent)) return 'Alkoholprosent kan ha maks ett desimal.';
+      if (isNaN(value)) return 'Ugyldig alkoholprosent.';
+      if (!isNumberInRange(value, INPUT_LIMITS.drinkAlcoholPercentMin, INPUT_LIMITS.drinkAlcoholPercentMax)) {
+        return `Alkoholprosent må være mellom ${INPUT_LIMITS.drinkAlcoholPercentMin} og ${INPUT_LIMITS.drinkAlcoholPercentMax}.`;
+      }
+      if (drinkForm.category === 'vin' && (value < 10 || value > 20)) return 'Alkoholprosent for vin må være mellom 10 og 20.';
+      if (drinkForm.category === 'sprit' && (value < 22 || value > 70)) return 'Alkoholprosent for sprit må være mellom 22 og 70.';
+      if (drinkForm.category === 'øl' && (value <= 0 || value > 20)) return 'Alkoholprosent for øl må være mellom 0.1 og 20.';
     }
 
-    return true;
+    return null;
   })();
+
+  const canSaveDrink = drinkValidationMessage === null;
 
   useEffect(() => {
     if (!endTimeAllowed && (drinkForm.hasEndTime || drinkForm.consumedUntilTime)) {
@@ -859,6 +926,11 @@ const ProfileScreen: React.FC = () => {
   };
 
   const handleAddDrink = async () => {
+    if (drinkValidationMessage) {
+      setShowDrinkValidationHint(true);
+      return;
+    }
+
     let drink: DrinkEntry;
     const quantity = drinkForm.quantity === 'custom'
       ? parseNumericInput(drinkForm.customQuantity)
@@ -1031,6 +1103,7 @@ const ProfileScreen: React.FC = () => {
       showAlert('Feil', `Kunne ikke legge til drikke: ${errorMessage}`);
     }
     setDrinkModalVisible(false);
+    setShowDrinkValidationHint(false);
     setDrinkForm(createInitialDrinkForm());
   };
 
@@ -1433,7 +1506,10 @@ const ProfileScreen: React.FC = () => {
                 <View style={profileStyles.bacActionRow}>
                   <TouchableOpacity
                     style={[globalStyles.primaryButtonShadow, profileStyles.bacActionButton, !hasBacRequiredInfo && globalStyles.disabledButton]}
-                    onPress={() => setDrinkModalVisible(true)}
+                    onPress={() => {
+                      setShowDrinkValidationHint(false);
+                      setDrinkModalVisible(true);
+                    }}
                     disabled={!hasBacRequiredInfo}
                   >
                     <Text style={[globalStyles.primaryButtonText, profileStyles.bacActionButtonText]}>Legg til drikke</Text>
@@ -1720,7 +1796,10 @@ const ProfileScreen: React.FC = () => {
             visible={drinkModalVisible}
             animationType="slide"
             transparent
-            onRequestClose={() => setDrinkModalVisible(false)}
+            onRequestClose={() => {
+              setShowDrinkValidationHint(false);
+              setDrinkModalVisible(false);
+            }}
           >
             <View style={globalStyles.modalContainer}>
               <View style={[globalStyles.modalContent, profileStyles.drinkModalContent]}> 
@@ -1849,7 +1928,7 @@ const ProfileScreen: React.FC = () => {
                             <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
                               <Text style={globalStyles.label}>Antall</Text>
                               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
-                                {[1, 2, 3, 'custom' as const].map((quantity) => (
+                                {[...getRecommendedQuantityOptions(), 'custom' as const].map((quantity) => (
                                   <TouchableOpacity
                                     key={String(quantity)}
                                     style={[globalStyles.selectionButton, drinkForm.quantity === quantity && globalStyles.selectionButtonSelected]}
@@ -1981,7 +2060,7 @@ const ProfileScreen: React.FC = () => {
                             <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
                               <Text style={globalStyles.label}>Antall</Text>
                               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
-                                {[1, 2, 3, 'custom' as const].map((quantity) => (
+                                {[...getRecommendedQuantityOptions(), 'custom' as const].map((quantity) => (
                                   <TouchableOpacity
                                     key={String(quantity)}
                                     style={[globalStyles.selectionButton, drinkForm.quantity === quantity && globalStyles.selectionButtonSelected]}
@@ -2136,19 +2215,20 @@ const ProfileScreen: React.FC = () => {
                   </ScrollView>
                 </View>
                 <View style={profileStyles.drinkModalActions}>
-                  <View style={globalStyles.buttonRow}>
+                  {drinkForm.category && showDrinkValidationHint && drinkValidationMessage ? (
+                    <Text style={profileStyles.validationHelperText}>{drinkValidationMessage}</Text>
+                  ) : null}
+                  <View style={globalStyles.editButtonsContainer}>
                     <TouchableOpacity
-                      style={globalStyles.cancelButton}
-                      onPress={() => setDrinkModalVisible(false)}
+                      onPress={() => {
+                        setShowDrinkValidationHint(false);
+                        setDrinkModalVisible(false);
+                      }}
                     >
                       <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[globalStyles.saveButton, !canSaveDrink && globalStyles.disabledButton]}
-                      onPress={handleAddDrink}
-                      disabled={!canSaveDrink}
-                    >
-                      <Text style={globalStyles.saveButtonTextAlt}>Legg til</Text>
+                    <TouchableOpacity onPress={handleAddDrink} disabled={!canSaveDrink}>
+                      <Text style={[globalStyles.saveButtonText, !canSaveDrink && globalStyles.disabledGoldActionText]}>Legg til</Text>
                     </TouchableOpacity>
                   </View>
                 </View>

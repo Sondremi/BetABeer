@@ -482,7 +482,7 @@ const SettingsScreen = () => {
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Kjønn</Text>
               {isEditing ? (
-                <View style={globalStyles.pickerInput}>
+                <View style={[globalStyles.pickerInput, globalStyles.inputShellFocusedGold]}>
                   <Picker
                     style={globalStyles.picker}
                     itemStyle={settingsStyles.pickerItem}
@@ -504,18 +504,17 @@ const SettingsScreen = () => {
             </View>
 
             {/* Edit/Save/Cancel buttons */}
-            <View style={settingsStyles.buttonRowNoGap}>
+            <View style={globalStyles.editButtonsContainer}>
               {isEditing ? (
                 <>
-                  <TouchableOpacity style={[settingsStyles.halfWidthCancelButton, isLoading && globalStyles.disabledButton]} onPress={handleCancel} disabled={isLoading}>
+                  <TouchableOpacity onPress={handleCancel} disabled={isLoading}>
                     <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[settingsStyles.halfWidthSaveButton, (isLoading || !canSaveEditedData) && globalStyles.disabledButton]}
                     onPress={handleSave}
                     disabled={isLoading || !canSaveEditedData}
                   >
-                    <Text style={globalStyles.saveButtonTextAlt}>
+                    <Text style={[globalStyles.saveButtonText, (!canSaveEditedData || isLoading) && settingsStyles.disabledActionText]}>
                       {isLoading ? 'Lagrer...' : 'Lagre'}
                     </Text>
                   </TouchableOpacity>

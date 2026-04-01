@@ -148,6 +148,8 @@ const GroupScreen = () => {
   const [selectedMeasureType, setSelectedMeasureType] = useState<MeasureType>('Slurker');
   const [betAmount, setBetAmount] = useState('1');
   const [betAmountFocused, setBetAmountFocused] = useState(false);
+  const [hasInteractedPlaceBetAmount, setHasInteractedPlaceBetAmount] = useState(false);
+  const [placeBetAttempted, setPlaceBetAttempted] = useState(false);
   const [placingBet, setPlacingBet] = useState(false);
   const [selectCorrectModalVisible, setSelectCorrectModalVisible] = useState(false);
   const [selectCorrectBetIdx, setSelectCorrectBetIdx] = useState<number | null>(null);
@@ -175,6 +177,9 @@ const GroupScreen = () => {
   const [distributingDrinks, setDistributingDrinks] = useState(false);
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
   const [selectedDistribution, setSelectedDistribution] = useState<{ drinkType: DrinkType; measureType: MeasureType; amount: number } | null>(null);
+  const [distributionAmountMode, setDistributionAmountMode] = useState<'preset' | 'custom'>('preset');
+  const [distributionCustomAmount, setDistributionCustomAmount] = useState('');
+  const [distributionAmountFocused, setDistributionAmountFocused] = useState(false);
   const [distributions, setDistributions] = useState<{ userId: string; drinkType: DrinkType; measureType: MeasureType; amount: number }[]>([]);
   const [createGroupModalVisible, setCreateGroupModalVisible] = useState(false);
   const [createGroupName, setCreateGroupName] = useState('');
@@ -212,6 +217,40 @@ const GroupScreen = () => {
       const name = normalizeSingleLineText(opt.name);
       return name.length > 0 && name.length <= INPUT_LIMITS.betOptionNameMax;
     });
+  const getMaxPlaceBetAmount = (drinkType: DrinkType, measureType: MeasureType) => {
+    const maxByMeasure: Record<MeasureType, number> = {
+      Slurker: 25,
+      Shot: 12,
+      Enhet: 10,
+      Chug: 3,
+    };
+
+    const drinkMultiplier: Record<DrinkType, number> = {
+      'Øl': 1,
+      'Cider': 1,
+      'Hard selzer': 1,
+      'Vin': 0.7,
+      'Sprit': 0.4,
+      'Drink': 0.6,
+    };
+
+    const rawMax = Math.floor(maxByMeasure[measureType] * drinkMultiplier[drinkType]);
+    return Math.max(INPUT_LIMITS.betAmountMin, Math.min(INPUT_LIMITS.betAmountMax, rawMax));
+  };
+
+  const placeBetMaxAmount = getMaxPlaceBetAmount(selectedDrinkType, selectedMeasureType);
+
+  const placeBetValidationMessage = (() => {
+    const amount = parseInt(betAmount, 10);
+    if (!Number.isInteger(amount)) {
+      return 'Skriv inn et gyldig heltall.';
+    }
+    if (!isIntInRange(amount, INPUT_LIMITS.betAmountMin, placeBetMaxAmount)) {
+      return `Antall må være mellom ${INPUT_LIMITS.betAmountMin} og ${placeBetMaxAmount} for valgt drikke/måleenhet.`;
+    }
+    return null;
+  })();
+  const canPlaceBet = Boolean(selectedBetOption && user && selectedGroup) && placeBetValidationMessage === null;
   const canEditGroupName = Boolean(selectedGroup && user?.id && selectedGroup.members?.includes(user.id));
   const canManageGroupImage = Boolean(selectedGroup && user?.id && selectedGroup.createdBy === user.id);
   const hasCustomGroupImage = Boolean(selectedGroup?.imageUrl);
@@ -1231,17 +1270,19 @@ const GroupScreen = () => {
     setBetAmount('1');
     setSelectedDrinkType('Øl');
     setSelectedMeasureType('Slurker');
+    setHasInteractedPlaceBetAmount(false);
+    setPlaceBetAttempted(false);
     setPlaceBetModalVisible(true);
   };
 
   const handlePlaceBet = async () => {
     if (!selectedBetOption || !user || !selectedGroup) return;
-
-    const amount = parseInt(betAmount);
-    if (!isIntInRange(amount, INPUT_LIMITS.betAmountMin, INPUT_LIMITS.betAmountMax)) {
-      showAlert('Feil', `Antall må være mellom ${INPUT_LIMITS.betAmountMin} og ${INPUT_LIMITS.betAmountMax}.`);
+    if (placeBetValidationMessage) {
+      setPlaceBetAttempted(true);
       return;
     }
+
+    const amount = parseInt(betAmount, 10);
 
     setPlacingBet(true);
     try {
@@ -1491,21 +1532,29 @@ const GroupScreen = () => {
   const handleMemberTap = (userId: string) => {
     setSelectedMember(userId);
     setSelectedDistribution(null);
+    setDistributionAmountMode('preset');
+    setDistributionCustomAmount('');
   };
 
   const handleDistributionSelect = (drinkType: DrinkType, measureType: MeasureType) => {
     if (!selectedMember) return;
     setSelectedDistribution({ drinkType, measureType, amount: 1 });
+    setDistributionAmountMode('preset');
+    setDistributionCustomAmount('');
   };
 
   const handleDistributionAmountChange = (amount: number) => {
     if (!selectedDistribution || !selectedMember) return;
+    setDistributionAmountMode('preset');
+    setDistributionCustomAmount('');
     setSelectedDistribution(prev => prev ? { ...prev, amount: Math.max(1, amount) } : null);
   };
 
   const handleCancelDistributionFlow = () => {
     setSelectedMember(null);
     setSelectedDistribution(null);
+    setDistributionAmountMode('preset');
+    setDistributionCustomAmount('');
     setDistributions([]);
     setDistributeModalVisible(false);
   };
@@ -1513,7 +1562,14 @@ const GroupScreen = () => {
   const handleConfirmDistribution = () => {
     if (!selectedMember || !selectedDistribution) return;
 
-    const { drinkType, measureType, amount } = selectedDistribution;
+    const { drinkType, measureType } = selectedDistribution;
+    const amountFromInput = parseInt(distributionCustomAmount, 10);
+    const amount = distributionAmountMode === 'custom' ? amountFromInput : selectedDistribution.amount;
+
+    if (!Number.isInteger(amount) || amount <= 0) {
+      showAlert('Feil', 'Velg et gyldig antall større enn 0.');
+      return;
+    }
     
     const alreadyDistributed = distributions.reduce((sum, dist) => {
       if (dist.drinkType === drinkType && dist.measureType === measureType) {
@@ -1566,6 +1622,8 @@ const GroupScreen = () => {
 
     setSelectedMember(null);
     setSelectedDistribution(null);
+    setDistributionAmountMode('preset');
+    setDistributionCustomAmount('');
   };
 
   // Used in drink distribution UI to show member cards for selection
@@ -1577,6 +1635,15 @@ const GroupScreen = () => {
         )
       : null;
     const maxAvailable = selectedEntry?.amount || 0;
+    const customAmount = parseInt(distributionCustomAmount, 10);
+    const resolvedAmount = distributionAmountMode === 'custom' ? customAmount : selectedDistribution?.amount || 0;
+    const distributionValidationMessage = (() => {
+      if (!selectedDistribution) return null;
+      if (!Number.isInteger(resolvedAmount) || resolvedAmount <= 0) return 'Antall må være et heltall større enn 0.';
+      if (resolvedAmount > maxAvailable) return `Du har kun ${maxAvailable} tilgjengelig.`;
+      return null;
+    })();
+    const canConfirmDistribution = Boolean(selectedDistribution) && distributionValidationMessage === null;
     const amountOptions = selectedEntry
       ? Array.from(new Set([1, 2, 3, 4, 5, 10, maxAvailable].filter((num) => num > 0 && num <= maxAvailable))).sort((a, b) => a - b)
       : [];
@@ -1632,7 +1699,7 @@ const GroupScreen = () => {
               </TouchableOpacity>
             ))}
 
-            {selectedDistribution && selectedDistribution.amount > 0 && (
+            {selectedDistribution && (
               <>
                 <Text style={groupStyles.memberDistributionHelperText}>Velg antall</Text>
                 <View style={groupStyles.amountChipRow}>
@@ -1647,8 +1714,38 @@ const GroupScreen = () => {
                       </Text>
                     </TouchableOpacity>
                   ))}
+                  <TouchableOpacity
+                    onPress={() => setDistributionAmountMode('custom')}
+                    style={[groupStyles.amountChip, distributionAmountMode === 'custom' && groupStyles.amountChipSelected]}
+                  >
+                    <Text style={[groupStyles.amountChipText, distributionAmountMode === 'custom' && groupStyles.amountChipTextSelected]}>
+                      Egendefinert
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.memberDistributionAddButton]} onPress={handleConfirmDistribution}>
+                {distributionAmountMode === 'custom' && (
+                  <View style={[globalStyles.inputShellDark, groupStyles.inputShell, distributionAmountFocused && globalStyles.inputShellFocusedGold]}>
+                    <TextInput
+                      placeholder="Antall"
+                      placeholderTextColor={theme.colors.textSecondary}
+                      value={distributionCustomAmount}
+                      onChangeText={(text) => setDistributionCustomAmount(clampDigits(text, 3))}
+                      onFocus={() => setDistributionAmountFocused(true)}
+                      onBlur={() => setDistributionAmountFocused(false)}
+                      keyboardType="numeric"
+                      style={[globalStyles.input, groupStyles.inputInsideShell]}
+                      maxLength={3}
+                    />
+                  </View>
+                )}
+                {distributionValidationMessage ? (
+                  <Text style={groupStyles.validationHelperText}>{distributionValidationMessage}</Text>
+                ) : null}
+                <TouchableOpacity
+                  style={[globalStyles.outlineButtonGold, groupStyles.memberDistributionAddButton, !canConfirmDistribution && globalStyles.disabledButton]}
+                  onPress={handleConfirmDistribution}
+                  disabled={!canConfirmDistribution}
+                >
                   <Text style={globalStyles.outlineButtonGoldText}>
                     Legg til
                   </Text>
@@ -2479,22 +2576,14 @@ const GroupScreen = () => {
               <TouchableOpacity 
                 onPress={handleCancelDistributionFlow}
                 disabled={distributingDrinks}
-                style={{
-                  paddingVertical: 12,
-                  paddingHorizontal: 24,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: theme.colors.border
-                }}
               >
-                <Text style={[globalStyles.cancelButtonText, { fontSize: 16, color: theme.colors.text }]}>Avbryt</Text>
+                <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[globalStyles.primaryButton, groupStyles.distributionSubmitButton, distributions.length === 0 && globalStyles.disabledButton]}
                 onPress={handleDistributeDrinks}
                 disabled={distributingDrinks || distributions.length === 0}
               >
-                <Text style={[globalStyles.primaryButtonText, groupStyles.distributionSubmitText]}>
+                <Text style={[globalStyles.saveButtonText, distributions.length === 0 && globalStyles.disabledGoldActionText]}>
                   {distributingDrinks ? 'Deles ut...' : 'Del ut'}
                 </Text>
               </TouchableOpacity>
@@ -2595,27 +2684,33 @@ const GroupScreen = () => {
                   />
                 </View>
               </View>
-              {betOptions.map((opt, idx) => (
-                <View key={`bet-option-${idx}`} style={globalStyles.inputGroup}>
-                  <View style={globalStyles.rowSpread}>
-                    <View style={{ flex: 1, marginRight: theme.spacing.sm }}>
-                      <Text style={globalStyles.label}>Alternativ {idx + 1}</Text>
-                      <View style={[globalStyles.inputShellDark, groupStyles.inputShell, focusedBetOptionIndex === idx && globalStyles.inputShellFocusedGold]}>
-                        <TextInput
-                          placeholder={`Alternativ ${idx + 1}`}
-                          placeholderTextColor={theme.colors.textSecondary}
-                          value={opt.name}
-                          onChangeText={text => updateBetOption(idx, 'name', text.slice(0, INPUT_LIMITS.betOptionNameMax))}
-                          onFocus={() => setFocusedBetOptionIndex(idx)}
-                          onBlur={() => setFocusedBetOptionIndex(null)}
-                          style={[globalStyles.input, groupStyles.inputInsideShell]}
-                          maxLength={INPUT_LIMITS.betOptionNameMax}
-                        />
+              <ScrollView
+                style={betOptions.length > 5 ? groupStyles.betOptionsScrollWrap : undefined}
+                nestedScrollEnabled={betOptions.length > 5}
+                showsVerticalScrollIndicator={betOptions.length > 5}
+              >
+                {betOptions.map((opt, idx) => (
+                  <View key={`bet-option-${idx}`} style={globalStyles.inputGroup}>
+                    <View style={globalStyles.rowSpread}>
+                      <View style={{ flex: 1, marginRight: theme.spacing.sm }}>
+                        <Text style={globalStyles.label}>Alternativ {idx + 1}</Text>
+                        <View style={[globalStyles.inputShellDark, groupStyles.inputShell, focusedBetOptionIndex === idx && globalStyles.inputShellFocusedGold]}>
+                          <TextInput
+                            placeholder={`Alternativ ${idx + 1}`}
+                            placeholderTextColor={theme.colors.textSecondary}
+                            value={opt.name}
+                            onChangeText={text => updateBetOption(idx, 'name', text.slice(0, INPUT_LIMITS.betOptionNameMax))}
+                            onFocus={() => setFocusedBetOptionIndex(idx)}
+                            onBlur={() => setFocusedBetOptionIndex(null)}
+                            style={[globalStyles.input, groupStyles.inputInsideShell]}
+                            maxLength={INPUT_LIMITS.betOptionNameMax}
+                          />
+                        </View>
                       </View>
                     </View>
                   </View>
-                </View>
-              ))}
+                ))}
+              </ScrollView>
               <TouchableOpacity onPress={addBetOption} style={{ marginBottom: theme.spacing.md, alignSelf: 'flex-start' }}>
                 <Text style={globalStyles.addOptionText}>+ Legg til alternativ</Text>
               </TouchableOpacity>
@@ -2689,7 +2784,7 @@ const GroupScreen = () => {
                 disabled={betSaving || !canSaveBet}
                 style={!canSaveBet ? globalStyles.disabledButton : undefined}
               >
-                <Text style={[globalStyles.saveButtonText, !canSaveBet && groupStyles.disabledGoldActionText]}>
+                <Text style={[globalStyles.saveButtonText, !canSaveBet && globalStyles.disabledGoldActionText]}>
                   {betSaving ? 'Oppretter...' : 'Opprett'}
                 </Text>
               </TouchableOpacity>
@@ -2749,26 +2844,36 @@ const GroupScreen = () => {
               </View>
               <View style={globalStyles.inputGroup}>
                 <Text style={globalStyles.label}>Antall</Text>
+                <Text style={globalStyles.secondaryText}>{`Tillatt for valget ditt: 1-${placeBetMaxAmount}`}</Text>
                 <View style={[globalStyles.inputShellDark, groupStyles.inputShell, betAmountFocused && globalStyles.inputShellFocusedGold]}>
                   <TextInput
                     placeholder="Antall"
                     placeholderTextColor={theme.colors.textSecondary}
                     value={betAmount}
-                    onChangeText={(text) => setBetAmount(clampDigits(text, 2))}
-                    onFocus={() => setBetAmountFocused(true)}
+                    onChangeText={(text) => {
+                      setBetAmount(clampDigits(text, 2));
+                      setHasInteractedPlaceBetAmount(true);
+                    }}
+                    onFocus={() => {
+                      setBetAmountFocused(true);
+                      setHasInteractedPlaceBetAmount(true);
+                    }}
                     onBlur={() => setBetAmountFocused(false)}
                     keyboardType="numeric"
                     style={[globalStyles.input, groupStyles.inputInsideShell]}
                     maxLength={2}
                   />
                 </View>
+                {(hasInteractedPlaceBetAmount || placeBetAttempted) && placeBetValidationMessage ? (
+                  <Text style={groupStyles.validationHelperText}>{placeBetValidationMessage}</Text>
+                ) : null}
               </View>
             </ScrollView>
             <View style={globalStyles.editButtonsContainer}>
               <TouchableOpacity onPress={() => setPlaceBetModalVisible(false)} disabled={placingBet}>
                 <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={handlePlaceBet} disabled={placingBet}>
+              <TouchableOpacity onPress={handlePlaceBet} disabled={placingBet || !canPlaceBet} style={!canPlaceBet ? globalStyles.disabledButton : undefined}>
                 <Text style={globalStyles.saveButtonText}>{placingBet ? 'Plasserer...' : 'Plasser bet'}</Text>
               </TouchableOpacity>
             </View>
@@ -2796,25 +2901,31 @@ const GroupScreen = () => {
                   />
                 </View>
               </View>
-              {editBetOptions.map((opt, idx) => (
-                <View key={`edit-bet-option-${idx}`} style={globalStyles.inputGroup}>
-                  <View>
-                    <Text style={globalStyles.label}>Alternativ {idx + 1}</Text>
-                    <View style={[globalStyles.inputShellDark, groupStyles.inputShell, focusedEditBetOptionIndex === idx && globalStyles.inputShellFocusedGold]}>
-                      <TextInput
-                        placeholder={`Alternativ ${idx + 1}`}
-                        placeholderTextColor={theme.colors.textSecondary}
-                        value={opt.name}
-                        onChangeText={text => updateEditBetOption(idx, 'name', text.slice(0, INPUT_LIMITS.betOptionNameMax))}
-                        onFocus={() => setFocusedEditBetOptionIndex(idx)}
-                        onBlur={() => setFocusedEditBetOptionIndex(null)}
-                        style={[globalStyles.input, groupStyles.inputInsideShell]}
-                        maxLength={INPUT_LIMITS.betOptionNameMax}
-                      />
+              <ScrollView
+                style={editBetOptions.length > 5 ? groupStyles.betOptionsScrollWrap : undefined}
+                nestedScrollEnabled={editBetOptions.length > 5}
+                showsVerticalScrollIndicator={editBetOptions.length > 5}
+              >
+                {editBetOptions.map((opt, idx) => (
+                  <View key={`edit-bet-option-${idx}`} style={globalStyles.inputGroup}>
+                    <View>
+                      <Text style={globalStyles.label}>Alternativ {idx + 1}</Text>
+                      <View style={[globalStyles.inputShellDark, groupStyles.inputShell, focusedEditBetOptionIndex === idx && globalStyles.inputShellFocusedGold]}>
+                        <TextInput
+                          placeholder={`Alternativ ${idx + 1}`}
+                          placeholderTextColor={theme.colors.textSecondary}
+                          value={opt.name}
+                          onChangeText={text => updateEditBetOption(idx, 'name', text.slice(0, INPUT_LIMITS.betOptionNameMax))}
+                          onFocus={() => setFocusedEditBetOptionIndex(idx)}
+                          onBlur={() => setFocusedEditBetOptionIndex(null)}
+                          style={[globalStyles.input, groupStyles.inputInsideShell]}
+                          maxLength={INPUT_LIMITS.betOptionNameMax}
+                        />
+                      </View>
                     </View>
                   </View>
-                </View>
-              ))}
+                ))}
+              </ScrollView>
               <TouchableOpacity onPress={addEditBetOption} style={{ marginBottom: theme.spacing.md, alignSelf: 'flex-start' }}>
                 <Text style={globalStyles.addOptionText}>+ Legg til alternativ</Text>
               </TouchableOpacity>

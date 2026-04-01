@@ -540,6 +540,14 @@ export const groupStyles = StyleSheet.create({
   consumeHelperText: {
     marginBottom: theme.spacing.sm,
   },
+  validationHelperText: {
+    color: theme.colors.errorLight,
+    fontSize: theme.fonts.xs,
+    marginTop: theme.spacing.xs,
+  },
+  betOptionsScrollWrap: {
+    maxHeight: theme.sizes.maxListHeightMd,
+  },
   inputShell: {
     marginTop: theme.spacing.xs,
   },
@@ -1062,8 +1070,4 @@ export const groupStyles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: theme.spacing.xs,
   },
-  disabledGoldActionText: {
-    color: theme.colors.primarySoft,
-    opacity: 0.55,
-  }
 });

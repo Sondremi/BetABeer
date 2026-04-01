@@ -81,4 +81,7 @@ export const settingsStyles = StyleSheet.create({
     marginTop: theme.spacing.sm,
     marginBottom: 0,
   },
+  disabledActionText: {
+    color: theme.colors.textMuted,
+  },
 });
