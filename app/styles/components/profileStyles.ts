@@ -160,6 +160,13 @@ export const profileStyles = StyleSheet.create({
     minHeight: theme.sizes.buttonMinHeight,
     paddingVertical: theme.spacing.sm,
   },
+  bacQuickAddButton: {
+    marginTop: theme.spacing.sm,
+    marginBottom: 0,
+  },
+  bacQuickAddButtonText: {
+    textAlign: 'center',
+  },
   editProfileImageButton: {
     position: 'absolute',
     right: theme.spacing.xs,
@@ -552,6 +559,12 @@ export const profileStyles = StyleSheet.create({
     alignItems: 'center',
     gap: theme.spacing.sm,
   },
+  buttonPickerRow: {
+    marginBottom: theme.spacing.xs,
+  },
+  buttonPickerRowCompact: {
+    flexGrow: 0,
+  },
   unitInputShell: {
     flex: 1,
   },
@@ -571,6 +584,20 @@ export const profileStyles = StyleSheet.create({
     shadowRadius: 7,
     elevation: 3,
     overflow: 'hidden',
+  },
+  timePickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  timePickerShell: {
+    flex: 1,
+    minWidth: 92,
+  },
+  timeSeparator: {
+    color: theme.colors.primary,
+    fontSize: theme.fonts.lg,
+    fontWeight: '700',
   },
   listContainerCard: {
     borderRadius: theme.borderRadius.lg,

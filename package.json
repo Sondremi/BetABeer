@@ -21,6 +21,7 @@
     "@react-navigation/native-stack": "^7.3.21",
     "dotenv": "^17.2.0",
     "expo": "~53.0.15",
+    "expo-auth-session": "~6.2.1",
     "expo-blur": "~14.1.5",
     "expo-constants": "~17.1.6",
     "expo-font": "~13.3.2",
@@ -48,14 +49,14 @@
     "react-native-svg": "^15.12.1",
     "react-native-web": "~0.20.0",
     "react-native-web-refresh-control": "^1.1.2",
-    "react-native-webview": "13.13.5",
-    "expo-auth-session": "~6.2.1"
+    "react-native-webview": "13.13.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~19.0.10",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~9.2.0",
+    "expo-module-scripts": "^55.0.2",
     "typescript": "~5.8.3"
   },
   "private": true

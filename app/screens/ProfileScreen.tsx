@@ -41,6 +41,7 @@ type DrinkFormState = {
   customAlcoholPercentManual: string;
   customQuantity: string;
   consumedAtTime: string;
+  hasEndTime: boolean;
   consumedUntilTime: string;
 };
 
@@ -70,8 +71,12 @@ const createInitialDrinkForm = (): DrinkFormState => ({
   customAlcoholPercentManual: '',
   customQuantity: '',
   consumedAtTime: getCurrentTimeInput(),
+  hasEndTime: false,
   consumedUntilTime: '',
 });
+
+const hourOptions = Array.from({ length: 24 }, (_, index) => index.toString().padStart(2, '0'));
+const minuteOptions = Array.from({ length: 60 }, (_, index) => index.toString().padStart(2, '0'));
 
 const ProfileScreen: React.FC = () => {
   const { user, loading } = useAuth();
@@ -336,6 +341,19 @@ const ProfileScreen: React.FC = () => {
     () => estimatorDrinkOptions.find((option) => option.key === selectedEstimatorDrinkKey),
     [estimatorDrinkOptions, selectedEstimatorDrinkKey]
   );
+
+  const latestDrinkEntry = useMemo(() => {
+    if (!userInfo.drinks?.length) return null;
+    return [...userInfo.drinks].sort(
+      (a, b) => (b.endTimestamp ?? b.timestamp) - (a.endTimestamp ?? a.timestamp)
+    )[0];
+  }, [userInfo.drinks]);
+
+  const latestDrinkLabel = useMemo(() => {
+    if (!latestDrinkEntry) return 'Ingen tidligere drikke registrert';
+    const namePrefix = latestDrinkEntry.name?.trim() ? `${latestDrinkEntry.name} - ` : '';
+    return `${namePrefix}${latestDrinkEntry.sizeDl} dl ${latestDrinkEntry.category} (${latestDrinkEntry.alcoholPercent}%)`;
+  }, [latestDrinkEntry]);
 
   const highscoreUpdatedLabel = useMemo(() => {
     if (!userInfo.bacHighscoreUpdatedAt) return 'Ikke satt';
@@ -677,6 +695,19 @@ const ProfileScreen: React.FC = () => {
     return date.getTime();
   };
 
+  const getTimeParts = (timeValue: string) => {
+    if (!isValidTimeInput(timeValue)) return { hour: '00', minute: '00' };
+    const [hour, minute] = timeValue.split(':');
+    return { hour, minute };
+  };
+
+  const updateTimeValue = (timeValue: string, nextPart: 'hour' | 'minute', nextValue: string) => {
+    const { hour, minute } = getTimeParts(timeValue);
+    const resolvedHour = nextPart === 'hour' ? nextValue : hour;
+    const resolvedMinute = nextPart === 'minute' ? nextValue : minute;
+    return `${resolvedHour}:${resolvedMinute}`;
+  };
+
   const resolveSelectedDrinkSizeDl = (): number | null => {
     if (drinkForm.category === 'custom') {
       if (drinkForm.sizeDl && drinkForm.sizeDl !== 'custom') {
@@ -702,6 +733,8 @@ const ProfileScreen: React.FC = () => {
     if (drinkForm.category === 'sprit') return sizeDl >= 5;
     return sizeDl >= 5;
   };
+
+  const endTimeAllowed = allowsEndTimeForSelection();
 
   const validateCustomAlcoholPercent = () => {
     if (drinkForm.category === 'custom') return true;
@@ -730,7 +763,7 @@ const ProfileScreen: React.FC = () => {
     if (!drinkForm.category) return false;
 
     if (!isValidTimeInput(drinkForm.consumedAtTime)) return false;
-    if (drinkForm.consumedUntilTime.trim()) {
+    if (drinkForm.hasEndTime) {
       if (!allowsEndTimeForSelection()) return false;
       if (!isValidTimeInput(drinkForm.consumedUntilTime)) return false;
       const start = parseTimeToTimestamp(drinkForm.consumedAtTime);
@@ -785,6 +818,12 @@ const ProfileScreen: React.FC = () => {
 
     return true;
   })();
+
+  useEffect(() => {
+    if (!endTimeAllowed && (drinkForm.hasEndTime || drinkForm.consumedUntilTime)) {
+      setDrinkForm((prev) => ({ ...prev, hasEndTime: false, consumedUntilTime: '' }));
+    }
+  }, [endTimeAllowed, drinkForm.hasEndTime, drinkForm.consumedUntilTime]);
 
   const navigateToSettings = () => {
     router.push('/settings');
@@ -845,7 +884,7 @@ const ProfileScreen: React.FC = () => {
     }
 
     let endTimestamp: number | undefined;
-    if (drinkForm.consumedUntilTime.trim()) {
+    if (drinkForm.hasEndTime) {
       if (!allowsEndTimeForSelection()) {
         showAlert('Feil', 'Sluttid kan bare settes for store enheter');
         return;
@@ -1019,6 +1058,35 @@ const ProfileScreen: React.FC = () => {
         },
       ]
     );
+  };
+
+  const handleAddLatestDrinkAgain = async () => {
+    if (!latestDrinkEntry) {
+      showAlert('Ingen historikk', 'Du må registrere en drikke først.');
+      return;
+    }
+
+    try {
+      const currentUser = authService.getCurrentUser();
+      if (!currentUser) return;
+
+      const drink: DrinkEntry = {
+        ...(latestDrinkEntry.name ? { name: latestDrinkEntry.name } : {}),
+        category: latestDrinkEntry.category,
+        sizeDl: latestDrinkEntry.sizeDl,
+        alcoholPercent: latestDrinkEntry.alcoholPercent,
+        quantity: 1,
+        timestamp: Date.now(),
+      };
+
+      await profileService.addDrink(currentUser.uid, drink);
+      const updatedUserData = await profileService.getUserData(currentUser.uid);
+      setUserInfo(updatedUserData);
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : 'Kunne ikke registrere siste drikke';
+      showAlert('Feil', `Kunne ikke registrere siste drikke: ${errorMessage}`);
+    }
   };
 
   const handleCreateGroup = async () => {
@@ -1378,6 +1446,15 @@ const ProfileScreen: React.FC = () => {
                     <Text style={globalStyles.dangerButtonText}>Nullstill drikker</Text>
                   </TouchableOpacity>
                 </View>
+                <TouchableOpacity
+                  style={[globalStyles.outlineButtonGold, profileStyles.bacQuickAddButton, (!hasBacRequiredInfo || !latestDrinkEntry) && globalStyles.disabledButton]}
+                  onPress={handleAddLatestDrinkAgain}
+                  disabled={!hasBacRequiredInfo || !latestDrinkEntry}
+                >
+                  <Text style={[globalStyles.outlineButtonGoldText, profileStyles.bacQuickAddButtonText]}>
+                    {`+1 av sist drukket: ${latestDrinkLabel}`}
+                  </Text>
+                </TouchableOpacity>
                 {!hasBacRequiredInfo && (
                   <Text style={globalStyles.secondaryText}>
                     Sett vekt og kjønn i innstillinger for å bruke promillekalkulatoren.
@@ -1452,7 +1529,7 @@ const ProfileScreen: React.FC = () => {
                   <>
                     <View style={[globalStyles.inputGroup, { marginBottom: 0 }]}> 
                       <Text style={globalStyles.label}>Hva vil du drikke?</Text>
-                      <View style={globalStyles.pickerInput}>
+                      <View style={[globalStyles.pickerInput, profileStyles.pickerGlowShell]}>
                         <Picker
                           style={globalStyles.picker}
                           selectedValue={selectedEstimatorDrinkKey}
@@ -1659,333 +1736,403 @@ const ProfileScreen: React.FC = () => {
                     nestedScrollEnabled
                     keyboardShouldPersistTaps="handled"
                   >
-
-                  <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
-                    <Text style={globalStyles.label}>Kategori</Text>
-                    <View style={[globalStyles.pickerInput, profileStyles.pickerGlowShell]}>
-                      <Picker
-                        style={globalStyles.picker}
-                        itemStyle={profileStyles.pickerItem}
-                        selectedValue={drinkForm.category}
-                        onValueChange={(value: DrinkCategory | 'custom' | '') =>
-                          setDrinkForm({ ...createInitialDrinkForm(), category: value })
-                        }
-                      >
-                        <Picker.Item label="Velg kategori" value="" />
-                        <Picker.Item label="Øl / Cider / Selzer" value="øl" />
-                        <Picker.Item label="Vin" value="vin" />
-                        <Picker.Item label="Sprit" value="sprit" />
-                        <Picker.Item label="Egendefinert" value="custom" />
-                      </Picker>
+                    <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                      <Text style={globalStyles.label}>Type</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
+                        {[
+                          { label: 'Øl / Cider / Selzer', value: 'øl' as const },
+                          { label: 'Vin', value: 'vin' as const },
+                          { label: 'Sprit', value: 'sprit' as const },
+                          { label: 'Egendefinert', value: 'custom' as const },
+                        ].map((categoryOption) => (
+                          <TouchableOpacity
+                            key={categoryOption.value}
+                            style={[globalStyles.selectionButton, drinkForm.category === categoryOption.value && globalStyles.selectionButtonSelected]}
+                            onPress={() => setDrinkForm({ ...createInitialDrinkForm(), category: categoryOption.value })}
+                          >
+                            <Text style={[globalStyles.selectionButtonText, drinkForm.category === categoryOption.value && globalStyles.selectionButtonTextSelected]}>
+                              {categoryOption.label}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
                     </View>
-                  </View>
 
-                  {drinkForm.category && (
-                    <>
-                      {drinkForm.category !== 'custom' && (
-                        <>
-                          <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
-                            <Text style={globalStyles.label}>Størrelse</Text>
-                            <View style={[globalStyles.pickerInput, profileStyles.pickerGlowShell]}>
-                              <Picker
-                                style={globalStyles.picker}
-                                itemStyle={profileStyles.pickerItem}
-                                selectedValue={drinkForm.sizeDl}
-                                onValueChange={(value: number | '' | 'custom') => setDrinkForm({ ...drinkForm, sizeDl: value })}
-                              >
-                                <Picker.Item label="Velg størrelse" value="" />
-                                {getSizeOptions(drinkForm.category).map(size => (
-                                  <Picker.Item
-                                    key={size}
-                                    label={getSizeOptionLabel(drinkForm.category, size)}
-                                    value={size}
-                                  />
-                                ))}
-                              </Picker>
-                            </View>
-                          </View>
-
-                          {drinkForm.sizeDl === 'custom' && (
-                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                    {drinkForm.category && (
+                      <>
+                        {drinkForm.category !== 'custom' && (
+                          <>
+                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
                               <Text style={globalStyles.label}>Størrelse</Text>
-                              <View style={profileStyles.unitInputRow}>
-                                <View style={[globalStyles.inputShellDark, profileStyles.unitInputShell, profileStyles.pickerGlowShell]}>
-                                  <TextInput
+                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
+                                {getSizeOptions(drinkForm.category).map((size) => (
+                                  <TouchableOpacity
+                                    key={String(size)}
+                                    style={[globalStyles.selectionButton, drinkForm.sizeDl === size && globalStyles.selectionButtonSelected]}
+                                    onPress={() => setDrinkForm({ ...drinkForm, sizeDl: size, customSizeValue: '' })}
+                                  >
+                                    <Text style={[globalStyles.selectionButtonText, drinkForm.sizeDl === size && globalStyles.selectionButtonTextSelected]}>
+                                      {getSizeOptionLabel(drinkForm.category, size)}
+                                    </Text>
+                                  </TouchableOpacity>
+                                ))}
+                              </ScrollView>
+                            </View>
+
+                            {drinkForm.sizeDl === 'custom' && (
+                              <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                                <Text style={globalStyles.label}>Egendefinert størrelse</Text>
+                                <View style={profileStyles.unitInputRow}>
+                                  <View style={[globalStyles.inputShellDark, profileStyles.unitInputShell, profileStyles.pickerGlowShell]}>
+                                    <TextInput
                                       style={[globalStyles.input, profileStyles.compactNumberInput]}
-                                    value={drinkForm.customSizeValue}
-                                    onChangeText={(text) => setDrinkForm({ ...drinkForm, customSizeValue: text })}
+                                      value={drinkForm.customSizeValue}
+                                      onChangeText={(text) => setDrinkForm({ ...drinkForm, customSizeValue: text })}
                                       placeholder={DRINK_NUMBER_PLACEHOLDER}
+                                      placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
+                                      keyboardType="decimal-pad"
+                                    />
+                                  </View>
+                                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRowCompact}>
+                                    {(['cl', 'dl', 'l'] as const).map((unit) => (
+                                      <TouchableOpacity
+                                        key={unit}
+                                        style={[globalStyles.selectionButton, drinkForm.sizeUnit === unit && globalStyles.selectionButtonSelected]}
+                                        onPress={() => setDrinkForm({ ...drinkForm, sizeUnit: unit })}
+                                      >
+                                        <Text style={[globalStyles.selectionButtonText, drinkForm.sizeUnit === unit && globalStyles.selectionButtonTextSelected]}>
+                                          {unit}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    ))}
+                                  </ScrollView>
+                                </View>
+                              </View>
+                            )}
+
+                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                              <Text style={globalStyles.label}>Alkoholprosent</Text>
+                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
+                                {getAlcoholPercentOptions(drinkForm.category).map((percent) => {
+                                  const alcoholOption = percent as number | 'custom';
+                                  return (
+                                    <TouchableOpacity
+                                      key={String(alcoholOption)}
+                                      style={[globalStyles.selectionButton, drinkForm.alcoholPercent === alcoholOption && globalStyles.selectionButtonSelected]}
+                                      onPress={() => setDrinkForm({ ...drinkForm, alcoholPercent: alcoholOption, customAlcoholPercent: '' })}
+                                    >
+                                      <Text style={[globalStyles.selectionButtonText, drinkForm.alcoholPercent === alcoholOption && globalStyles.selectionButtonTextSelected]}>
+                                        {alcoholOption === 'custom' ? 'Egendefinert' : `${alcoholOption}%`}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </ScrollView>
+                            </View>
+
+                            {drinkForm.alcoholPercent === 'custom' && (
+                              <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                                <Text style={globalStyles.label}>Egendefinert alkoholprosent</Text>
+                                <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
+                                  <TextInput
+                                    style={[globalStyles.input, profileStyles.compactNumberInput]}
+                                    value={drinkForm.customAlcoholPercent}
+                                    onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercent: text })}
+                                    placeholder={DRINK_NUMBER_PLACEHOLDER}
                                     placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
                                     keyboardType="decimal-pad"
                                   />
                                 </View>
-                                <View style={[globalStyles.pickerInput, profileStyles.unitPickerShell, profileStyles.pickerGlowShell]}>
-                                  <Picker
-                                    style={globalStyles.picker}
-                                    itemStyle={profileStyles.pickerItem}
-                                    selectedValue={drinkForm.sizeUnit}
-                                    onValueChange={(value: 'cl' | 'dl' | 'l') => setDrinkForm({ ...drinkForm, sizeUnit: value })}
+                              </View>
+                            )}
+
+                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                              <Text style={globalStyles.label}>Antall</Text>
+                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
+                                {[1, 2, 3, 'custom' as const].map((quantity) => (
+                                  <TouchableOpacity
+                                    key={String(quantity)}
+                                    style={[globalStyles.selectionButton, drinkForm.quantity === quantity && globalStyles.selectionButtonSelected]}
+                                    onPress={() => setDrinkForm({ ...drinkForm, quantity, customQuantity: '' })}
                                   >
-                                    <Picker.Item label="cl" value="cl" />
-                                    <Picker.Item label="dl" value="dl" />
-                                    <Picker.Item label="l" value="l" />
-                                  </Picker>
+                                    <Text style={[globalStyles.selectionButtonText, drinkForm.quantity === quantity && globalStyles.selectionButtonTextSelected]}>
+                                      {quantity === 'custom' ? 'Egendefinert' : quantity}
+                                    </Text>
+                                  </TouchableOpacity>
+                                ))}
+                              </ScrollView>
+                            </View>
+
+                            {drinkForm.quantity === 'custom' && (
+                              <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                                <Text style={globalStyles.label}>Egendefinert antall</Text>
+                                <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
+                                  <TextInput
+                                    style={[globalStyles.input, profileStyles.compactNumberInput]}
+                                    value={drinkForm.customQuantity}
+                                    onChangeText={(text) => setDrinkForm({ ...drinkForm, customQuantity: text })}
+                                    placeholder={DRINK_NUMBER_PLACEHOLDER}
+                                    placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
+                                    keyboardType="decimal-pad"
+                                  />
                                 </View>
                               </View>
-                            </View>
-                          )}
+                            )}
+                          </>
+                        )}
 
-                          <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
-                            <Text style={globalStyles.label}>Alkoholprosent</Text>
-                            <View style={[globalStyles.pickerInput, profileStyles.pickerGlowShell]}>
+                        {drinkForm.category === 'custom' && (
+                          <>
+                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                              <Text style={globalStyles.label}>Type/navn</Text>
+                              <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
+                                <TextInput
+                                  style={[globalStyles.input, profileStyles.customAlcoholInput]}
+                                  value={drinkForm.customDrinkName}
+                                  onChangeText={(text) => setDrinkForm({ ...drinkForm, customDrinkName: text.slice(0, INPUT_LIMITS.drinkNameMax) })}
+                                  placeholder={DRINK_TEXT_PLACEHOLDER}
+                                  placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
+                                  maxLength={INPUT_LIMITS.drinkNameMax}
+                                />
+                              </View>
+                            </View>
+
+                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                              <Text style={globalStyles.label}>Størrelse</Text>
+                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
+                                {getCustomSizeOptions().map((size) => (
+                                  <TouchableOpacity
+                                    key={String(size)}
+                                    style={[globalStyles.selectionButton, drinkForm.sizeDl === size && globalStyles.selectionButtonSelected]}
+                                    onPress={() => setDrinkForm({ ...drinkForm, sizeDl: size, customSizeValue: '' })}
+                                  >
+                                    <Text style={[globalStyles.selectionButtonText, drinkForm.sizeDl === size && globalStyles.selectionButtonTextSelected]}>
+                                      {getCustomSizeOptionLabel(size)}
+                                    </Text>
+                                  </TouchableOpacity>
+                                ))}
+                              </ScrollView>
+                            </View>
+
+                            {drinkForm.sizeDl === 'custom' && (
+                              <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                                <Text style={globalStyles.label}>Egendefinert størrelse</Text>
+                                <View style={profileStyles.unitInputRow}>
+                                  <View style={[globalStyles.inputShellDark, profileStyles.unitInputShell, profileStyles.pickerGlowShell]}>
+                                    <TextInput
+                                      style={[globalStyles.input, profileStyles.compactNumberInput]}
+                                      value={drinkForm.customSizeValue}
+                                      onChangeText={(text) => setDrinkForm({ ...drinkForm, customSizeValue: text })}
+                                      placeholder={DRINK_NUMBER_PLACEHOLDER}
+                                      placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
+                                      keyboardType="decimal-pad"
+                                    />
+                                  </View>
+                                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRowCompact}>
+                                    {(['cl', 'dl', 'l'] as const).map((unit) => (
+                                      <TouchableOpacity
+                                        key={unit}
+                                        style={[globalStyles.selectionButton, drinkForm.customSizeUnit === unit && globalStyles.selectionButtonSelected]}
+                                        onPress={() => setDrinkForm({ ...drinkForm, customSizeUnit: unit })}
+                                      >
+                                        <Text style={[globalStyles.selectionButtonText, drinkForm.customSizeUnit === unit && globalStyles.selectionButtonTextSelected]}>
+                                          {unit}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    ))}
+                                  </ScrollView>
+                                </View>
+                            </View>
+                            )}
+
+                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                              <Text style={globalStyles.label}>Alkoholprosent</Text>
+                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
+                                {getCustomAlcoholPercentOptions().map((percent) => (
+                                  <TouchableOpacity
+                                    key={String(percent)}
+                                    style={[globalStyles.selectionButton, drinkForm.alcoholPercent === percent && globalStyles.selectionButtonSelected]}
+                                    onPress={() => setDrinkForm({ ...drinkForm, alcoholPercent: percent, customAlcoholPercentManual: '' })}
+                                  >
+                                    <Text style={[globalStyles.selectionButtonText, drinkForm.alcoholPercent === percent && globalStyles.selectionButtonTextSelected]}>
+                                      {percent === 'custom' ? 'Egendefinert' : `${percent}%`}
+                                    </Text>
+                                  </TouchableOpacity>
+                                ))}
+                              </ScrollView>
+                            </View>
+
+                            {drinkForm.alcoholPercent === 'custom' && (
+                              <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                                <Text style={globalStyles.label}>Egendefinert alkoholprosent</Text>
+                                <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
+                                  <TextInput
+                                    style={[globalStyles.input, profileStyles.compactNumberInput]}
+                                    value={drinkForm.customAlcoholPercentManual}
+                                    onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercentManual: text })}
+                                    placeholder={DRINK_NUMBER_PLACEHOLDER}
+                                    placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
+                                    keyboardType="decimal-pad"
+                                  />
+                                </View>
+                              </View>
+                            )}
+
+                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                              <Text style={globalStyles.label}>Antall</Text>
+                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
+                                {[1, 2, 3, 'custom' as const].map((quantity) => (
+                                  <TouchableOpacity
+                                    key={String(quantity)}
+                                    style={[globalStyles.selectionButton, drinkForm.quantity === quantity && globalStyles.selectionButtonSelected]}
+                                    onPress={() => setDrinkForm({ ...drinkForm, quantity, customQuantity: '' })}
+                                  >
+                                    <Text style={[globalStyles.selectionButtonText, drinkForm.quantity === quantity && globalStyles.selectionButtonTextSelected]}>
+                                      {quantity === 'custom' ? 'Egendefinert' : quantity}
+                                    </Text>
+                                  </TouchableOpacity>
+                                ))}
+                              </ScrollView>
+                            </View>
+
+                            {drinkForm.quantity === 'custom' && (
+                              <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                                <Text style={globalStyles.label}>Egendefinert antall</Text>
+                                <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
+                                  <TextInput
+                                    style={[globalStyles.input, profileStyles.compactNumberInput]}
+                                    value={drinkForm.customQuantity}
+                                    onChangeText={(text) => setDrinkForm({ ...drinkForm, customQuantity: text })}
+                                    placeholder={DRINK_NUMBER_PLACEHOLDER}
+                                    placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
+                                    keyboardType="decimal-pad"
+                                  />
+                                </View>
+                              </View>
+                            )}
+                          </>
+                        )}
+
+                        <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                          <Text style={globalStyles.label}>Tidspunkt drukket (start)</Text>
+                          <View style={profileStyles.timePickerRow}>
+                            <View style={[globalStyles.pickerInput, profileStyles.timePickerShell, profileStyles.pickerGlowShell]}>
                               <Picker
                                 style={globalStyles.picker}
                                 itemStyle={profileStyles.pickerItem}
-                                selectedValue={drinkForm.alcoholPercent}
-                                onValueChange={(value: number | '' | 'custom') =>
-                                  setDrinkForm({ ...drinkForm, alcoholPercent: value, customAlcoholPercent: '' })
+                                selectedValue={getTimeParts(drinkForm.consumedAtTime).hour}
+                                onValueChange={(value: string) =>
+                                  setDrinkForm({
+                                    ...drinkForm,
+                                    consumedAtTime: updateTimeValue(drinkForm.consumedAtTime, 'hour', value),
+                                  })
                                 }
                               >
-                                <Picker.Item label="Velg alkoholprosent" value="" />
-                                {getAlcoholPercentOptions(drinkForm.category).map(percent => (
-                                  <Picker.Item
-                                    key={percent}
-                                    label={percent === 'custom' ? 'Egendefinert' : `${percent}%`}
-                                    value={percent}
-                                  />
+                                {hourOptions.map((hour) => (
+                                  <Picker.Item key={hour} label={hour} value={hour} />
+                                ))}
+                              </Picker>
+                            </View>
+                            <Text style={profileStyles.timeSeparator}>:</Text>
+                            <View style={[globalStyles.pickerInput, profileStyles.timePickerShell, profileStyles.pickerGlowShell]}>
+                              <Picker
+                                style={globalStyles.picker}
+                                itemStyle={profileStyles.pickerItem}
+                                selectedValue={getTimeParts(drinkForm.consumedAtTime).minute}
+                                onValueChange={(value: string) =>
+                                  setDrinkForm({
+                                    ...drinkForm,
+                                    consumedAtTime: updateTimeValue(drinkForm.consumedAtTime, 'minute', value),
+                                  })
+                                }
+                              >
+                                {minuteOptions.map((minute) => (
+                                  <Picker.Item key={minute} label={minute} value={minute} />
                                 ))}
                               </Picker>
                             </View>
                           </View>
-
-                          {drinkForm.alcoholPercent === 'custom' && (
-                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
-                              <Text style={globalStyles.label}>Egendefinert alkoholprosent</Text>
-                              <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
-                                <TextInput
-                                  style={[globalStyles.input, profileStyles.compactNumberInput]}
-                                  value={drinkForm.customAlcoholPercent}
-                                  onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercent: text })}
-                                  placeholder={DRINK_NUMBER_PLACEHOLDER}
-                                  placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                                  keyboardType="decimal-pad"
-                                />
-                              </View>
-                            </View>
-                          )}
-
-                          <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
-                        <Text style={globalStyles.label}>Antall</Text>
-                        <View style={[globalStyles.pickerInput, profileStyles.pickerGlowShell]}>
-                          <Picker
-                            style={globalStyles.picker}
-                            itemStyle={profileStyles.pickerItem}
-                            selectedValue={drinkForm.quantity}
-                            onValueChange={(value: number | '' | 'custom') => setDrinkForm({ ...drinkForm, quantity: value })}
-                          >
-                                <Picker.Item label="Velg antall" value="" />
-                                <Picker.Item label="1" value={1} />
-                                <Picker.Item label="2" value={2} />
-                                <Picker.Item label="3" value={3} />
-                                <Picker.Item label="Egendefinert" value={'custom'} />
-                          </Picker>
                         </View>
-                          </View>
 
-                          {drinkForm.quantity === 'custom' && (
-                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
-                              <Text style={globalStyles.label}>Egendefinert antall</Text>
-                              <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
-                                <TextInput
-                                  style={[globalStyles.input, profileStyles.compactNumberInput]}
-                                  value={drinkForm.customQuantity}
-                                  onChangeText={(text) => setDrinkForm({ ...drinkForm, customQuantity: text })}
-                                  placeholder={DRINK_NUMBER_PLACEHOLDER}
-                                  placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                                  keyboardType="decimal-pad"
-                                />
-                              </View>
-                            </View>
-                          )}
-                        </>
-                      )}
-
-                      {drinkForm.category === 'custom' && (
-                        <>
-                      <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
-                        <Text style={globalStyles.label}>Type/navn</Text>
-                        <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
-                          <TextInput
-                            style={[globalStyles.input, profileStyles.customAlcoholInput]}
-                            value={drinkForm.customDrinkName}
-                            onChangeText={(text) => setDrinkForm({ ...drinkForm, customDrinkName: text.slice(0, INPUT_LIMITS.drinkNameMax) })}
-                            placeholder={DRINK_TEXT_PLACEHOLDER}
-                            placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                            maxLength={INPUT_LIMITS.drinkNameMax}
-                          />
-                        </View>
-                      </View>
-
-                      <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
-                        <Text style={globalStyles.label}>Størrelse</Text>
-                        <View style={[globalStyles.pickerInput, profileStyles.pickerGlowShell]}>
-                          <Picker
-                            style={globalStyles.picker}
-                            itemStyle={profileStyles.pickerItem}
-                            selectedValue={drinkForm.sizeDl}
-                            onValueChange={(value: number | '' | 'custom') =>
-                              setDrinkForm({ ...drinkForm, sizeDl: value, customSizeValue: '' })
-                            }
-                          >
-                            <Picker.Item label="Velg størrelse" value="" />
-                            {getCustomSizeOptions().map((size) => (
-                              <Picker.Item
-                                key={size}
-                                label={getCustomSizeOptionLabel(size)}
-                                value={size}
-                              />
-                            ))}
-                          </Picker>
-                        </View>
-                      </View>
-
-                      {drinkForm.sizeDl === 'custom' && (
-                        <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
-                          <Text style={globalStyles.label}>Egendefinert størrelse</Text>
-                          <View style={profileStyles.unitInputRow}>
-                            <View style={[globalStyles.inputShellDark, profileStyles.unitInputShell, profileStyles.pickerGlowShell]}>
-                              <TextInput
-                                style={[globalStyles.input, profileStyles.compactNumberInput]}
-                                value={drinkForm.customSizeValue}
-                                onChangeText={(text) => setDrinkForm({ ...drinkForm, customSizeValue: text })}
-                                placeholder={DRINK_NUMBER_PLACEHOLDER}
-                                placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                                keyboardType="decimal-pad"
-                              />
-                            </View>
-                            <View style={[globalStyles.pickerInput, profileStyles.unitPickerShell, profileStyles.pickerGlowShell]}>
-                              <Picker
-                                style={globalStyles.picker}
-                                itemStyle={profileStyles.pickerItem}
-                                selectedValue={drinkForm.customSizeUnit}
-                                onValueChange={(value: 'cl' | 'dl' | 'l') => setDrinkForm({ ...drinkForm, customSizeUnit: value })}
+                        {endTimeAllowed && (
+                          <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                            <Text style={globalStyles.label}>Sluttidspunkt</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
+                              <TouchableOpacity
+                                style={[globalStyles.selectionButton, !drinkForm.hasEndTime && globalStyles.selectionButtonSelected]}
+                                onPress={() => setDrinkForm({ ...drinkForm, hasEndTime: false, consumedUntilTime: '' })}
                               >
-                                <Picker.Item label="cl" value="cl" />
-                                <Picker.Item label="dl" value="dl" />
-                                <Picker.Item label="l" value="l" />
-                              </Picker>
-                            </View>
+                                <Text style={[globalStyles.selectionButtonText, !drinkForm.hasEndTime && globalStyles.selectionButtonTextSelected]}>
+                                  Ingen sluttid
+                                </Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={[globalStyles.selectionButton, drinkForm.hasEndTime && globalStyles.selectionButtonSelected]}
+                                onPress={() =>
+                                  setDrinkForm({
+                                    ...drinkForm,
+                                    hasEndTime: true,
+                                    consumedUntilTime: drinkForm.consumedUntilTime || drinkForm.consumedAtTime,
+                                  })
+                                }
+                              >
+                                <Text style={[globalStyles.selectionButtonText, drinkForm.hasEndTime && globalStyles.selectionButtonTextSelected]}>
+                                  Velg sluttid
+                                </Text>
+                              </TouchableOpacity>
+                            </ScrollView>
+
+                            {drinkForm.hasEndTime && (
+                              <View style={profileStyles.timePickerRow}>
+                                <View style={[globalStyles.pickerInput, profileStyles.timePickerShell, profileStyles.pickerGlowShell]}>
+                                  <Picker
+                                    style={globalStyles.picker}
+                                    itemStyle={profileStyles.pickerItem}
+                                    selectedValue={getTimeParts(drinkForm.consumedUntilTime || drinkForm.consumedAtTime).hour}
+                                    onValueChange={(value: string) =>
+                                      setDrinkForm({
+                                        ...drinkForm,
+                                        consumedUntilTime: updateTimeValue(
+                                          drinkForm.consumedUntilTime || drinkForm.consumedAtTime,
+                                          'hour',
+                                          value
+                                        ),
+                                      })
+                                    }
+                                  >
+                                    {hourOptions.map((hour) => (
+                                      <Picker.Item key={`end-hour-${hour}`} label={hour} value={hour} />
+                                    ))}
+                                  </Picker>
+                                </View>
+                                <Text style={profileStyles.timeSeparator}>:</Text>
+                                <View style={[globalStyles.pickerInput, profileStyles.timePickerShell, profileStyles.pickerGlowShell]}>
+                                  <Picker
+                                    style={globalStyles.picker}
+                                    itemStyle={profileStyles.pickerItem}
+                                    selectedValue={getTimeParts(drinkForm.consumedUntilTime || drinkForm.consumedAtTime).minute}
+                                    onValueChange={(value: string) =>
+                                      setDrinkForm({
+                                        ...drinkForm,
+                                        consumedUntilTime: updateTimeValue(
+                                          drinkForm.consumedUntilTime || drinkForm.consumedAtTime,
+                                          'minute',
+                                          value
+                                        ),
+                                      })
+                                    }
+                                  >
+                                    {minuteOptions.map((minute) => (
+                                      <Picker.Item key={`end-minute-${minute}`} label={minute} value={minute} />
+                                    ))}
+                                  </Picker>
+                                </View>
+                              </View>
+                            )}
                           </View>
-                        </View>
-                      )}
-
-                      <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
-                        <Text style={globalStyles.label}>Alkoholprosent</Text>
-                        <View style={[globalStyles.pickerInput, profileStyles.pickerGlowShell]}>
-                          <Picker
-                            style={globalStyles.picker}
-                            itemStyle={profileStyles.pickerItem}
-                            selectedValue={drinkForm.alcoholPercent}
-                            onValueChange={(value: number | '' | 'custom') => setDrinkForm({ ...drinkForm, alcoholPercent: value, customAlcoholPercentManual: '' })}
-                          >
-                            <Picker.Item label="Velg alkoholprosent" value="" />
-                            {getCustomAlcoholPercentOptions().map((percent) => (
-                              <Picker.Item
-                                key={percent}
-                                label={percent === 'custom' ? 'Egendefinert' : `${percent}%`}
-                                value={percent}
-                              />
-                            ))}
-                          </Picker>
-                        </View>
-                      </View>
-
-                      {drinkForm.alcoholPercent === 'custom' && (
-                        <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
-                          <Text style={globalStyles.label}>Egendefinert alkoholprosent</Text>
-                          <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
-                            <TextInput
-                              style={[globalStyles.input, profileStyles.compactNumberInput]}
-                              value={drinkForm.customAlcoholPercentManual}
-                              onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercentManual: text })}
-                              placeholder={DRINK_NUMBER_PLACEHOLDER}
-                              placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                              keyboardType="decimal-pad"
-                            />
-                          </View>
-                        </View>
-                      )}
-
-                      <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
-                        <Text style={globalStyles.label}>Antall</Text>
-                        <View style={[globalStyles.pickerInput, profileStyles.pickerGlowShell]}>
-                          <Picker
-                            style={globalStyles.picker}
-                            itemStyle={profileStyles.pickerItem}
-                            selectedValue={drinkForm.quantity}
-                            onValueChange={(value: number | '' | 'custom') => setDrinkForm({ ...drinkForm, quantity: value })}
-                          >
-                            <Picker.Item label="Velg antall" value="" />
-                            <Picker.Item label="1" value={1} />
-                            <Picker.Item label="2" value={2} />
-                            <Picker.Item label="3" value={3} />
-                            <Picker.Item label="Egendefinert" value={'custom'} />
-                          </Picker>
-                        </View>
-                      </View>
-
-                      {drinkForm.quantity === 'custom' && (
-                        <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
-                          <Text style={globalStyles.label}>Egendefinert antall</Text>
-                          <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
-                            <TextInput
-                              style={[globalStyles.input, profileStyles.compactNumberInput]}
-                              value={drinkForm.customQuantity}
-                              onChangeText={(text) => setDrinkForm({ ...drinkForm, customQuantity: text })}
-                              placeholder={DRINK_NUMBER_PLACEHOLDER}
-                              placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                              keyboardType="decimal-pad"
-                            />
-                          </View>
-                        </View>
-                      )}
-                        </>
-                      )}
-                    </>
-                  )}
-
-                  {drinkForm.category && (
-                    <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
-                      <Text style={globalStyles.label}>Tidspunkt drukket (start)</Text>
-                      <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
-                        <TextInput
-                          style={[globalStyles.input, profileStyles.compactNumberInput]}
-                          value={drinkForm.consumedAtTime}
-                          onChangeText={(text) => setDrinkForm({ ...drinkForm, consumedAtTime: text })}
-                          placeholder="HH:MM"
-                          placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                          keyboardType="numbers-and-punctuation"
-                        />
-                      </View>
-                    </View>
-                  )}
-
-                  {drinkForm.category && allowsEndTimeForSelection() && (
-                    <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
-                      <Text style={globalStyles.label}>Sluttidspunkt (valgfritt)</Text>
-                      <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
-                        <TextInput
-                          style={[globalStyles.input, profileStyles.compactNumberInput]}
-                          value={drinkForm.consumedUntilTime}
-                          onChangeText={(text) => setDrinkForm({ ...drinkForm, consumedUntilTime: text })}
-                          placeholder="HH:MM"
-                          placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                          keyboardType="numbers-and-punctuation"
-                        />
-                      </View>
-                    </View>
-                  )}
-
+                        )}
+                      </>
+                    )}
                   </ScrollView>
                 </View>
                 <View style={profileStyles.drinkModalActions}>
@@ -2001,7 +2148,7 @@ const ProfileScreen: React.FC = () => {
                       onPress={handleAddDrink}
                       disabled={!canSaveDrink}
                     >
-                      <Text style={globalStyles.saveButtonTextAlt}>Lagre</Text>
+                      <Text style={globalStyles.saveButtonTextAlt}>Legg til</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
