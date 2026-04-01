@@ -47,11 +47,14 @@ const LoginScreen: React.FC = () => {
       return undefined;
     }
 
-    if (GOOGLE_WEB_REDIRECT_URI?.trim()) {
+    const fallbackOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
+    const host = typeof window !== 'undefined' ? window.location.hostname : '';
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+
+    if (!isLocalHost && GOOGLE_WEB_REDIRECT_URI?.trim()) {
       return GOOGLE_WEB_REDIRECT_URI.trim();
     }
 
-    const fallbackOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
     return fallbackOrigin ? `${fallbackOrigin}/` : undefined;
   }, []);
 
