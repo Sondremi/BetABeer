@@ -11,16 +11,24 @@
   box-sizing: border-box;
 }
 
+html {
+  background: var(--bg);
+  min-height: 100%;
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
   font-family: "Avenir Next", "Segoe UI", sans-serif;
   background: var(--bg);
   color: var(--text);
+  min-height: 100dvh;
 }
 
 body.landing {
-  background: radial-gradient(circle at top, #1b2230 0%, var(--bg) 45%);
-  min-height: 100vh;
+  background-color: var(--bg);
+  background-image: radial-gradient(circle at top, #111728 0%, var(--bg) 52%);
+  min-height: 100dvh;
 }
 
 main {
