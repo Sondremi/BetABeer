@@ -151,10 +151,12 @@ const ProfileScreen: React.FC = () => {
       await authService.ensureVerifiedEmailForMediaUpload();
       setUploadingProfileImage(true);
 
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permissionResult.granted) {
-        showUploadAlert('Tilgang mangler', 'Gi tilgang til bilder for å laste opp profilbilde.');
-        return;
+      if (Platform.OS !== 'web') {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permissionResult.granted) {
+          showUploadAlert('Tilgang mangler', 'Gi tilgang til bilder for å laste opp profilbilde.');
+          return;
+        }
       }
 
       const pickerResult = await ImagePicker.launchImageLibraryAsync({
@@ -169,7 +171,8 @@ const ProfileScreen: React.FC = () => {
       }
 
       const selectedAsset = pickerResult.assets[0];
-      const uploadedImageUrl = await uploadProfileImage(user.id, selectedAsset.uri);
+      const webFile = (selectedAsset as any).file as Blob | undefined;
+      const uploadedImageUrl = await uploadProfileImage(user.id, webFile ?? selectedAsset.uri);
       setSelectedProfileImage(uploadedImageUrl);
     } catch (error) {
       console.error(error);

@@ -1086,10 +1086,12 @@ const GroupScreen = () => {
 
     setUploadingGroupImage(true);
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permissionResult.granted) {
-        showAlert('Tilgang mangler', 'Gi tilgang til bilder for å laste opp gruppebilde.');
-        return;
+      if (Platform.OS !== 'web') {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permissionResult.granted) {
+          showAlert('Tilgang mangler', 'Gi tilgang til bilder for å laste opp gruppebilde.');
+          return;
+        }
       }
 
       const pickerResult = await ImagePicker.launchImageLibraryAsync({
@@ -1104,7 +1106,8 @@ const GroupScreen = () => {
       }
 
       const selectedAsset = pickerResult.assets[0];
-      const uploadedImageUrl = await uploadGroupImage(selectedGroup.id, selectedAsset.uri);
+      const webFile = (selectedAsset as any).file as Blob | undefined;
+      const uploadedImageUrl = await uploadGroupImage(selectedGroup.id, webFile ?? selectedAsset.uri);
       await updateDoc(doc(firestore, 'groups', selectedGroup.id), { image: uploadedImageUrl });
       await applyGroupImageLocally(selectedGroup.id, uploadedImageUrl);
     } catch (error) {
