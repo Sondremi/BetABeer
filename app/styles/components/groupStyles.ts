@@ -3,9 +3,6 @@ import { globalStyles } from '../globalStyles';
 import { theme } from '../theme';
 
 export const groupStyles = StyleSheet.create({
-  screenContainer: {
-    padding: 0,
-  },
   pageScrollContent: {
     paddingBottom: theme.spacing.xxxl,
   },
@@ -22,14 +19,6 @@ export const groupStyles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: theme.spacing.lg,
     color: theme.colors.textSecondary,
-  },
-  heroBackButton: {
-    ...globalStyles.iconBackButton,
-    alignSelf: 'flex-start',
-    marginBottom: theme.spacing.sm,
-  },
-  heroBackButtonText: {
-    ...globalStyles.iconBackButtonText,
   },
   heroImageBackButton: {
     position: 'absolute',
@@ -49,11 +38,10 @@ export const groupStyles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   groupHeaderActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    ...globalStyles.commonGroupHeaderActions,
   },
   groupActionIconButton: {
-    marginLeft: theme.spacing.sm,
+    ...globalStyles.commonGroupActionIconButton,
   },
   groupActionDangerButton: {
     marginLeft: theme.spacing.sm,
@@ -83,8 +71,7 @@ export const groupStyles = StyleSheet.create({
     borderRadius: theme.borderRadius.sm,
   },
   groupBackControlText: {
-    fontSize: theme.fonts.sm,
-    fontWeight: '700',
+    ...globalStyles.commonGroupBackControlText,
   },
   groupTopDangerLinkButton: {
     marginBottom: 0,
@@ -122,7 +109,7 @@ export const groupStyles = StyleSheet.create({
     color: theme.colors.error,
   },
   betSelectionHintText: {
-    marginTop: theme.spacing.xs,
+    ...globalStyles.commonBetSelectionHintText,
   },
   actionCard: {
     marginHorizontal: theme.spacing.md,
@@ -144,11 +131,10 @@ export const groupStyles = StyleSheet.create({
     borderColor: theme.colors.error,
   },
   groupRemoveImageButtonText: {
-    color: theme.colors.error,
+    ...globalStyles.commonActionButtonDangerText,
   },
   groupInviteLinkButtonText: {
-    fontSize: theme.fonts.sm,
-    fontWeight: '700',
+    ...globalStyles.commonGroupBackControlText,
   },
   actionGridRow: {
     flexDirection: 'row',
@@ -165,7 +151,7 @@ export const groupStyles = StyleSheet.create({
     borderRadius: theme.borderRadius.sm,
   },
   actionGridButtonText: {
-    fontSize: theme.fonts.sm,
+    ...globalStyles.commonActionGridButtonText,
   },
   betListSection: {
     paddingBottom: theme.spacing.xl,
@@ -299,26 +285,19 @@ export const groupStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   memberActionButton: {
-    marginBottom: 0,
-    paddingVertical: theme.spacing.xs,
-    paddingHorizontal: theme.spacing.sm + theme.spacing.xxxs,
-    alignSelf: 'center',
-    justifyContent: 'center',
-    borderRadius: theme.borderRadius.sm,
+    ...globalStyles.commonActionButton,
   },
   memberActionText: {
-    fontSize: theme.fonts.xs,
-    fontWeight: '600',
-    lineHeight: theme.fonts.md,
+    ...globalStyles.commonActionButtonText,
   },
   memberActionButtonWithGap: {
-    marginLeft: theme.spacing.sm,
+    ...globalStyles.commonGroupActionIconButton,
   },
   memberActionDangerBorder: {
-    borderColor: theme.colors.error,
+    ...globalStyles.commonActionButtonDanger,
   },
   memberActionDangerText: {
-    color: theme.colors.error,
+    ...globalStyles.commonActionButtonDangerText,
   },
   memberDistributionPanel: {
     marginTop: theme.spacing.sm,
@@ -356,19 +335,16 @@ export const groupStyles = StyleSheet.create({
     alignItems: 'center',
   },
   distributionChoiceButtonActive: {
-    backgroundColor: theme.effects.gold12,
-    borderColor: theme.colors.primary,
+    ...globalStyles.commonDistributionChoiceButtonActive,
   },
   distributionChoiceText: {
-    color: theme.colors.text,
-    fontSize: theme.fonts.sm,
-    fontWeight: '500',
+    ...globalStyles.selectionButtonText,
   },
   distributionChoiceTextActive: {
-    color: theme.colors.primary,
+    ...globalStyles.primaryColorText,
   },
   distributionChoiceBlock: {
-    marginBottom: theme.spacing.sm,
+    ...globalStyles.commonDistributionChoiceBlock,
   },
   distributionAmountBadge: {
     paddingHorizontal: theme.spacing.sm,
@@ -400,21 +376,17 @@ export const groupStyles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   amountChipSelected: {
-    backgroundColor: theme.effects.gold12,
-    borderColor: theme.colors.primary,
+    ...globalStyles.commonDistributionChoiceButtonActive,
   },
   amountChipDisabled: {
     borderColor: theme.effects.white10,
     opacity: 0.5,
   },
   amountChipText: {
-    color: theme.colors.text,
-    fontSize: theme.fonts.md,
-    fontWeight: '500',
+    ...globalStyles.commonAmountChipText,
   },
   amountChipTextSelected: {
-    color: theme.colors.primary,
-    fontWeight: '700',
+    ...globalStyles.commonAmountChipTextSelected,
   },
   transactionRow: {
     paddingVertical: theme.spacing.xs,
@@ -454,13 +426,10 @@ export const groupStyles = StyleSheet.create({
     marginRight: theme.spacing.md,
   },
   detailedMemberName: {
-    fontSize: theme.fonts.md,
-    fontWeight: '600',
-    color: theme.colors.text,
+    ...globalStyles.primaryText,
   },
   detailedMemberSubtext: {
-    fontSize: theme.fonts.xs,
-    color: theme.colors.textSecondary,
+    ...globalStyles.commonDetailedMemberSubtext,
   },
   statChipRow: {
     flexDirection: 'row',
@@ -485,8 +454,7 @@ export const groupStyles = StyleSheet.create({
     elevation: 2,
   },
   statChipLabel: {
-    fontSize: theme.fonts.xs,
-    color: theme.colors.textSecondary,
+    ...globalStyles.commonDetailedMemberSubtext,
   },
   statChipValue: {
     fontSize: theme.fonts.sm,
@@ -511,9 +479,7 @@ export const groupStyles = StyleSheet.create({
     fontWeight: '600',
   },
   statsBreakdownActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
+    ...globalStyles.commonRequestActionRow,
   },
   consumeActionButton: {
     marginBottom: 0,
@@ -538,18 +504,13 @@ export const groupStyles = StyleSheet.create({
     maxHeight: theme.sizes.maxListHeightSm,
   },
   consumeHelperText: {
-    marginBottom: theme.spacing.sm,
-  },
-  validationHelperText: {
-    color: theme.colors.errorLight,
-    fontSize: theme.fonts.xs,
-    marginTop: theme.spacing.xs,
+    ...globalStyles.commonDistributionChoiceBlock,
   },
   betOptionsScrollWrap: {
-    maxHeight: theme.sizes.maxListHeightMd,
+    ...globalStyles.commonBetOptionsScrollWrap,
   },
   inputShell: {
-    marginTop: theme.spacing.xs,
+    ...globalStyles.commonBetSelectionHintText,
   },
   inputInsideShell: {
     borderWidth: 0,
@@ -576,7 +537,7 @@ export const groupStyles = StyleSheet.create({
     borderRadius: theme.borderRadius.sm,
   },
   leaderboardToggleActive: {
-    backgroundColor: theme.colors.primary,
+    ...globalStyles.defaultButton,
   },
   bacAverageCard: {
     borderWidth: 1,
@@ -620,8 +581,7 @@ export const groupStyles = StyleSheet.create({
     marginTop: theme.spacing.xxs,
   },
   bacAverageScaleText: {
-    fontSize: theme.fonts.xs,
-    color: theme.colors.textSecondary,
+    ...globalStyles.commonDetailedMemberSubtext,
   },
   bacAverageHint: {
     marginTop: theme.spacing.xs,
@@ -629,10 +589,10 @@ export const groupStyles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   modalFooter: {
-    marginTop: theme.spacing.md,
+    ...globalStyles.commonModalFooter,
   },
   distributionFooterRow: {
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     gap: theme.spacing.sm,
   },
@@ -683,16 +643,16 @@ export const groupStyles = StyleSheet.create({
     marginLeft: theme.spacing.xxxs + 1,
   },
   leaderboardSectionWrap: {
-    marginBottom: theme.spacing.md,
+    ...globalStyles.commonFriendSpacing,
   },
   leaderboardSectionTopGap: {
     marginTop: theme.spacing.lg,
   },
   leaderboardToggleLabel: {
-    fontSize: theme.fonts.sm,
+    ...globalStyles.commonActionGridButtonText,
   },
   leaderboardListWrap: {
-    paddingBottom: theme.spacing.md,
+    ...globalStyles.commonLeaderboardListWrap,
   },
   leaderboardPodiumRow: {
     flexDirection: 'row',
@@ -735,16 +695,14 @@ export const groupStyles = StyleSheet.create({
     marginRight: theme.spacing.sm,
   },
   leaderboardMemberMeta: {
-    flex: 1,
-    marginRight: theme.spacing.sm,
+    ...globalStyles.commonSearchInputShell,
   },
   leaderboardMemberName: {
     fontSize: theme.fonts.sm,
     color: theme.colors.text,
   },
   leaderboardMemberSubtext: {
-    fontSize: theme.fonts.xs,
-    color: theme.colors.textSecondary,
+    ...globalStyles.commonDetailedMemberSubtext,
   },
   leaderboardStatsCard: {
     minWidth: 84,
@@ -759,12 +717,10 @@ export const groupStyles = StyleSheet.create({
     minWidth: 104,
   },
   leaderboardStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    ...globalStyles.commonLeaderboardStatsRow,
   },
   leaderboardStatColumn: {
-    alignItems: 'center',
-    flex: 1,
+    ...globalStyles.commonLeaderboardStatColumn,
   },
   leaderboardStatLabel: {
     fontSize: theme.fonts.xxs + 1,
@@ -818,10 +774,10 @@ export const groupStyles = StyleSheet.create({
     height: 200,
   },
   podiumCardSecondOffset: {
-    marginRight: theme.spacing.sm,
+    ...globalStyles.commonPodiumCardSecondOffset,
   },
   podiumCardThirdOffset: {
-    marginLeft: theme.spacing.sm,
+    ...globalStyles.commonGroupActionIconButton,
   },
   podiumAvatarFirst: {
     width: 66,
@@ -850,8 +806,7 @@ export const groupStyles = StyleSheet.create({
     textAlign: 'center',
   },
   podiumNameTextFirst: {
-    fontSize: theme.fonts.md,
-    fontWeight: '600',
+    ...globalStyles.modalButtonText,
   },
   podiumNameTextOther: {
     fontSize: theme.fonts.sm,
@@ -878,7 +833,7 @@ export const groupStyles = StyleSheet.create({
     fontWeight: '700',
   },
   podiumPlacementTextFirst: {
-    fontSize: theme.fonts.sm,
+    ...globalStyles.commonActionGridButtonText,
   },
   podiumPlacementTextOther: {
     fontSize: theme.fonts.xs,
@@ -897,12 +852,10 @@ export const groupStyles = StyleSheet.create({
     paddingVertical: theme.spacing.sm - 2,
   },
   podiumStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    ...globalStyles.commonLeaderboardStatsRow,
   },
   podiumStatsColumn: {
-    alignItems: 'center',
-    flex: 1,
+    ...globalStyles.commonLeaderboardStatColumn,
   },
   podiumStatsLabel: {
     fontSize: theme.fonts.xxs,
@@ -911,8 +864,7 @@ export const groupStyles = StyleSheet.create({
     opacity: 0.95,
   },
   podiumStatsValue: {
-    color: theme.colors.primary,
-    fontWeight: '700',
+    ...globalStyles.commonAmountChipTextSelected,
   },
   podiumStatsValueFirst: {
     fontSize: theme.fonts.xxl,
@@ -943,7 +895,7 @@ export const groupStyles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   betSpacing: {
-    marginBottom: theme.spacing.lg,
+    ...globalStyles.commonBetSpacing,
   },
   betContainer: {
     paddingHorizontal: theme.spacing.md,
@@ -963,13 +915,13 @@ export const groupStyles = StyleSheet.create({
     backgroundColor: theme.colors.success,
   },
   userBetSummaryLose: {
-    backgroundColor: theme.colors.error,
+    ...globalStyles.destructiveButtonModal,
   },
   userBetSummaryTextWin: {
-    color: theme.colors.text,
+    ...globalStyles.pickerItem,
   },
   userBetSummaryTextLose: {
-    color: theme.colors.text,
+    ...globalStyles.pickerItem,
   },
   bettingOption: {
     flexDirection: 'row',
@@ -982,8 +934,7 @@ export const groupStyles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   bettingOptionSelected: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
+    ...globalStyles.selectionButtonSelected,
   },
   bettingOptionCorrect: {
     backgroundColor: theme.colors.success,
@@ -995,19 +946,17 @@ export const groupStyles = StyleSheet.create({
     opacity: 0.7,
   },
   optionName: {
-    color: theme.colors.text,
-    fontSize: theme.fonts.md,
-    fontWeight: '500',
+    ...globalStyles.commonAmountChipText,
   },
   optionNameSelected: {
-    color: theme.colors.background,
+    ...globalStyles.selectionButtonTextSelected,
   },
   optionNameCorrect: {
     color: theme.colors.text,
     fontWeight: 'bold',
   },
   optionNameIncorrect: {
-    color: theme.colors.textMuted,
+    ...globalStyles.disabledActionText,
   },
   optionOdds: {
     color: theme.colors.primary,
@@ -1015,13 +964,13 @@ export const groupStyles = StyleSheet.create({
     fontWeight: 'bold',
   },
   optionOddsSelected: {
-    color: theme.colors.background,
+    ...globalStyles.selectionButtonTextSelected,
   },
   optionOddsCorrect: {
-    color: theme.colors.text,
+    ...globalStyles.pickerItem,
   },
   optionOddsIncorrect: {
-    color: theme.colors.textMuted,
+    ...globalStyles.disabledActionText,
   },
   userWagerText: {
     color: theme.colors.background,
@@ -1030,7 +979,7 @@ export const groupStyles = StyleSheet.create({
     fontWeight: '500',
   },
   userWagerTextCorrect: {
-    color: theme.colors.text,
+    ...globalStyles.pickerItem,
   },
   wagersSectionTitle: {
     color: theme.colors.primary,
@@ -1050,7 +999,7 @@ export const groupStyles = StyleSheet.create({
     marginBottom: theme.spacing.xs,
   },
   wagersScrollWrap: {
-    maxHeight: theme.sizes.maxListHeightMd,
+    ...globalStyles.commonBetOptionsScrollWrap,
   },
   wagerUser: {
     color: theme.colors.text,

@@ -349,10 +349,7 @@ const SettingsScreen = () => {
 
   return (
     <KeyboardAvoidingView
-      style={[
-        Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container,
-        settingsStyles.pageContainer,
-      ]}
+      style={Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
@@ -361,8 +358,8 @@ const SettingsScreen = () => {
       >
         {/* Header */}
         <View style={[globalStyles.header, globalStyles.rowCenter]}>
-          <TouchableOpacity style={settingsStyles.backButton} onPress={handleBack}>
-            <Text style={settingsStyles.backButtonText}>←</Text>
+          <TouchableOpacity style={globalStyles.iconBackButton} onPress={handleBack}>
+            <Text style={globalStyles.iconBackButtonText}>←</Text>
           </TouchableOpacity>
           <Text style={globalStyles.headerTitle}>Innstillinger</Text>
         </View>
@@ -485,7 +482,7 @@ const SettingsScreen = () => {
                 <View style={[globalStyles.pickerInput, globalStyles.inputShellFocusedGold]}>
                   <Picker
                     style={globalStyles.picker}
-                    itemStyle={settingsStyles.pickerItem}
+                    itemStyle={globalStyles.pickerItem}
                     selectedValue={editedInfo.gender || ''}
                     onValueChange={(value: Gender | '') => setEditedInfo({ ...editedInfo, gender: value || undefined })}
                   >
@@ -514,7 +511,7 @@ const SettingsScreen = () => {
                     onPress={handleSave}
                     disabled={isLoading || !canSaveEditedData}
                   >
-                    <Text style={[globalStyles.saveButtonText, (!canSaveEditedData || isLoading) && settingsStyles.disabledActionText]}>
+                    <Text style={[globalStyles.saveButtonText, (!canSaveEditedData || isLoading) && globalStyles.disabledActionText]}>
                       {isLoading ? 'Lagrer...' : 'Lagre'}
                     </Text>
                   </TouchableOpacity>

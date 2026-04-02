@@ -7,42 +7,23 @@ export const friendsScreenTokens = {
 };
 
 export const friendsStyles = StyleSheet.create({
-  pageContainer: {
-    padding: 0,
-  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,
   },
-  backButton: {
-    ...globalStyles.iconBackButton,
-  },
-  backButtonText: {
-    ...globalStyles.iconBackButtonText,
-  },
   compactSection: {
-    paddingBottom: theme.spacing.lg,
+    ...globalStyles.commonCompactSection,
   },
   headerTitle: {
     color: theme.colors.primary,
     letterSpacing: 0.8,
   },
   sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
+    ...globalStyles.commonSectionHeaderRow,
   },
   collapsedHeaderRow: {
-    marginBottom: 0,
-  },
-  sectionToggleButton: {
-    ...globalStyles.sectionToggleIconButton,
-  },
-  sectionToggleButtonText: {
-    ...globalStyles.sectionToggleIconButtonText,
+    ...globalStyles.commonCollapsedHeaderRow,
   },
   friendName: {
     fontSize: theme.fonts.md,
@@ -55,11 +36,20 @@ export const friendsStyles = StyleSheet.create({
     fontSize: theme.fonts.xs,
     marginTop: theme.spacing.xxxs,
   },
-  button: {
-    ...globalStyles.iconActionButtonSm,
+  actionButton: {
+    ...globalStyles.commonActionButton,
+  },
+  actionButtonText: {
+    ...globalStyles.commonActionButtonText,
+  },
+  actionButtonDanger: {
+    ...globalStyles.commonActionButtonDanger,
+  },
+  actionButtonDangerText: {
+    ...globalStyles.commonActionButtonDangerText,
   },
   friendSpacing: {
-    marginBottom: theme.spacing.md,
+    ...globalStyles.commonFriendSpacing,
   },
   friendRow: {
     borderRadius: theme.borderRadius.lg,
@@ -78,21 +68,11 @@ export const friendsStyles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: theme.spacing.md,
   },
-  searchSectionCard: {
-    ...globalStyles.premiumSectionCard,
-  },
-  listSectionCard: {
-    ...globalStyles.premiumSectionCard,
-  },
   inviteDescription: {
-    marginBottom: 0,
-  },
-  searchResultBox: {
-    ...globalStyles.warmListPanel,
+    ...globalStyles.commonCollapsedHeaderRow,
   },
   searchInputShell: {
-    flex: 1,
-    marginRight: theme.spacing.sm,
+    ...globalStyles.commonSearchInputShell,
   },
   searchInput: {
     backgroundColor: 'transparent',
@@ -116,16 +96,13 @@ export const friendsStyles = StyleSheet.create({
     fontWeight: '700',
   },
   requestActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
+    ...globalStyles.commonRequestActionRow,
   },
   listScrollBox: {
     maxHeight: theme.sizes.maxListHeightXxl,
-    ...globalStyles.warmListPanel,
   },
   listScrollContent: {
-    paddingBottom: theme.spacing.xs,
+    ...globalStyles.commonListScrollContent,
   },
   scrollHint: {
     marginTop: theme.spacing.xs,

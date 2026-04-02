@@ -31,14 +31,11 @@ export const profileChartConfig = {
 };
 
 export const profileStyles = StyleSheet.create({
-  pageContainer: {
-    padding: 0,
-  },
   compactSection: {
-    paddingBottom: theme.spacing.lg,
+    ...globalStyles.commonCompactSection,
   },
   compactCenteredSection: {
-    paddingBottom: theme.spacing.lg,
+    ...globalStyles.commonCompactSection,
   },
   heroSection: {
     paddingTop: theme.spacing.xxxl,
@@ -62,7 +59,7 @@ export const profileStyles = StyleSheet.create({
     paddingHorizontal: theme.spacing.xl,
     alignItems: 'center',
   },
-  heroSettingsButton: {
+  heroButton: {
     position: 'absolute',
     top: theme.spacing.md,
     left: theme.spacing.md,
@@ -72,7 +69,7 @@ export const profileStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderHeroButton,
   },
-  heroFriendsButton: {
+  heroButtonRight: {
     position: 'absolute',
     top: theme.spacing.md,
     right: theme.spacing.md,
@@ -110,7 +107,7 @@ export const profileStyles = StyleSheet.create({
     marginTop: theme.spacing.sm,
   },
   profileUsername: {
-    marginTop: theme.spacing.xs,
+    ...globalStyles.commonBetSelectionHintText,
   },
   sectionCard: {
     borderRadius: theme.borderRadius.hero,
@@ -118,7 +115,7 @@ export const profileStyles = StyleSheet.create({
     paddingVertical: theme.spacing.xl,
   },
   sectionCardSpacing: {
-    marginBottom: theme.spacing.md,
+    ...globalStyles.commonFriendSpacing,
   },
   bacActionRow: {
     flexDirection: 'row',
@@ -126,14 +123,10 @@ export const profileStyles = StyleSheet.create({
     alignItems: 'center',
   },
   bacHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
+    ...globalStyles.commonSectionHeaderRow,
   },
   collapsedHeaderRow: {
-    marginBottom: 0,
+    ...globalStyles.commonCollapsedHeaderRow,
   },
   bacToggleButton: {
     ...globalStyles.sectionToggleIconButton,
@@ -161,8 +154,7 @@ export const profileStyles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
   },
   bacQuickAddButton: {
-    marginTop: theme.spacing.sm,
-    marginBottom: 0,
+    ...globalStyles.commonBacQuickAddButton,
   },
   bacQuickAddButtonText: {
     textAlign: 'center',
@@ -253,17 +245,16 @@ export const profileStyles = StyleSheet.create({
     paddingBottom: 0,
   },
   invitationActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    ...globalStyles.commonGroupHeaderActions,
   },
   invitationAcceptButton: {
-    marginRight: theme.spacing.sm,
+    ...globalStyles.commonPodiumCardSecondOffset,
   },
   invitationRejectButton: {
-    backgroundColor: theme.colors.error,
+    ...globalStyles.destructiveButtonModal,
   },
   invitationRejectButtonText: {
-    color: theme.colors.background,
+    ...globalStyles.selectionButtonTextSelected,
   },
   chartCard: {
     marginBottom: 0,
@@ -330,22 +321,19 @@ export const profileStyles = StyleSheet.create({
     position: 'relative',
   },
   invitationItemSpacing: {
-    marginBottom: theme.spacing.sm,
+    ...globalStyles.commonDistributionChoiceBlock,
   },
   groupRowSpacer: {
     width: '48%',
   },
   createGroupRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
+    ...globalStyles.commonRequestActionRow,
   },
   createGroupInputShell: {
-    flex: 1,
+    ...globalStyles.itemInfo,
   },
   createGroupInput: {
-    borderWidth: 0,
-    backgroundColor: 'transparent',
+    ...globalStyles.commonCreateGroupInput,
   },
   createGroupActionButton: {
     backgroundColor: theme.colors.primary,
@@ -390,7 +378,7 @@ export const profileStyles = StyleSheet.create({
     width: '100%',
   },
   inviteListScrollContent: {
-    paddingBottom: theme.spacing.xs,
+    ...globalStyles.commonListScrollContent,
   },
   inviteListRow: {
     flexDirection: 'row',
@@ -416,7 +404,7 @@ export const profileStyles = StyleSheet.create({
     borderColor: theme.colors.primary,
   },
   inviteListInfo: {
-    flex: 1,
+    ...globalStyles.itemInfo,
   },
   inviteListName: {
     color: theme.colors.text,
@@ -433,7 +421,7 @@ export const profileStyles = StyleSheet.create({
     maxWidth: theme.sizes.maxInlineStatusWidth,
   },
   inviteStatusTextSelected: {
-    color: theme.colors.primary,
+    ...globalStyles.primaryColorText,
   },
   profileModalContent: {
     padding: theme.spacing.md,
@@ -446,7 +434,7 @@ export const profileStyles = StyleSheet.create({
     maxWidth: theme.sizes.heroCardMaxWidth,
   },
   onboardingTitle: {
-    color: theme.colors.primary,
+    ...globalStyles.primaryColorText,
   },
   onboardingTextBox: {
     borderRadius: theme.borderRadius.md,
@@ -457,7 +445,7 @@ export const profileStyles = StyleSheet.create({
     paddingHorizontal: theme.spacing.sm,
   },
   onboardingTextScroll: {
-    maxHeight: '100%',
+    ...globalStyles.commonOnboardingTextScroll,
   },
   onboardingTextScrollContent: {
     paddingVertical: theme.spacing.sm,
@@ -480,12 +468,24 @@ export const profileStyles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   profileUploadPreviewImage: {
-    width: theme.sizes.avatarXl,
-    height: theme.sizes.avatarXl,
-    borderRadius: theme.sizes.avatarXl / 2,
+    ...globalStyles.commonProfileUploadPreviewImage,
   },
   profileUploadButton: {
-    marginBottom: theme.spacing.sm,
+    ...globalStyles.commonDistributionChoiceBlock,
+  },
+  profileModalActionButton: {
+    marginBottom: 0,
+    minWidth: 112,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.md,
+    alignSelf: 'center',
+    justifyContent: 'center',
+    borderRadius: theme.borderRadius.sm,
+  },
+  profileModalActionButtonText: {
+    fontSize: theme.fonts.sm,
+    fontWeight: '600',
+    lineHeight: theme.fonts.md,
   },
   profileUploadHintText: {
     color: theme.colors.textMuted,
@@ -502,17 +502,14 @@ export const profileStyles = StyleSheet.create({
     borderColor: theme.colors.primary,
   },
   profileImageChoiceImage: {
-    width: theme.sizes.avatarXl,
-    height: theme.sizes.avatarXl,
-    borderRadius: theme.sizes.avatarXl / 2,
+    ...globalStyles.commonProfileUploadPreviewImage,
   },
   profileNameGroup: {
     marginTop: theme.spacing.md,
     marginBottom: theme.spacing.md,
   },
   profileNameInput: {
-    borderWidth: 0,
-    backgroundColor: 'transparent',
+    ...globalStyles.commonCreateGroupInput,
   },
   drinkModalContent: {
     padding: theme.spacing.md,
@@ -528,19 +525,19 @@ export const profileStyles = StyleSheet.create({
     maxHeight: theme.sizes.sheetMaxHeight - 180,
   },
   drinkModalScroll: {
-    maxHeight: '100%',
+    ...globalStyles.commonOnboardingTextScroll,
   },
   drinkModalScrollContent: {
-    paddingBottom: theme.spacing.md,
+    ...globalStyles.commonLeaderboardListWrap,
   },
   drinkModalActions: {
-    marginTop: theme.spacing.md,
+    ...globalStyles.commonModalFooter,
   },
   drinkModalTitle: {
-    marginBottom: theme.spacing.md,
+    ...globalStyles.commonFriendSpacing,
   },
   pickerGroupCompact: {
-    marginBottom: theme.spacing.sm,
+    ...globalStyles.commonDistributionChoiceBlock,
   },
   customAlcoholInput: {
     height: theme.sizes.avatarSm,
@@ -555,9 +552,7 @@ export const profileStyles = StyleSheet.create({
     height: theme.sizes.avatarSm - theme.spacing.xxxs,
   },
   unitInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
+    ...globalStyles.commonRequestActionRow,
   },
   buttonPickerRow: {
     marginBottom: theme.spacing.xs,
@@ -566,13 +561,10 @@ export const profileStyles = StyleSheet.create({
     flexGrow: 0,
   },
   unitInputShell: {
-    flex: 1,
+    ...globalStyles.itemInfo,
   },
   unitPickerShell: {
     width: 96,
-  },
-  pickerItem: {
-    color: theme.colors.text,
   },
   pickerGlowShell: {
     borderRadius: theme.borderRadius.md,
@@ -598,14 +590,6 @@ export const profileStyles = StyleSheet.create({
     color: theme.colors.primary,
     fontSize: theme.fonts.lg,
     fontWeight: '700',
-  },
-  validationHelperText: {
-    color: theme.colors.errorLight,
-    fontSize: theme.fonts.xs,
-    marginTop: theme.spacing.xs,
-  },
-  disabledActionText: {
-    color: theme.colors.textMuted,
   },
   listContainerCard: {
     borderRadius: theme.borderRadius.lg,

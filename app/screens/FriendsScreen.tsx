@@ -14,10 +14,7 @@ import { getDefaultProfilePicture, resolveProfileImageSource } from '../utils/pr
 
 const DefaultProfilePicture = getDefaultProfilePicture();
 const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
-const RemoveFriendIcon = require('../../assets/icons/noun-user-removed-7856287.png');
 const PeopleIcon = require('../../assets/icons/noun-people-2196504.png');
-const AcceptIcon = require('../../assets/icons/noun-add-2037478.png');
-const RejectIcon = require('../../assets/icons/noun-delete-7938028.png');
 
 const FriendsScreen = () => {
   const router = useRouter();
@@ -310,29 +307,34 @@ const FriendsScreen = () => {
         <Text style={globalStyles.secondaryText}>@{item.username}</Text>
         {item.type === 'pending' && <Text style={friendsStyles.pendingText}>Forespørsel sendt</Text>}
       </View>
-      <TouchableOpacity style={friendsStyles.button} onPress={() => handleRemoveFriend(item)}>
-        <Image source={item.type === 'pending' ? RejectIcon : RemoveFriendIcon} style={globalStyles.deleteIcon} />
+      <TouchableOpacity
+        style={[globalStyles.outlineButtonGold, friendsStyles.actionButton, friendsStyles.actionButtonDanger]}
+        onPress={() => handleRemoveFriend(item)}
+      >
+        <Text style={[globalStyles.outlineButtonGoldText, friendsStyles.actionButtonText, friendsStyles.actionButtonDangerText]}>
+          Fjern
+        </Text>
       </TouchableOpacity>
     </View>
   );
 
   return (
     <KeyboardAvoidingView
-      style={[Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container, friendsStyles.pageContainer]}
+      style={Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={globalStyles.fullWidthScrollContent} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={[globalStyles.header, friendsStyles.headerRow]}>
-          <TouchableOpacity style={friendsStyles.backButton} onPress={handleBack}>
-            <Text style={friendsStyles.backButtonText}>←</Text>
+          <TouchableOpacity style={globalStyles.iconBackButton} onPress={handleBack}>
+            <Text style={globalStyles.iconBackButtonText}>←</Text>
           </TouchableOpacity>
           <Text style={[globalStyles.headerTitle, friendsStyles.headerTitle]}>Venner</Text>
         </View>
 
         {/* Invite friends section */}
         <View style={[globalStyles.section, friendsStyles.compactSection]}>
-          <View style={[globalStyles.premiumCard, friendsStyles.listSectionCard]}>
+          <View style={[globalStyles.premiumCard, globalStyles.premiumSectionCard]}>
             <TouchableOpacity style={globalStyles.outlineButtonGold} onPress={handleInviteFriends}>
               <Text style={globalStyles.outlineButtonGoldText}>Inviter venner</Text>
             </TouchableOpacity>
@@ -342,7 +344,7 @@ const FriendsScreen = () => {
 
         {/* Search Section */}
         <View style={[globalStyles.section, friendsStyles.compactSection]}>
-          <View style={[globalStyles.premiumCard, friendsStyles.searchSectionCard]}>
+          <View style={[globalStyles.premiumCard, globalStyles.premiumSectionCard]}>
             <Text style={globalStyles.sectionTitle}>Søk etter venner</Text>
             <View style={friendsStyles.searchRow}>
               <View style={[globalStyles.inputShellDark, friendsStyles.searchInputShell, searchFocused && globalStyles.inputShellFocusedGold]}>
@@ -370,7 +372,7 @@ const FriendsScreen = () => {
               </TouchableOpacity>
             </View>
             {searchResults.length > 0 && (
-              <View style={friendsStyles.searchResultBox}>
+              <View style={globalStyles.warmListPanel}>
                 {searchResults.map((item) => (
                   <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing, friendsStyles.friendRow]} key={item.id}>
                     <Image
@@ -382,10 +384,15 @@ const FriendsScreen = () => {
                       <Text style={globalStyles.secondaryText}>@{item.username}</Text>
                     </View>
                     <TouchableOpacity
-                      style={friendsStyles.button}
+                      style={[
+                        globalStyles.outlineButtonGold,
+                        friendsStyles.actionButton,
+                      ]}
                       onPress={() => handleAddFriend(item)}
                     >
-                      <Image source={AddFriendIcon} style={globalStyles.primaryIcon} />
+                      <Text style={[globalStyles.outlineButtonGoldText, friendsStyles.actionButtonText]}>
+                        Legg til
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -396,23 +403,23 @@ const FriendsScreen = () => {
 
         {/* Friends section */}
         <View style={[globalStyles.section, friendsStyles.compactSection]}>
-          <View style={[globalStyles.premiumCard, friendsStyles.listSectionCard]}>
+          <View style={[globalStyles.premiumCard, globalStyles.premiumSectionCard]}>
             <View style={[friendsStyles.sectionHeaderRow, !isFriendsExpanded && friendsStyles.collapsedHeaderRow]}>
               <Text style={globalStyles.sectionTitle}>Mine venner ({friends.length})</Text>
               <TouchableOpacity
-                style={[globalStyles.outlineButtonGold, friendsStyles.sectionToggleButton]}
+                style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}
                 onPress={() => setIsFriendsExpanded((prev) => !prev)}
                 accessibilityRole="button"
                 accessibilityLabel={isFriendsExpanded ? 'Minimer venner' : 'Utvid venner'}
               >
-                <Text style={[globalStyles.outlineButtonGoldText, friendsStyles.sectionToggleButtonText]}>
+                <Text style={[globalStyles.outlineButtonGoldText, globalStyles.sectionToggleIconButtonText]}>
                   {isFriendsExpanded ? '▾' : '▸'}
                 </Text>
               </TouchableOpacity>
             </View>
             {isFriendsExpanded && friends.length > 0 ? (
               <View>
-                <View style={friendsStyles.listScrollBox}>
+                <View style={[globalStyles.warmListPanel, friendsStyles.listScrollBox]}>
                   <ScrollView nestedScrollEnabled contentContainerStyle={friendsStyles.listScrollContent}>
                     {friends.map((item) => (
                       <View key={item.id + (item.type === 'pending' ? '-pending' : '')}>{renderFriend({ item })}</View>
@@ -432,23 +439,23 @@ const FriendsScreen = () => {
 
         {/* Friend Requests section */}
         <View style={[globalStyles.section, friendsStyles.compactSection]}>
-          <View style={[globalStyles.premiumCard, friendsStyles.listSectionCard]}>
+          <View style={[globalStyles.premiumCard, globalStyles.premiumSectionCard]}>
             <View style={[friendsStyles.sectionHeaderRow, !isRequestsExpanded && friendsStyles.collapsedHeaderRow]}>
               <Text style={globalStyles.sectionTitle}>Venneforespørsler ({incomingRequests.length})</Text>
               <TouchableOpacity
-                style={[globalStyles.outlineButtonGold, friendsStyles.sectionToggleButton]}
+                style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}
                 onPress={() => setIsRequestsExpanded((prev) => !prev)}
                 accessibilityRole="button"
                 accessibilityLabel={isRequestsExpanded ? 'Minimer venneforespørsler' : 'Utvid venneforespørsler'}
               >
-                <Text style={[globalStyles.outlineButtonGoldText, friendsStyles.sectionToggleButtonText]}>
+                <Text style={[globalStyles.outlineButtonGoldText, globalStyles.sectionToggleIconButtonText]}>
                   {isRequestsExpanded ? '▾' : '▸'}
                 </Text>
               </TouchableOpacity>
             </View>
             {isRequestsExpanded && incomingRequests.length > 0 ? (
               <View>
-                <View style={friendsStyles.listScrollBox}>
+                <View style={[globalStyles.warmListPanel, friendsStyles.listScrollBox]}>
                   <ScrollView nestedScrollEnabled contentContainerStyle={friendsStyles.listScrollContent}>
                     {incomingRequests.map((item) => (
                       <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing, friendsStyles.friendRow]} key={item.id}>
@@ -462,16 +469,27 @@ const FriendsScreen = () => {
                         </View>
                         <View style={friendsStyles.requestActionRow}>
                           <TouchableOpacity
-                            style={friendsStyles.button}
-                            onPress={() => handleAcceptRequest(item)}
-                          >
-                            <Image source={AcceptIcon} style={globalStyles.primaryIcon} />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={friendsStyles.button}
+                            style={[
+                              globalStyles.outlineButtonGold,
+                              friendsStyles.actionButton,
+                              friendsStyles.actionButtonDanger,
+                            ]}
                             onPress={() => handleDeclineRequest(item)}
                           >
-                            <Image source={RejectIcon} style={globalStyles.deleteIcon} />
+                            <Text style={[globalStyles.outlineButtonGoldText, friendsStyles.actionButtonText, friendsStyles.actionButtonDangerText]}>
+                              Fjern
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[
+                              globalStyles.outlineButtonGold,
+                              friendsStyles.actionButton,
+                            ]}
+                            onPress={() => handleAcceptRequest(item)}
+                          >
+                            <Text style={[globalStyles.outlineButtonGoldText, friendsStyles.actionButtonText]}>
+                              Godta
+                            </Text>
                           </TouchableOpacity>
                         </View>
                       </View>

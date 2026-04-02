@@ -216,13 +216,14 @@ export const globalStyles = StyleSheet.create({
   iconBackButton: {
     padding: theme.spacing.sm,
     borderRadius: theme.borderRadius.circle,
-    backgroundColor: theme.colors.primary,
-    minWidth: theme.spacing.huge,
+    backgroundColor: theme.colors.backgroundCard,
+    borderWidth: 1,
+    borderColor: theme.colors.borderHeroButton,
     alignItems: 'center',
   },
   iconBackButtonText: {
     fontSize: theme.fonts.xl,
-    color: theme.colors.background,
+    color: theme.colors.primary,
     fontWeight: 'bold',
   },
   sectionToggleIconButton: {
@@ -331,6 +332,9 @@ export const globalStyles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     fontSize: theme.fonts.md,
     justifyContent: 'center',
+  },
+  pickerItem: {
+    color: theme.colors.text,
   },
   readOnlyInput: {
     borderWidth: 1,
@@ -513,10 +517,21 @@ export const globalStyles = StyleSheet.create({
     fontSize: theme.fonts.sm,
     color: theme.colors.primary,
   },
+  primaryColorText: {
+    color: theme.colors.primary,
+  },
   mutedText: {
     fontSize: theme.fonts.xs,
     color: theme.colors.textMuted,
     fontStyle: 'italic',
+  },
+  validationHelperText: {
+    color: theme.colors.errorLight,
+    fontSize: theme.fonts.xs,
+    marginTop: theme.spacing.xs,
+  },
+  disabledActionText: {
+    color: theme.colors.textMuted,
   },
   largeBoldText: {
     fontSize: theme.fonts.xxxl,
@@ -668,5 +683,129 @@ export const globalStyles = StyleSheet.create({
     width: 36,
     height: 36,
     tintColor: theme.colors.primary,
+  },
+
+  commonCompactSection: {
+    paddingBottom: theme.spacing.lg,
+  },
+  commonSectionHeaderRow: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: theme.spacing.sm,
+        marginBottom: theme.spacing.md,
+  },
+  commonCollapsedHeaderRow: {
+    marginBottom: 0,
+  },
+  commonActionButton: {
+    marginBottom: 0,
+        paddingVertical: theme.spacing.xs,
+        paddingHorizontal: theme.spacing.sm + theme.spacing.xxxs,
+        alignSelf: 'center',
+        justifyContent: 'center',
+        borderRadius: theme.borderRadius.sm,
+  },
+  commonActionButtonText: {
+    fontSize: theme.fonts.xs,
+        fontWeight: '600',
+        lineHeight: theme.fonts.md,
+  },
+  commonActionButtonDanger: {
+    borderColor: theme.colors.error,
+  },
+  commonActionButtonDangerText: {
+    color: theme.colors.error,
+  },
+  commonFriendSpacing: {
+    marginBottom: theme.spacing.md,
+  },
+  commonSearchInputShell: {
+    flex: 1,
+        marginRight: theme.spacing.sm,
+  },
+  commonRequestActionRow: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+  },
+  commonListScrollContent: {
+    paddingBottom: theme.spacing.xs,
+  },
+  commonGroupHeaderActions: {
+    flexDirection: 'row',
+        alignItems: 'center',
+  },
+  commonGroupActionIconButton: {
+    marginLeft: theme.spacing.sm,
+  },
+  commonGroupBackControlText: {
+    fontSize: theme.fonts.sm,
+        fontWeight: '700',
+  },
+  commonBetSelectionHintText: {
+    marginTop: theme.spacing.xs,
+  },
+  commonActionGridButtonText: {
+    fontSize: theme.fonts.sm,
+  },
+  commonDistributionChoiceButtonActive: {
+    backgroundColor: theme.effects.gold12,
+        borderColor: theme.colors.primary,
+  },
+  commonDistributionChoiceBlock: {
+    marginBottom: theme.spacing.sm,
+  },
+  commonAmountChipText: {
+    color: theme.colors.text,
+        fontSize: theme.fonts.md,
+        fontWeight: '500',
+  },
+  commonAmountChipTextSelected: {
+    color: theme.colors.primary,
+        fontWeight: '700',
+  },
+  commonDetailedMemberSubtext: {
+    fontSize: theme.fonts.xs,
+        color: theme.colors.textSecondary,
+  },
+  commonBetOptionsScrollWrap: {
+    maxHeight: theme.sizes.maxListHeightMd,
+  },
+  commonModalFooter: {
+    marginTop: theme.spacing.md,
+  },
+  commonLeaderboardListWrap: {
+    paddingBottom: theme.spacing.md,
+  },
+  commonLeaderboardStatsRow: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+  },
+  commonLeaderboardStatColumn: {
+    alignItems: 'center',
+        flex: 1,
+  },
+  commonPodiumCardSecondOffset: {
+    marginRight: theme.spacing.sm,
+  },
+  commonBetSpacing: {
+    marginBottom: theme.spacing.lg,
+  },
+  commonBacQuickAddButton: {
+    marginTop: theme.spacing.sm,
+        marginBottom: 0,
+  },
+  commonCreateGroupInput: {
+    borderWidth: 0,
+        backgroundColor: 'transparent',
+  },
+  commonOnboardingTextScroll: {
+    maxHeight: '100%',
+  },
+  commonProfileUploadPreviewImage: {
+    width: theme.sizes.avatarXl,
+        height: theme.sizes.avatarXl,
+        borderRadius: theme.sizes.avatarXl / 2,
   },
 });

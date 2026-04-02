@@ -463,7 +463,6 @@ const LoginScreen: React.FC = () => {
       style={[
         globalStyles.containerWeb,
         loginStyles.darkContainer,
-        loginStyles.pageContainer,
       ]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 18 : 0}
