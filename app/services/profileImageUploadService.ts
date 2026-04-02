@@ -11,6 +11,30 @@ const UPLOAD_TIMEOUT_MS = 20_000;
 const DOWNLOAD_URL_TIMEOUT_MS = 10_000;
 type UploadImageSource = string | Blob;
 
+const isDataUrl = (value: string) => value.startsWith('data:');
+
+const dataUrlToBlob = (dataUrl: string): Blob => {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) {
+    throw new Error('Ugyldig bildeformat fra filvelger.');
+  }
+
+  const mimeType = match[1] || 'image/jpeg';
+  const base64Data = match[2];
+  const decode = globalThis.atob;
+  if (!decode) {
+    throw new Error('Nettleseren støtter ikke opplasting av dette bildeformatet.');
+  }
+
+  const binary = decode(base64Data);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return new Blob([bytes], { type: mimeType });
+};
+
 const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, timeoutErrorMessage: string): Promise<T> => {
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
@@ -63,6 +87,10 @@ const getBlobFromUri = async (uri: string): Promise<Blob> => {
 const getBlobFromSource = async (source: UploadImageSource): Promise<Blob> => {
   if (typeof source !== 'string') {
     return source;
+  }
+
+  if (isDataUrl(source)) {
+    return dataUrlToBlob(source);
   }
 
   return getBlobFromUri(source);

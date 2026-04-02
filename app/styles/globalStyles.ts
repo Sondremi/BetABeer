@@ -122,6 +122,11 @@ export const globalStyles = StyleSheet.create({
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.lg,
   },
+  sectionCard: {
+    marginBottom: theme.spacing.lg,
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.xl,
+  },
   warmListPanel: {
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
@@ -214,15 +219,18 @@ export const globalStyles = StyleSheet.create({
     width: 40,
   },
   iconBackButton: {
-    padding: theme.spacing.sm,
+    width: theme.sizes.iconButton,
+    height: theme.sizes.iconButton,
     borderRadius: theme.borderRadius.circle,
-    backgroundColor: theme.colors.primary,
-    minWidth: theme.spacing.huge,
+    backgroundColor: theme.colors.backgroundCard,
+    borderWidth: 1,
+    borderColor: theme.colors.borderHeroButton,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   iconBackButtonText: {
     fontSize: theme.fonts.xl,
-    color: theme.colors.background,
+    color: theme.colors.primary,
     fontWeight: 'bold',
   },
   sectionToggleIconButton: {
@@ -331,6 +339,9 @@ export const globalStyles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     fontSize: theme.fonts.md,
     justifyContent: 'center',
+  },
+  pickerItem: {
+    color: theme.colors.text,
   },
   readOnlyInput: {
     borderWidth: 1,
@@ -513,10 +524,21 @@ export const globalStyles = StyleSheet.create({
     fontSize: theme.fonts.sm,
     color: theme.colors.primary,
   },
+  primaryColorText: {
+    color: theme.colors.primary,
+  },
   mutedText: {
     fontSize: theme.fonts.xs,
     color: theme.colors.textMuted,
     fontStyle: 'italic',
+  },
+  validationHelperText: {
+    color: theme.colors.errorLight,
+    fontSize: theme.fonts.xs,
+    marginTop: theme.spacing.xs,
+  },
+  disabledActionText: {
+    color: theme.colors.textMuted,
   },
   largeBoldText: {
     fontSize: theme.fonts.xxxl,
@@ -529,6 +551,10 @@ export const globalStyles = StyleSheet.create({
     color: theme.colors.primary,
     marginBottom: theme.spacing.sm,
     letterSpacing: 1,
+  },
+  disabledGoldActionText: {
+    color: theme.colors.primarySoft,
+    opacity: 0.55,
   },
 
   // Images
@@ -664,5 +690,129 @@ export const globalStyles = StyleSheet.create({
     width: 36,
     height: 36,
     tintColor: theme.colors.primary,
+  },
+
+  compactSection: {
+    paddingBottom: theme.spacing.lg,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: theme.spacing.sm,
+        marginBottom: theme.spacing.md,
+  },
+  collapsedHeaderRow: {
+    marginBottom: 0,
+  },
+  actionButton: {
+    marginBottom: 0,
+        paddingVertical: theme.spacing.xs,
+        paddingHorizontal: theme.spacing.sm + theme.spacing.xxxs,
+        alignSelf: 'center',
+        justifyContent: 'center',
+        borderRadius: theme.borderRadius.sm,
+  },
+  actionButtonText: {
+    fontSize: theme.fonts.xs,
+        fontWeight: '600',
+        lineHeight: theme.fonts.md,
+  },
+  actionButtonDanger: {
+    borderColor: theme.colors.error,
+  },
+  actionButtonDangerText: {
+    color: theme.colors.error,
+  },
+  friendSpacing: {
+    marginBottom: theme.spacing.md,
+  },
+  searchInputShell: {
+    flex: 1,
+        marginRight: theme.spacing.sm,
+  },
+  requestActionRow: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+  },
+  listScrollContent: {
+    paddingBottom: theme.spacing.xs,
+  },
+  groupHeaderActions: {
+    flexDirection: 'row',
+        alignItems: 'center',
+  },
+  groupActionIconButton: {
+    marginLeft: theme.spacing.sm,
+  },
+  groupBackControlText: {
+    fontSize: theme.fonts.sm,
+        fontWeight: '700',
+  },
+  betSelectionHintText: {
+    marginTop: theme.spacing.xs,
+  },
+  actionGridButtonText: {
+    fontSize: theme.fonts.sm,
+  },
+  distributionChoiceButtonActive: {
+    backgroundColor: theme.effects.gold12,
+        borderColor: theme.colors.primary,
+  },
+  distributionChoiceBlock: {
+    marginBottom: theme.spacing.sm,
+  },
+  amountChipText: {
+    color: theme.colors.text,
+        fontSize: theme.fonts.md,
+        fontWeight: '500',
+  },
+  amountChipTextSelected: {
+    color: theme.colors.primary,
+        fontWeight: '700',
+  },
+  detailedMemberSubtext: {
+    fontSize: theme.fonts.xs,
+        color: theme.colors.textSecondary,
+  },
+  betOptionsScrollWrap: {
+    maxHeight: theme.sizes.maxListHeightMd,
+  },
+  modalFooter: {
+    marginTop: theme.spacing.md,
+  },
+  leaderboardListWrap: {
+    paddingBottom: theme.spacing.md,
+  },
+  leaderboardStatsRow: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+  },
+  leaderboardStatColumn: {
+    alignItems: 'center',
+        flex: 1,
+  },
+  podiumCardSecondOffset: {
+    marginRight: theme.spacing.sm,
+  },
+  betSpacing: {
+    marginBottom: theme.spacing.lg,
+  },
+  bacQuickAddButton: {
+    marginTop: theme.spacing.sm,
+        marginBottom: 0,
+  },
+  createGroupInput: {
+    borderWidth: 0,
+        backgroundColor: 'transparent',
+  },
+  onboardingTextScroll: {
+    maxHeight: '100%',
+  },
+  profileUploadPreviewImage: {
+    width: theme.sizes.avatarXl,
+        height: theme.sizes.avatarXl,
+        borderRadius: theme.sizes.avatarXl / 2,
   },
 });

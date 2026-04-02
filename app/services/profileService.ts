@@ -202,6 +202,14 @@ export const profileService = {
     });
   },
 
+  async resetBACHighscore(userId: string): Promise<void> {
+    const userRef = doc(firestore, 'users', userId);
+    await updateDoc(userRef, {
+      bacHighscoreAllTime: 0,
+      bacHighscoreUpdatedAt: null,
+    });
+  },
+
   async addDrink(userId: string, drink: DrinkEntry): Promise<void> {
     const userRef = doc(firestore, 'users', userId);
     await updateDoc(userRef, {drinks: arrayUnion(drink)});

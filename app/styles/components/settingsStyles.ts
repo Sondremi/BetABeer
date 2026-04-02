@@ -7,25 +7,13 @@ export const settingsScreenTokens = {
 };
 
 export const settingsStyles = StyleSheet.create({
-  pageContainer: {
-    padding: 0,
-  },
   screenSection: {
     paddingBottom: theme.spacing.huge,
   },
-  sectionCard: {
-    marginBottom: theme.spacing.lg,
-    borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.xl,
-  },
-  deleteSectionCard: {
-    marginBottom: theme.spacing.lg,
-  },
-  backButton: {
-    ...globalStyles.iconBackButton,
-  },
-  backButtonText: {
-    ...globalStyles.iconBackButtonText,
+  editButtonsContainer: {
+    width: '100%',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
   },
   readOnlyText: {
     fontSize: theme.fonts.md,
@@ -40,17 +28,6 @@ export const settingsStyles = StyleSheet.create({
     marginBottom: theme.spacing.md,
     width: '100%',
   },
-  halfWidthCancelButton: {
-    ...globalStyles.cancelButton,
-    width: '50%',
-  },
-  halfWidthSaveButton: {
-    ...globalStyles.saveButton,
-    width: '50%',
-  },
-  buttonRowNoGap: {
-    ...globalStyles.buttonRowNoGap,
-  },
   compactInput: {
     height: theme.sizes.iconButton,
     borderWidth: 0,
@@ -58,27 +35,21 @@ export const settingsStyles = StyleSheet.create({
     paddingVertical: theme.spacing.sm + theme.spacing.xxxs,
     paddingHorizontal: theme.spacing.md,
   },
-  pickerItem: {
-    color: theme.colors.text,
+  genderSelectRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  genderSelectButton: {
+    flex: 1,
+    marginRight: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dangerHelperText: {
     color: theme.colors.errorLight,
     lineHeight: 20,
   },
-  neutralHelperText: {
-    color: theme.colors.textSecondary,
-  },
-  emailVerificationStatus: {
-    marginTop: theme.spacing.xs,
-  },
-  emailVerifiedText: {
-    color: theme.colors.primary,
-  },
   emailNotVerifiedText: {
     color: theme.colors.errorLight,
-  },
-  emailVerificationButton: {
-    marginTop: theme.spacing.sm,
-    marginBottom: 0,
   },
 });

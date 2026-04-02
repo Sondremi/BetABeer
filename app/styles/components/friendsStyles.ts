@@ -1,5 +1,4 @@
 import { StyleSheet } from 'react-native';
-import { globalStyles } from '../globalStyles';
 import { theme } from '../theme';
 
 export const friendsScreenTokens = {
@@ -7,42 +6,17 @@ export const friendsScreenTokens = {
 };
 
 export const friendsStyles = StyleSheet.create({
-  pageContainer: {
-    padding: 0,
-  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,
   },
-  backButton: {
-    ...globalStyles.iconBackButton,
-  },
-  backButtonText: {
-    ...globalStyles.iconBackButtonText,
-  },
   compactSection: {
-    paddingBottom: theme.spacing.lg,
+    paddingBottom: 0,
   },
   headerTitle: {
     color: theme.colors.primary,
     letterSpacing: 0.8,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
-  },
-  collapsedHeaderRow: {
-    marginBottom: 0,
-  },
-  sectionToggleButton: {
-    ...globalStyles.sectionToggleIconButton,
-  },
-  sectionToggleButtonText: {
-    ...globalStyles.sectionToggleIconButtonText,
   },
   friendName: {
     fontSize: theme.fonts.md,
@@ -54,12 +28,6 @@ export const friendsStyles = StyleSheet.create({
     color: theme.colors.textMuted,
     fontSize: theme.fonts.xs,
     marginTop: theme.spacing.xxxs,
-  },
-  button: {
-    ...globalStyles.iconActionButtonSm,
-  },
-  friendSpacing: {
-    marginBottom: theme.spacing.md,
   },
   friendRow: {
     borderRadius: theme.borderRadius.lg,
@@ -77,22 +45,6 @@ export const friendsStyles = StyleSheet.create({
   searchRow: {
     flexDirection: 'row',
     marginBottom: theme.spacing.md,
-  },
-  searchSectionCard: {
-    ...globalStyles.premiumSectionCard,
-  },
-  listSectionCard: {
-    ...globalStyles.premiumSectionCard,
-  },
-  inviteDescription: {
-    marginBottom: 0,
-  },
-  searchResultBox: {
-    ...globalStyles.warmListPanel,
-  },
-  searchInputShell: {
-    flex: 1,
-    marginRight: theme.spacing.sm,
   },
   searchInput: {
     backgroundColor: 'transparent',
@@ -115,17 +67,8 @@ export const friendsStyles = StyleSheet.create({
     color: theme.colors.background,
     fontWeight: '700',
   },
-  requestActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-  },
   listScrollBox: {
     maxHeight: theme.sizes.maxListHeightXxl,
-    ...globalStyles.warmListPanel,
-  },
-  listScrollContent: {
-    paddingBottom: theme.spacing.xs,
   },
   scrollHint: {
     marginTop: theme.spacing.xs,

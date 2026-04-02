@@ -62,7 +62,6 @@ export const theme = {
     white10: 'rgba(255, 255, 255, 0.1)',
     white55: 'rgba(255, 255, 255, 0.55)',
     black08: 'rgba(0, 0, 0, 0.08)',
-    black50: 'rgba(0, 0, 0, 0.5)',
     gold03: 'rgba(241, 210, 120, 0.03)',
     gold78: 'rgba(241, 210, 120, 0.78)',
     gold80: 'rgba(241, 210, 120, 0.8)',

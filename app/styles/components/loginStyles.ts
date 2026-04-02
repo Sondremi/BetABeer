@@ -19,9 +19,6 @@ export const loginScreenTokens = {
 };
 
 export const loginStyles: any = StyleSheet.create({
-  pageContainer: {
-    padding: 0,
-  },
   darkContainer: {
     backgroundColor: theme.colors.backgroundDeep,
   },
@@ -60,7 +57,7 @@ export const loginStyles: any = StyleSheet.create({
     lineHeight: theme.fonts.heroTitleLine,
     fontWeight: '800',
     color: theme.colors.primarySoft,
-    textShadowColor: theme.effects.black50,
+    textShadowColor: theme.colors.modalBackground,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: theme.spacing.xs,
     letterSpacing: -0.3,
@@ -169,9 +166,6 @@ export const loginStyles: any = StyleSheet.create({
     fontSize: theme.fonts.sm,
     fontWeight: '700',
   },
-  modeButtonTextActive: {
-    color: theme.colors.primary,
-  },
   fieldLabel: {
     ...globalStyles.label,
     ...globalStyles.labelOnDark,
@@ -240,9 +234,6 @@ export const loginStyles: any = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  ctaLoader: {
-    marginRight: theme.spacing.sm,
   },
   ctaButtonText: {
     color: theme.colors.textOnGold,
