@@ -166,9 +166,6 @@ export const loginStyles: any = StyleSheet.create({
     fontSize: theme.fonts.sm,
     fontWeight: '700',
   },
-  modeButtonTextActive: {
-    ...globalStyles.primaryColorText,
-  },
   fieldLabel: {
     ...globalStyles.label,
     ...globalStyles.labelOnDark,
@@ -237,9 +234,6 @@ export const loginStyles: any = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  ctaLoader: {
-    ...globalStyles.commonPodiumCardSecondOffset,
   },
   ctaButtonText: {
     color: theme.colors.textOnGold,

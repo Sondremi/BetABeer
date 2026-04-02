@@ -1,5 +1,4 @@
 import { StyleSheet } from 'react-native';
-import { globalStyles } from '../globalStyles';
 import { theme } from '../theme';
 
 export const friendsScreenTokens = {
@@ -13,17 +12,11 @@ export const friendsStyles = StyleSheet.create({
     gap: theme.spacing.md,
   },
   compactSection: {
-    ...globalStyles.commonCompactSection,
+    paddingBottom: 0,
   },
   headerTitle: {
     color: theme.colors.primary,
     letterSpacing: 0.8,
-  },
-  sectionHeaderRow: {
-    ...globalStyles.commonSectionHeaderRow,
-  },
-  collapsedHeaderRow: {
-    ...globalStyles.commonCollapsedHeaderRow,
   },
   friendName: {
     fontSize: theme.fonts.md,
@@ -35,21 +28,6 @@ export const friendsStyles = StyleSheet.create({
     color: theme.colors.textMuted,
     fontSize: theme.fonts.xs,
     marginTop: theme.spacing.xxxs,
-  },
-  actionButton: {
-    ...globalStyles.commonActionButton,
-  },
-  actionButtonText: {
-    ...globalStyles.commonActionButtonText,
-  },
-  actionButtonDanger: {
-    ...globalStyles.commonActionButtonDanger,
-  },
-  actionButtonDangerText: {
-    ...globalStyles.commonActionButtonDangerText,
-  },
-  friendSpacing: {
-    ...globalStyles.commonFriendSpacing,
   },
   friendRow: {
     borderRadius: theme.borderRadius.lg,
@@ -67,12 +45,6 @@ export const friendsStyles = StyleSheet.create({
   searchRow: {
     flexDirection: 'row',
     marginBottom: theme.spacing.md,
-  },
-  inviteDescription: {
-    ...globalStyles.commonCollapsedHeaderRow,
-  },
-  searchInputShell: {
-    ...globalStyles.commonSearchInputShell,
   },
   searchInput: {
     backgroundColor: 'transparent',
@@ -95,14 +67,8 @@ export const friendsStyles = StyleSheet.create({
     color: theme.colors.background,
     fontWeight: '700',
   },
-  requestActionRow: {
-    ...globalStyles.commonRequestActionRow,
-  },
   listScrollBox: {
     maxHeight: theme.sizes.maxListHeightXxl,
-  },
-  listScrollContent: {
-    ...globalStyles.commonListScrollContent,
   },
   scrollHint: {
     marginTop: theme.spacing.xs,

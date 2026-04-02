@@ -300,7 +300,7 @@ const FriendsScreen = () => {
   };
 
   const renderFriend = ({ item }: { item: FriendWithPending }) => (
-    <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing, friendsStyles.friendRow]}>
+    <View style={[globalStyles.listItemRow, globalStyles.friendSpacing, friendsStyles.friendRow]}>
       <Image source={item.profilePicture} style={[globalStyles.circularImage, friendsStyles.friendImage]} />
       <View style={globalStyles.itemInfo}>
         <Text style={friendsStyles.friendName}>{item.name}</Text>
@@ -308,10 +308,10 @@ const FriendsScreen = () => {
         {item.type === 'pending' && <Text style={friendsStyles.pendingText}>Forespørsel sendt</Text>}
       </View>
       <TouchableOpacity
-        style={[globalStyles.outlineButtonGold, friendsStyles.actionButton, friendsStyles.actionButtonDanger]}
+        style={[globalStyles.outlineButtonGold, globalStyles.actionButton, globalStyles.actionButtonDanger]}
         onPress={() => handleRemoveFriend(item)}
       >
-        <Text style={[globalStyles.outlineButtonGoldText, friendsStyles.actionButtonText, friendsStyles.actionButtonDangerText]}>
+        <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionButtonText, globalStyles.actionButtonDangerText]}>
           Fjern
         </Text>
       </TouchableOpacity>
@@ -334,20 +334,20 @@ const FriendsScreen = () => {
 
         {/* Invite friends section */}
         <View style={[globalStyles.section, friendsStyles.compactSection]}>
-          <View style={[globalStyles.premiumCard, globalStyles.premiumSectionCard]}>
+          <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
             <TouchableOpacity style={globalStyles.outlineButtonGold} onPress={handleInviteFriends}>
               <Text style={globalStyles.outlineButtonGoldText}>Inviter venner</Text>
             </TouchableOpacity>
-            <Text style={[globalStyles.sectionDescription, friendsStyles.inviteDescription]}>Del lenken med venner for å invitere dem til appen</Text>
+            <Text style={[globalStyles.sectionDescription, globalStyles.collapsedHeaderRow]}>Del lenken med venner for å invitere dem til appen</Text>
           </View>
         </View>
 
         {/* Search Section */}
         <View style={[globalStyles.section, friendsStyles.compactSection]}>
-          <View style={[globalStyles.premiumCard, globalStyles.premiumSectionCard]}>
+          <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
             <Text style={globalStyles.sectionTitle}>Søk etter venner</Text>
             <View style={friendsStyles.searchRow}>
-              <View style={[globalStyles.inputShellDark, friendsStyles.searchInputShell, searchFocused && globalStyles.inputShellFocusedGold]}>
+              <View style={[globalStyles.inputShellDark, globalStyles.searchInputShell, searchFocused && globalStyles.inputShellFocusedGold]}>
                 <TextInput
                   placeholder="Skriv inn brukernavn"
                   placeholderTextColor={friendsScreenTokens.searchPlaceholderTextColor}
@@ -374,7 +374,7 @@ const FriendsScreen = () => {
             {searchResults.length > 0 && (
               <View style={globalStyles.warmListPanel}>
                 {searchResults.map((item) => (
-                  <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing, friendsStyles.friendRow]} key={item.id}>
+                  <View style={[globalStyles.listItemRow, globalStyles.friendSpacing, friendsStyles.friendRow]} key={item.id}>
                     <Image
                       source={item.profilePicture}
                       style={[globalStyles.circularImage, friendsStyles.friendImage]}
@@ -386,11 +386,11 @@ const FriendsScreen = () => {
                     <TouchableOpacity
                       style={[
                         globalStyles.outlineButtonGold,
-                        friendsStyles.actionButton,
+                        globalStyles.actionButton,
                       ]}
                       onPress={() => handleAddFriend(item)}
                     >
-                      <Text style={[globalStyles.outlineButtonGoldText, friendsStyles.actionButtonText]}>
+                      <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionButtonText]}>
                         Legg til
                       </Text>
                     </TouchableOpacity>
@@ -403,8 +403,8 @@ const FriendsScreen = () => {
 
         {/* Friends section */}
         <View style={[globalStyles.section, friendsStyles.compactSection]}>
-          <View style={[globalStyles.premiumCard, globalStyles.premiumSectionCard]}>
-            <View style={[friendsStyles.sectionHeaderRow, !isFriendsExpanded && friendsStyles.collapsedHeaderRow]}>
+          <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
+            <View style={[globalStyles.sectionHeaderRow, !isFriendsExpanded && globalStyles.collapsedHeaderRow]}>
               <Text style={globalStyles.sectionTitle}>Mine venner ({friends.length})</Text>
               <TouchableOpacity
                 style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}
@@ -420,7 +420,7 @@ const FriendsScreen = () => {
             {isFriendsExpanded && friends.length > 0 ? (
               <View>
                 <View style={[globalStyles.warmListPanel, friendsStyles.listScrollBox]}>
-                  <ScrollView nestedScrollEnabled contentContainerStyle={friendsStyles.listScrollContent}>
+                  <ScrollView nestedScrollEnabled contentContainerStyle={globalStyles.listScrollContent}>
                     {friends.map((item) => (
                       <View key={item.id + (item.type === 'pending' ? '-pending' : '')}>{renderFriend({ item })}</View>
                     ))}
@@ -439,8 +439,8 @@ const FriendsScreen = () => {
 
         {/* Friend Requests section */}
         <View style={[globalStyles.section, friendsStyles.compactSection]}>
-          <View style={[globalStyles.premiumCard, globalStyles.premiumSectionCard]}>
-            <View style={[friendsStyles.sectionHeaderRow, !isRequestsExpanded && friendsStyles.collapsedHeaderRow]}>
+          <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
+            <View style={[globalStyles.sectionHeaderRow, !isRequestsExpanded && globalStyles.collapsedHeaderRow]}>
               <Text style={globalStyles.sectionTitle}>Venneforespørsler ({incomingRequests.length})</Text>
               <TouchableOpacity
                 style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}
@@ -456,9 +456,9 @@ const FriendsScreen = () => {
             {isRequestsExpanded && incomingRequests.length > 0 ? (
               <View>
                 <View style={[globalStyles.warmListPanel, friendsStyles.listScrollBox]}>
-                  <ScrollView nestedScrollEnabled contentContainerStyle={friendsStyles.listScrollContent}>
+                  <ScrollView nestedScrollEnabled contentContainerStyle={globalStyles.listScrollContent}>
                     {incomingRequests.map((item) => (
-                      <View style={[globalStyles.listItemRow, friendsStyles.friendSpacing, friendsStyles.friendRow]} key={item.id}>
+                      <View style={[globalStyles.listItemRow, globalStyles.friendSpacing, friendsStyles.friendRow]} key={item.id}>
                         <Image
                           source={item.profilePicture}
                           style={[globalStyles.circularImage, friendsStyles.friendImage]}
@@ -467,27 +467,27 @@ const FriendsScreen = () => {
                           <Text style={friendsStyles.friendName}>{item.name}</Text>
                           <Text style={globalStyles.secondaryText}>@{item.username}</Text>
                         </View>
-                        <View style={friendsStyles.requestActionRow}>
+                        <View style={globalStyles.requestActionRow}>
                           <TouchableOpacity
                             style={[
                               globalStyles.outlineButtonGold,
-                              friendsStyles.actionButton,
-                              friendsStyles.actionButtonDanger,
+                              globalStyles.actionButton,
+                              globalStyles.actionButtonDanger,
                             ]}
                             onPress={() => handleDeclineRequest(item)}
                           >
-                            <Text style={[globalStyles.outlineButtonGoldText, friendsStyles.actionButtonText, friendsStyles.actionButtonDangerText]}>
+                            <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionButtonText, globalStyles.actionButtonDangerText]}>
                               Fjern
                             </Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={[
                               globalStyles.outlineButtonGold,
-                              friendsStyles.actionButton,
+                              globalStyles.actionButton,
                             ]}
                             onPress={() => handleAcceptRequest(item)}
                           >
-                            <Text style={[globalStyles.outlineButtonGoldText, friendsStyles.actionButtonText]}>
+                            <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionButtonText]}>
                               Godta
                             </Text>
                           </TouchableOpacity>

@@ -111,10 +111,10 @@ const ProfileScreen: React.FC = () => {
       return;
     }
 
-    const payload: { name: string; profileImage?: string | null } = { name: trimmedName };
-    if (selectedProfileImage) {
-      payload.profileImage = selectedProfileImage;
-    }
+    const payload: { name: string; profileImage?: string | null } = {
+      name: trimmedName,
+      profileImage: selectedProfileImage ?? null,
+    };
 
     try {
       await updateDoc(doc(firestore, 'users', user.id), payload);
@@ -1323,16 +1323,16 @@ const ProfileScreen: React.FC = () => {
         <Text style={globalStyles.modalText}>{item.groupName}</Text>
         <Text style={globalStyles.secondaryText}>Fra: {userNames[item.fromUserId] || item.fromUserId}</Text>
       </View>
-      <View style={profileStyles.invitationActionRow}>
+      <View style={globalStyles.groupHeaderActions}>
         <TouchableOpacity
-          style={[globalStyles.selectionButton, profileStyles.invitationRejectButton, profileStyles.invitationAcceptButton]}
+          style={[globalStyles.selectionButton, globalStyles.destructiveButtonModal, globalStyles.podiumCardSecondOffset]}
           onPress={() => handleRejectInvitation(item)}
           disabled={handlingInvitation}
         >
-          <Text style={[globalStyles.selectionButtonText, profileStyles.invitationRejectButtonText]}>Avslå</Text>
+          <Text style={[globalStyles.selectionButtonText, globalStyles.selectionButtonTextSelected]}>Avslå</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[globalStyles.selectionButton, profileStyles.invitationAcceptButton]}
+          style={[globalStyles.selectionButton, globalStyles.podiumCardSecondOffset]}
           onPress={() => handleAcceptInvitation(item)}
           disabled={handlingInvitation}
         >
@@ -1391,7 +1391,7 @@ const ProfileScreen: React.FC = () => {
 
             {/* Name and username */}
             <Text style={[globalStyles.largeBoldText, profileStyles.profileName]}>{user?.name || userInfo.name || 'Navn'}</Text>
-            <Text style={[globalStyles.secondaryText, profileStyles.profileUsername]}>{user?.username || userInfo.username || 'Brukernavn'}</Text>
+            <Text style={[globalStyles.secondaryText, globalStyles.betSelectionHintText]}>{user?.username || userInfo.username || 'Brukernavn'}</Text>
           </View>
         {/* Modal to change profilepicture */}
         <Modal
@@ -1406,23 +1406,40 @@ const ProfileScreen: React.FC = () => {
               <View style={profileStyles.profileUploadPreviewWrap}>
                 <Image
                   source={resolveProfileImageSource(selectedProfileImage || (user as any)?.profileImage, DefaultProfilePicture)}
-                  style={profileStyles.profileUploadPreviewImage}
+                  style={globalStyles.profileUploadPreviewImage}
                 />
               </View>
-              <TouchableOpacity
-                style={[
-                  globalStyles.outlineButtonGold,
-                  profileStyles.profileUploadButton,
-                  profileStyles.profileModalActionButton,
-                  uploadingProfileImage && globalStyles.disabledButton,
-                ]}
-                onPress={handleUploadProfileImage}
-                disabled={uploadingProfileImage}
-              >
-                <Text style={[globalStyles.outlineButtonGoldText, profileStyles.profileModalActionButtonText]}>
-                  {uploadingProfileImage ? 'Laster opp...' : 'Last opp'}
-                </Text>
-              </TouchableOpacity>
+              <View style={profileStyles.profileModalActionRow}>
+                <TouchableOpacity
+                  style={[
+                    globalStyles.outlineButtonGold,
+                    profileStyles.profileModalActionButtonGroupLike,
+                    uploadingProfileImage && globalStyles.disabledButton,
+                  ]}
+                  onPress={handleUploadProfileImage}
+                  disabled={uploadingProfileImage}
+                >
+                  <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>
+                    {uploadingProfileImage ? 'Laster opp...' : 'Last opp'}
+                  </Text>
+                </TouchableOpacity>
+                {!!selectedProfileImage && !isDefaultProfileImageKey(selectedProfileImage) && (
+                  <TouchableOpacity
+                    style={[
+                      globalStyles.outlineButtonGold,
+                      profileStyles.profileModalActionButtonGroupLike,
+                      globalStyles.actionButtonDanger,
+                      uploadingProfileImage && globalStyles.disabledButton,
+                    ]}
+                    onPress={() => setSelectedProfileImage(null)}
+                    disabled={uploadingProfileImage}
+                  >
+                    <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText, globalStyles.actionButtonDangerText]}>
+                      Fjern bilde
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
               {!!selectedProfileImage && !isDefaultProfileImageKey(selectedProfileImage) && (
                 <Text style={profileStyles.profileUploadHintText}>Eget bilde valgt</Text>
               )}
@@ -1438,7 +1455,7 @@ const ProfileScreen: React.FC = () => {
                   >
                     <Image
                       source={defaultProfileImageMap[img]}
-                      style={profileStyles.profileImageChoiceImage}
+                      style={globalStyles.profileUploadPreviewImage}
                     />
                   </TouchableOpacity>
                 ))}
@@ -1447,7 +1464,7 @@ const ProfileScreen: React.FC = () => {
                 <Text style={globalStyles.label}>Navn</Text>
                 <View style={[globalStyles.inputShellDark, profileNameFocused && globalStyles.inputShellFocusedGold]}>
                   <TextInput
-                    style={[globalStyles.input, profileStyles.profileNameInput]}
+                    style={[globalStyles.input, globalStyles.createGroupInput]}
                     value={displayName}
                     onChangeText={(text) => setDisplayName(text.slice(0, INPUT_LIMITS.profileNameMax))}
                     placeholder="Your name"
@@ -1485,7 +1502,7 @@ const ProfileScreen: React.FC = () => {
         >
           <View style={globalStyles.modalContainer}>
             <View style={[globalStyles.modalContent, profileStyles.onboardingModalContent]}>
-              <Text style={[globalStyles.modalTitle, profileStyles.onboardingTitle]}>Velkommen til BetABeer</Text>
+              <Text style={[globalStyles.modalTitle, globalStyles.primaryColorText]}>Velkommen til BetABeer</Text>
               <Text style={[globalStyles.modalText, profileStyles.onboardingBodyText]}>
                 BetABeer er en sosial drikkelek-app der du lager bets med venner og betaler med slurker, shots eller chugs.{"\n"}
                 {"\n"}
@@ -1511,16 +1528,16 @@ const ProfileScreen: React.FC = () => {
 
         { /* Blood Alcohol Level */ }
         <View style={[globalStyles.section, profileStyles.compactSection]}>
-          <View style={[globalStyles.premiumCard, profileStyles.sectionCard, profileStyles.sectionCardSpacing]}>
-            <View style={[profileStyles.bacHeaderRow, !isBacExpanded && profileStyles.collapsedHeaderRow]}>
+          <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
+            <View style={[globalStyles.sectionHeaderRow, !isBacExpanded && globalStyles.collapsedHeaderRow]}>
               <Text style={globalStyles.sectionTitleLeft}>Promillekalkulator</Text>
               <TouchableOpacity
-                style={[globalStyles.outlineButtonGold, profileStyles.bacToggleButton]}
+                style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}
                 onPress={() => setIsBacExpanded((prev) => !prev)}
                 accessibilityRole="button"
                 accessibilityLabel={isBacExpanded ? 'Minimer promillekalkulator' : 'Utvid promillekalkulator'}
               >
-                <Text style={[globalStyles.outlineButtonGoldText, profileStyles.bacToggleButtonText]}>
+                <Text style={[globalStyles.outlineButtonGoldText, globalStyles.sectionToggleIconButtonText]}>
                   {isBacExpanded ? '▾' : '▸'}
                 </Text>
               </TouchableOpacity>
@@ -1548,7 +1565,7 @@ const ProfileScreen: React.FC = () => {
                   </TouchableOpacity>
                 </View>
                 <TouchableOpacity
-                  style={[globalStyles.outlineButtonGold, profileStyles.bacQuickAddButton, (!hasBacRequiredInfo || !latestDrinkEntry) && globalStyles.disabledButton]}
+                  style={[globalStyles.outlineButtonGold, globalStyles.bacQuickAddButton, (!hasBacRequiredInfo || !latestDrinkEntry) && globalStyles.disabledButton]}
                   onPress={handleAddLatestDrinkAgain}
                   disabled={!hasBacRequiredInfo || !latestDrinkEntry}
                 >
@@ -1662,16 +1679,16 @@ const ProfileScreen: React.FC = () => {
 
         {/* Group Invitations Section */}
         <View style={[globalStyles.section, profileStyles.compactSection]}>
-          <View style={[globalStyles.premiumCard, profileStyles.sectionCard, profileStyles.sectionCardSpacing]}>
-            <View style={[profileStyles.groupsHeader, !isInvitationsExpanded && profileStyles.collapsedHeaderRow]}>
+          <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
+            <View style={[profileStyles.groupsHeader, !isInvitationsExpanded && globalStyles.collapsedHeaderRow]}>
               <Text style={globalStyles.sectionTitleLeft}>Gruppeinvitasjoner</Text>
               <TouchableOpacity
-                style={[globalStyles.outlineButtonGold, profileStyles.bacToggleButton]}
+                style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}
                 onPress={() => setIsInvitationsExpanded((prev) => !prev)}
                 accessibilityRole="button"
                 accessibilityLabel={isInvitationsExpanded ? 'Minimer gruppeinvitasjoner' : 'Utvid gruppeinvitasjoner'}
               >
-                <Text style={[globalStyles.outlineButtonGoldText, profileStyles.bacToggleButtonText]}>
+                <Text style={[globalStyles.outlineButtonGoldText, globalStyles.sectionToggleIconButtonText]}>
                   {isInvitationsExpanded ? '▾' : '▸'}
                 </Text>
               </TouchableOpacity>
@@ -1679,7 +1696,7 @@ const ProfileScreen: React.FC = () => {
             {isInvitationsExpanded && groupInvitations.length > 0 ? (
               <View style={[globalStyles.listContainer, profileStyles.listContainerCard]}>
                 {groupInvitations.map((item) => (
-                  <View key={`${item.id}_${item.groupId}`} style={profileStyles.invitationItemSpacing}>
+                  <View key={`${item.id}_${item.groupId}`} style={globalStyles.distributionChoiceBlock}>
                     {renderInvitationItem(item)}
                   </View>
                 ))}
@@ -1692,7 +1709,7 @@ const ProfileScreen: React.FC = () => {
 
         {/* Groups section */}
         <View style={profileStyles.groupsSection}>
-          <View style={[globalStyles.premiumCard, profileStyles.sectionCard, profileStyles.sectionCardSpacing]}>
+          <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
             <View style={profileStyles.groupsHeaderAction}>
               <Text style={globalStyles.sectionTitleLeft}>Mine grupper</Text>
               <TouchableOpacity
@@ -1738,14 +1755,14 @@ const ProfileScreen: React.FC = () => {
                 <Text style={globalStyles.modalTitle}>Opprett gruppe</Text>
                 <View style={globalStyles.inputGroup}>
                   <Text style={globalStyles.label}>Gruppenavn</Text>
-                  <View style={profileStyles.createGroupRow}>
-                    <View style={[globalStyles.inputShellDark, profileStyles.createGroupInputShell, createGroupNameFocused && globalStyles.inputShellFocusedGold]}>
+                  <View style={globalStyles.requestActionRow}>
+                    <View style={[globalStyles.inputShellDark, globalStyles.itemInfo, createGroupNameFocused && globalStyles.inputShellFocusedGold]}>
                       <TextInput
                         placeholder="Skriv gruppenavn"
                         placeholderTextColor={profileScreenTokens.createGroupPlaceholderTextColor}
                         value={createGroupName}
                         onChangeText={(text) => setCreateGroupName(text.slice(0, INPUT_LIMITS.groupNameMax))}
-                        style={[globalStyles.input, profileStyles.createGroupInput]}
+                        style={[globalStyles.input, globalStyles.createGroupInput]}
                         maxLength={INPUT_LIMITS.groupNameMax}
                         onFocus={() => setCreateGroupNameFocused(true)}
                         onBlur={() => setCreateGroupNameFocused(false)}
@@ -1780,7 +1797,7 @@ const ProfileScreen: React.FC = () => {
                         </TouchableOpacity>
                       </View>
                       <View style={profileStyles.inviteListBox}>
-                        <ScrollView nestedScrollEnabled style={profileStyles.inviteListScroll} contentContainerStyle={profileStyles.inviteListScrollContent}>
+                        <ScrollView nestedScrollEnabled style={profileStyles.inviteListScroll} contentContainerStyle={globalStyles.listScrollContent}>
                         {groupInviteCandidates.map((friend) => {
                           const selected = selectedInviteeIds.includes(friend.id);
                           return (
@@ -1790,11 +1807,11 @@ const ProfileScreen: React.FC = () => {
                               onPress={() => toggleInvitee(friend.id)}
                             >
                               <Image source={friend.profilePicture} style={profileStyles.inviteListAvatar} />
-                              <View style={profileStyles.inviteListInfo}>
+                              <View style={globalStyles.itemInfo}>
                                 <Text style={profileStyles.inviteListName}>{friend.name}</Text>
                                 <Text style={globalStyles.secondaryText}>@{friend.username}</Text>
                               </View>
-                              <Text style={[profileStyles.inviteStatusText, selected && profileStyles.inviteStatusTextSelected]}>
+                              <Text style={[profileStyles.inviteStatusText, selected && globalStyles.primaryColorText]}>
                                 {selected ? 'Inviteres' : 'Trykk for å invitere'}
                               </Text>
                             </TouchableOpacity>
@@ -1828,19 +1845,19 @@ const ProfileScreen: React.FC = () => {
           >
             <View style={globalStyles.modalContainer}>
               <View style={[globalStyles.modalContent, profileStyles.drinkModalContent]}> 
-                <Text style={[globalStyles.modalTitle, profileStyles.drinkModalTitle]}> 
+                <Text style={[globalStyles.modalTitle, globalStyles.friendSpacing]}> 
                   Velg drikke
                 </Text>
 
                 <View style={profileStyles.drinkFormScrollBox}>
                   <ScrollView
-                    style={profileStyles.drinkModalScroll}
-                    contentContainerStyle={profileStyles.drinkModalScrollContent}
+                    style={globalStyles.onboardingTextScroll}
+                    contentContainerStyle={globalStyles.leaderboardListWrap}
                     showsVerticalScrollIndicator
                     nestedScrollEnabled
                     keyboardShouldPersistTaps="handled"
                   >
-                    <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                    <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
                       <Text style={globalStyles.label}>Type</Text>
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
                         {[
@@ -1866,7 +1883,7 @@ const ProfileScreen: React.FC = () => {
                       <>
                         {drinkForm.category !== 'custom' && (
                           <>
-                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                            <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
                               <Text style={globalStyles.label}>Størrelse</Text>
                               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
                                 {getSizeOptions(drinkForm.category).map((size) => (
@@ -1884,10 +1901,10 @@ const ProfileScreen: React.FC = () => {
                             </View>
 
                             {drinkForm.sizeDl === 'custom' && (
-                              <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                              <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}>
                                 <Text style={globalStyles.label}>Egendefinert størrelse</Text>
-                                <View style={profileStyles.unitInputRow}>
-                                  <View style={[globalStyles.inputShellDark, profileStyles.unitInputShell, profileStyles.pickerGlowShell]}>
+                                <View style={globalStyles.requestActionRow}>
+                                  <View style={[globalStyles.inputShellDark, globalStyles.itemInfo, profileStyles.pickerGlowShell]}>
                                     <TextInput
                                       style={[globalStyles.input, profileStyles.compactNumberInput]}
                                       value={drinkForm.customSizeValue}
@@ -1914,7 +1931,7 @@ const ProfileScreen: React.FC = () => {
                               </View>
                             )}
 
-                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                            <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
                               <Text style={globalStyles.label}>Alkoholprosent</Text>
                               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
                                 {getAlcoholPercentOptions(drinkForm.category).map((percent) => {
@@ -1935,7 +1952,7 @@ const ProfileScreen: React.FC = () => {
                             </View>
 
                             {drinkForm.alcoholPercent === 'custom' && (
-                              <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                              <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
                                 <Text style={globalStyles.label}>Egendefinert alkoholprosent</Text>
                                 <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
                                   <TextInput
@@ -1950,7 +1967,7 @@ const ProfileScreen: React.FC = () => {
                               </View>
                             )}
 
-                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                            <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
                               <Text style={globalStyles.label}>Antall</Text>
                               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
                                 {[...getRecommendedQuantityOptions(), 'custom' as const].map((quantity) => (
@@ -1968,7 +1985,7 @@ const ProfileScreen: React.FC = () => {
                             </View>
 
                             {drinkForm.quantity === 'custom' && (
-                              <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                              <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}>
                                 <Text style={globalStyles.label}>Egendefinert antall</Text>
                                 <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
                                   <TextInput
@@ -1987,7 +2004,7 @@ const ProfileScreen: React.FC = () => {
 
                         {drinkForm.category === 'custom' && (
                           <>
-                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                            <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
                               <Text style={globalStyles.label}>Type/navn</Text>
                               <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
                                 <TextInput
@@ -2001,7 +2018,7 @@ const ProfileScreen: React.FC = () => {
                               </View>
                             </View>
 
-                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                            <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
                               <Text style={globalStyles.label}>Størrelse</Text>
                               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
                                 {getCustomSizeOptions().map((size) => (
@@ -2019,10 +2036,10 @@ const ProfileScreen: React.FC = () => {
                             </View>
 
                             {drinkForm.sizeDl === 'custom' && (
-                              <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                              <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}>
                                 <Text style={globalStyles.label}>Egendefinert størrelse</Text>
-                                <View style={profileStyles.unitInputRow}>
-                                  <View style={[globalStyles.inputShellDark, profileStyles.unitInputShell, profileStyles.pickerGlowShell]}>
+                                <View style={globalStyles.requestActionRow}>
+                                  <View style={[globalStyles.inputShellDark, globalStyles.itemInfo, profileStyles.pickerGlowShell]}>
                                     <TextInput
                                       style={[globalStyles.input, profileStyles.compactNumberInput]}
                                       value={drinkForm.customSizeValue}
@@ -2049,7 +2066,7 @@ const ProfileScreen: React.FC = () => {
                             </View>
                             )}
 
-                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                            <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
                               <Text style={globalStyles.label}>Alkoholprosent</Text>
                               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
                                 {getCustomAlcoholPercentOptions().map((percent) => (
@@ -2067,7 +2084,7 @@ const ProfileScreen: React.FC = () => {
                             </View>
 
                             {drinkForm.alcoholPercent === 'custom' && (
-                              <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                              <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}>
                                 <Text style={globalStyles.label}>Egendefinert alkoholprosent</Text>
                                 <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
                                   <TextInput
@@ -2082,7 +2099,7 @@ const ProfileScreen: React.FC = () => {
                               </View>
                             )}
 
-                            <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}> 
+                            <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
                               <Text style={globalStyles.label}>Antall</Text>
                               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
                                 {[...getRecommendedQuantityOptions(), 'custom' as const].map((quantity) => (
@@ -2100,7 +2117,7 @@ const ProfileScreen: React.FC = () => {
                             </View>
 
                             {drinkForm.quantity === 'custom' && (
-                              <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                              <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}>
                                 <Text style={globalStyles.label}>Egendefinert antall</Text>
                                 <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
                                   <TextInput
@@ -2117,7 +2134,7 @@ const ProfileScreen: React.FC = () => {
                           </>
                         )}
 
-                        <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                        <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}>
                           <Text style={globalStyles.label}>Tidspunkt drukket (start)</Text>
                           <View style={profileStyles.timePickerRow}>
                             <View style={[globalStyles.pickerInput, profileStyles.timePickerShell, profileStyles.pickerGlowShell]}>
@@ -2159,7 +2176,7 @@ const ProfileScreen: React.FC = () => {
                         </View>
 
                         {endTimeAllowed && (
-                          <View style={[globalStyles.inputGroup, profileStyles.pickerGroupCompact]}>
+                          <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}>
                             <Text style={globalStyles.label}>Sluttidspunkt</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
                               <TouchableOpacity
@@ -2239,7 +2256,7 @@ const ProfileScreen: React.FC = () => {
                     )}
                   </ScrollView>
                 </View>
-                <View style={profileStyles.drinkModalActions}>
+                <View style={globalStyles.modalFooter}>
                   {drinkForm.category && showDrinkValidationHint && drinkValidationMessage ? (
                     <Text style={globalStyles.validationHelperText}>{drinkValidationMessage}</Text>
                   ) : null}

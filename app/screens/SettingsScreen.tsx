@@ -1,4 +1,3 @@
-import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
@@ -366,7 +365,7 @@ const SettingsScreen = () => {
 
         <View style={[globalStyles.section, settingsStyles.screenSection]}>
           {/* User Information Section */}
-          <View style={[globalStyles.premiumCard, settingsStyles.sectionCard]}>
+          <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
             <Text style={globalStyles.sectionTitle}>Brukerinformasjon</Text>
 
             {/* Username - not editable */}
@@ -427,15 +426,15 @@ const SettingsScreen = () => {
               <Text
                 style={[
                   globalStyles.mutedText,
-                  settingsStyles.emailVerificationStatus,
-                  isEmailVerified ? settingsStyles.emailVerifiedText : settingsStyles.emailNotVerifiedText,
+                  globalStyles.betSelectionHintText,
+                  isEmailVerified ? globalStyles.primaryColorText : settingsStyles.emailNotVerifiedText,
                 ]}
               >
                 {isEmailVerified ? 'E-post er verifisert' : 'E-post er ikke verifisert'}
               </Text>
               {!isEmailVerified && !isEditing && (
                 <TouchableOpacity
-                  style={[globalStyles.outlineButtonGold, settingsStyles.emailVerificationButton, (isLoading || isSendingVerificationEmail) && globalStyles.disabledButton]}
+                  style={[globalStyles.outlineButtonGold, globalStyles.bacQuickAddButton, (isLoading || isSendingVerificationEmail) && globalStyles.disabledButton]}
                   onPress={handleResendVerificationEmail}
                   disabled={isLoading || isSendingVerificationEmail}
                 >
@@ -479,17 +478,61 @@ const SettingsScreen = () => {
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Kjønn</Text>
               {isEditing ? (
-                <View style={[globalStyles.pickerInput, globalStyles.inputShellFocusedGold]}>
-                  <Picker
-                    style={globalStyles.picker}
-                    itemStyle={globalStyles.pickerItem}
-                    selectedValue={editedInfo.gender || ''}
-                    onValueChange={(value: Gender | '') => setEditedInfo({ ...editedInfo, gender: value || undefined })}
+                <View style={settingsStyles.genderSelectRow}>
+                  <TouchableOpacity
+                    style={[
+                      globalStyles.selectionButton,
+                      settingsStyles.genderSelectButton,
+                      editedInfo.gender === 'male' && globalStyles.selectionButtonSelected,
+                      editedInfo.gender === 'male' && globalStyles.inputShellFocusedGold,
+                    ]}
+                    onPress={() => setEditedInfo({ ...editedInfo, gender: 'male' })}
                   >
-                    <Picker.Item label="Velg kjønn" value="" />
-                    <Picker.Item label="Mann" value="male" />
-                    <Picker.Item label="Dame" value="female" />
-                  </Picker>
+                    <Text
+                      style={[
+                        globalStyles.selectionButtonText,
+                        editedInfo.gender === 'male' && globalStyles.selectionButtonTextSelected,
+                      ]}
+                    >
+                      Mann
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      globalStyles.selectionButton,
+                      settingsStyles.genderSelectButton,
+                      editedInfo.gender === 'female' && globalStyles.selectionButtonSelected,
+                      editedInfo.gender === 'female' && globalStyles.inputShellFocusedGold,
+                    ]}
+                    onPress={() => setEditedInfo({ ...editedInfo, gender: 'female' })}
+                  >
+                    <Text
+                      style={[
+                        globalStyles.selectionButtonText,
+                        editedInfo.gender === 'female' && globalStyles.selectionButtonTextSelected,
+                      ]}
+                    >
+                      Dame
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      globalStyles.selectionButton,
+                      settingsStyles.genderSelectButton,
+                      !editedInfo.gender && globalStyles.selectionButtonSelected,
+                      !editedInfo.gender && globalStyles.inputShellFocusedGold,
+                    ]}
+                    onPress={() => setEditedInfo({ ...editedInfo, gender: undefined })}
+                  >
+                    <Text
+                      style={[
+                        globalStyles.selectionButtonText,
+                        !editedInfo.gender && globalStyles.selectionButtonTextSelected,
+                      ]}
+                    >
+                      Ikke satt
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               ) : (
                 <View style={globalStyles.readOnlyInput}>
@@ -501,17 +544,18 @@ const SettingsScreen = () => {
             </View>
 
             {/* Edit/Save/Cancel buttons */}
-            <View style={globalStyles.editButtonsContainer}>
+            <View style={[globalStyles.editButtonsContainer, settingsStyles.editButtonsContainer]}> 
               {isEditing ? (
                 <>
-                  <TouchableOpacity onPress={handleCancel} disabled={isLoading}>
+                  <TouchableOpacity style={globalStyles.cancelButton} onPress={handleCancel} disabled={isLoading}>
                     <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
+                    style={[globalStyles.saveButton, (isLoading || !canSaveEditedData) && globalStyles.disabledButton]}
                     onPress={handleSave}
                     disabled={isLoading || !canSaveEditedData}
                   >
-                    <Text style={[globalStyles.saveButtonText, (!canSaveEditedData || isLoading) && globalStyles.disabledActionText]}>
+                    <Text style={globalStyles.saveButtonTextAlt}>
                       {isLoading ? 'Lagrer...' : 'Lagre'}
                     </Text>
                   </TouchableOpacity>
@@ -525,9 +569,9 @@ const SettingsScreen = () => {
           </View>
 
           {/* Password reset section */}
-          <View style={[globalStyles.premiumCard, settingsStyles.sectionCard]}>
+          <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
             <Text style={globalStyles.sectionTitle}>Passord</Text>
-            <Text style={[globalStyles.mutedText, settingsStyles.dangerHelperText, settingsStyles.neutralHelperText]}> 
+            <Text style={[globalStyles.mutedText, settingsStyles.dangerHelperText, globalStyles.cancelButtonTextModal]}> 
               Send e-post for å tilbakestille passordet ditt.
             </Text>
             <TouchableOpacity
@@ -542,7 +586,7 @@ const SettingsScreen = () => {
           </View>
 
           {/* Log out Section */}
-          <View style={[globalStyles.premiumCard, settingsStyles.sectionCard]}>
+          <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
             <Text style={globalStyles.sectionTitle}>Logg ut</Text>
             <TouchableOpacity style={globalStyles.outlineButton} onPress={handleLogout}>
               <Text style={globalStyles.outlineButtonGoldText}>Logg ut</Text>
@@ -550,7 +594,7 @@ const SettingsScreen = () => {
           </View>
 
           {/* Delete Account Section */}
-          <View style={[globalStyles.premiumCard, settingsStyles.sectionCard, settingsStyles.deleteSectionCard]}>
+          <View style={[globalStyles.premiumCard, globalStyles.sectionCard, globalStyles.betSpacing]}>
             <Text style={globalStyles.dangerSectionTitle}>Slett bruker</Text>
             <Text style={[globalStyles.mutedText, settingsStyles.dangerHelperText]}> 
               Sletting av bruker vil permanent fjerne all data knyttet til brukeren din. Dette kan ikke angres.

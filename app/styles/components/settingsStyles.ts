@@ -10,13 +10,10 @@ export const settingsStyles = StyleSheet.create({
   screenSection: {
     paddingBottom: theme.spacing.huge,
   },
-  sectionCard: {
-    marginBottom: theme.spacing.lg,
-    borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.xl,
-  },
-  deleteSectionCard: {
-    ...globalStyles.commonBetSpacing,
+  editButtonsContainer: {
+    width: '100%',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
   },
   readOnlyText: {
     fontSize: theme.fonts.md,
@@ -38,23 +35,21 @@ export const settingsStyles = StyleSheet.create({
     paddingVertical: theme.spacing.sm + theme.spacing.xxxs,
     paddingHorizontal: theme.spacing.md,
   },
+  genderSelectRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  genderSelectButton: {
+    flex: 1,
+    marginRight: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   dangerHelperText: {
     color: theme.colors.errorLight,
     lineHeight: 20,
   },
-  neutralHelperText: {
-    ...globalStyles.cancelButtonTextModal,
-  },
-  emailVerificationStatus: {
-    ...globalStyles.commonBetSelectionHintText,
-  },
-  emailVerifiedText: {
-    ...globalStyles.primaryColorText,
-  },
   emailNotVerifiedText: {
     color: theme.colors.errorLight,
-  },
-  emailVerificationButton: {
-    ...globalStyles.commonBacQuickAddButton,
   },
 });

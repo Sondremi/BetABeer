@@ -547,7 +547,7 @@ const LoginScreen: React.FC = () => {
                     }
                   }}
                 >
-                  <Text style={[loginStyles.modeButtonText, isLoginMode && loginStyles.modeButtonTextActive]}>
+                  <Text style={[loginStyles.modeButtonText, isLoginMode && globalStyles.primaryColorText]}>
                     Logg inn
                   </Text>
                 </TouchableOpacity>
@@ -559,7 +559,7 @@ const LoginScreen: React.FC = () => {
                     }
                   }}
                 >
-                  <Text style={[loginStyles.modeButtonText, !isLoginMode && loginStyles.modeButtonTextActive]}>
+                  <Text style={[loginStyles.modeButtonText, !isLoginMode && globalStyles.primaryColorText]}>
                     Registrer deg
                   </Text>
                 </TouchableOpacity>
@@ -724,7 +724,7 @@ const LoginScreen: React.FC = () => {
                 style={loginStyles.ctaGradient}
               >
                 <View style={loginStyles.ctaContentRow}>
-                  {isLoading && <ActivityIndicator size="small" color={loginScreenTokens.loaderColor} style={loginStyles.ctaLoader} />}
+                  {isLoading && <ActivityIndicator size="small" color={loginScreenTokens.loaderColor} style={globalStyles.podiumCardSecondOffset} />}
                   <Text style={[globalStyles.primaryButtonText, loginStyles.ctaButtonText]}>
                     {isLoading
                       ? isLoginMode
