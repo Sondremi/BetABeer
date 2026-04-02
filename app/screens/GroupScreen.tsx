@@ -209,6 +209,9 @@ const GroupScreen = () => {
   const availableFriends = friends.filter(friend => !selectedGroup?.members.includes(friend.id));
   const shouldScrollMembers = memberData.length > 5;
   const shouldScrollAvailableFriends = availableFriends.length > 5;
+  const shouldScrollPlannedDistributions = distributions.length > 5;
+  const shouldScrollBetOptions = betOptions.length >= 5;
+  const shouldScrollEditBetOptions = editBetOptions.length >= 5;
   const canSaveBet =
     normalizeSingleLineText(betTitle).length > 0 &&
     normalizeSingleLineText(betTitle).length <= INPUT_LIMITS.betTitleMax &&
@@ -1914,6 +1917,7 @@ const GroupScreen = () => {
       : [creatorName ? `Av ${creatorName}` : '', createdAtLabel]
           .filter(Boolean)
           .join(' • ');
+    const shouldScrollOptions = item.options.length > 5;
     const shouldScrollWagers = Boolean(item.wagers && item.wagers.length > 5);
 
     return (
@@ -1937,9 +1941,15 @@ const GroupScreen = () => {
           </View>
 
           <View style={globalStyles.listContainer}>
-            {item.options.map((option) => (
-              <View key={option.id}>{renderBettingOption({ item: option, bet: item })}</View>
-            ))}
+            <ScrollView
+              style={shouldScrollOptions ? globalStyles.betOptionsScrollWrap : undefined}
+              nestedScrollEnabled={shouldScrollOptions}
+              showsVerticalScrollIndicator={shouldScrollOptions}
+            >
+              {item.options.map((option) => (
+                <View key={option.id}>{renderBettingOption({ item: option, bet: item })}</View>
+              ))}
+            </ScrollView>
           </View>
 
           {item.wagers && item.wagers.length > 0 && (
@@ -2535,27 +2545,33 @@ const GroupScreen = () => {
                   <View style={groupStyles.modalSectionCard}>
                     <Text style={groupStyles.modalSectionTitle}>Planlagte utdelinger</Text>
                     <Text style={[globalStyles.secondaryText, { marginBottom: theme.spacing.sm }]}>Legg til flere først, og send alle samlet senere.</Text>
-                    {distributions.map((dist, idx) => {
-                      const member = memberData.find(m => m.id === dist.userId);
-                      return (
-                        <View key={`${dist.userId}-${dist.drinkType}-${dist.measureType}-${dist.amount}-${idx}`} style={{ 
-                          flexDirection: 'row', 
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          backgroundColor: theme.colors.primary + '10',
-                          padding: 10,
-                          borderRadius: 8,
-                          marginBottom: 6
-                        }}>
-                          <Text style={{ color: theme.colors.text, fontSize: 14, fontWeight: '500' }}>
-                            {member?.name}
-                          </Text>
-                          <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>
-                            {dist.amount} {dist.measureType} {dist.drinkType}
-                          </Text>
-                        </View>
-                      );
-                    })}
+                    <ScrollView
+                      style={shouldScrollPlannedDistributions ? globalStyles.betOptionsScrollWrap : undefined}
+                      nestedScrollEnabled={shouldScrollPlannedDistributions}
+                      showsVerticalScrollIndicator={shouldScrollPlannedDistributions}
+                    >
+                      {distributions.map((dist, idx) => {
+                        const member = memberData.find(m => m.id === dist.userId);
+                        return (
+                          <View key={`${dist.userId}-${dist.drinkType}-${dist.measureType}-${dist.amount}-${idx}`} style={{ 
+                            flexDirection: 'row', 
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            backgroundColor: theme.colors.primary + '10',
+                            padding: 10,
+                            borderRadius: 8,
+                            marginBottom: 6
+                          }}>
+                            <Text style={{ color: theme.colors.text, fontSize: 14, fontWeight: '500' }}>
+                              {member?.name}
+                            </Text>
+                            <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>
+                              {dist.amount} {dist.measureType} {dist.drinkType}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </ScrollView>
                   </View>
                 )}
 
@@ -2689,6 +2705,7 @@ const GroupScreen = () => {
               contentContainerStyle={groupStyles.modalScrollContent}
             >
               <Text style={globalStyles.modalTitle}>Opprett nytt bet</Text>
+              <Text style={[globalStyles.mutedText, { marginBottom: theme.spacing.sm }]}>Trykk på blyant ikonet etter du har opprettet bettet for å redigere eller markere det som ferdig</Text>
               <View style={globalStyles.inputGroup}>
                 <Text style={globalStyles.label}>Tittel på bet</Text>
                 <View style={[globalStyles.inputShellDark, globalStyles.betSelectionHintText, betTitleFocused && globalStyles.inputShellFocusedGold]}>
@@ -2705,9 +2722,9 @@ const GroupScreen = () => {
                 </View>
               </View>
               <ScrollView
-                style={betOptions.length > 5 ? globalStyles.betOptionsScrollWrap : undefined}
-                nestedScrollEnabled={betOptions.length > 5}
-                showsVerticalScrollIndicator={betOptions.length > 5}
+                style={shouldScrollBetOptions ? globalStyles.betOptionsScrollWrap : undefined}
+                nestedScrollEnabled={shouldScrollBetOptions}
+                showsVerticalScrollIndicator={shouldScrollBetOptions}
               >
                 {betOptions.map((opt, idx) => (
                   <View key={`bet-option-${idx}`} style={globalStyles.inputGroup}>
@@ -2904,7 +2921,11 @@ const GroupScreen = () => {
       <Modal visible={editBetModalVisible} animationType="slide" transparent onRequestClose={() => setEditBetModalVisible(false)}>
         <View style={globalStyles.modalContainer}>
           <View style={[globalStyles.modalContent, groupStyles.modalContentMedium]}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={groupStyles.modalScrollContent}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={groupStyles.modalScrollContent}
+            >
               <Text style={globalStyles.modalTitle}>Rediger bet</Text>
               <View style={globalStyles.inputGroup}>
                 <Text style={globalStyles.label}>Tittel på bet</Text>
@@ -2922,9 +2943,9 @@ const GroupScreen = () => {
                 </View>
               </View>
               <ScrollView
-                style={editBetOptions.length > 5 ? globalStyles.betOptionsScrollWrap : undefined}
-                nestedScrollEnabled={editBetOptions.length > 5}
-                showsVerticalScrollIndicator={editBetOptions.length > 5}
+                style={shouldScrollEditBetOptions ? globalStyles.betOptionsScrollWrap : undefined}
+                nestedScrollEnabled={shouldScrollEditBetOptions}
+                showsVerticalScrollIndicator={shouldScrollEditBetOptions}
               >
                 {editBetOptions.map((opt, idx) => (
                   <View key={`edit-bet-option-${idx}`} style={globalStyles.inputGroup}>
@@ -3006,7 +3027,8 @@ const GroupScreen = () => {
                   </View>
                 </ScrollView>
               </View>
-            <View style={globalStyles.editButtonsContainer}>
+            </ScrollView>
+            <View style={[globalStyles.editButtonsContainer, globalStyles.modalFooter]}>
               <TouchableOpacity onPress={() => setEditBetModalVisible(false)} disabled={editBetSaving}>
                 <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
               </TouchableOpacity>
@@ -3014,7 +3036,6 @@ const GroupScreen = () => {
                 <Text style={globalStyles.saveButtonText}>{editBetSaving ? 'Lagrer...' : 'Lagre'}</Text>
               </TouchableOpacity>
             </View>
-            </ScrollView>
           </View>
         </View>
       </Modal>
