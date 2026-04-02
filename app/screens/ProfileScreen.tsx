@@ -1707,7 +1707,7 @@ const ProfileScreen: React.FC = () => {
                 </View>
                 <View style={profileStyles.chartSummaryRow}>
                   <View style={profileStyles.statPill}>
-                    <Text style={profileStyles.statLabel}>All-time</Text>
+                    <Text style={profileStyles.statLabel}>Promille</Text>
                     <View style={profileStyles.statMainSlot}>
                       <Text style={profileStyles.statValue}>
                         {userInfo.bacHighscoreAllTime ? `${userInfo.bacHighscoreAllTime.toFixed(3)}‰` : '0.000‰'}
@@ -1715,7 +1715,7 @@ const ProfileScreen: React.FC = () => {
                     </View>
                   </View>
                   <View style={profileStyles.statPill}>
-                    <Text style={profileStyles.statLabel}>Oppdatert</Text>
+                    <Text style={profileStyles.statLabel}>Tidspunkt</Text>
                     <View style={profileStyles.statMainSlot}>
                       <Text style={profileStyles.statValue}>{highscoreUpdatedLabel}</Text>
                     </View>
@@ -1725,7 +1725,7 @@ const ProfileScreen: React.FC = () => {
                 {userInfo.bacHighscoreAllTime && userInfo.bacHighscoreAllTime > 0 && estimatorDrinkOptions.length > 0 ? (
                   <>
                     <View style={[globalStyles.inputGroup, { marginBottom: 0 }]}> 
-                      <Text style={globalStyles.addOptionText}>Se hva du må drikke for å slå highscore</Text>
+                      <Text style={globalStyles.addOptionText}>Se hvor mye du må drikke for å slå din highscore</Text>
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
                         {estimatorDrinkOptions.map((option) => {
                           const isSelected = selectedEstimatorDrinkKey === option.key;
@@ -1745,7 +1745,7 @@ const ProfileScreen: React.FC = () => {
                     </View>
                     <Text style={globalStyles.secondaryText}>
                       {estimatedAdditionalDrinksToBeatHighscore === 0
-                        ? 'Du ligger allerede over highscorespennet med dagens drikking.'
+                        ? 'Du har allerede slått din highscore med dagens drikking'
                         : typeof estimatedAdditionalDrinksToBeatHighscore === 'number'
                           ? `Du trenger omtrent ${estimatedAdditionalDrinksToBeatHighscore} enheter av valgt drikke for å slå highscores.`
                           : 'Vi klarte ikke å beregne et nøyaktig antall innenfor beregningsvinduet.'}
