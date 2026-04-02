@@ -1117,14 +1117,6 @@ const GroupScreen = () => {
     }
 
     try {
-      await authService.ensureVerifiedEmailForMediaUpload();
-    } catch (error) {
-      showAlert('Verifisering kreves', (error as Error).message || 'Du må verifisere e-postadressen din.');
-      return;
-    }
-
-    setUploadingGroupImage(true);
-    try {
       if (Platform.OS !== 'web') {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permissionResult.granted) {
@@ -1144,6 +1136,9 @@ const GroupScreen = () => {
         return;
       }
 
+      await authService.ensureVerifiedEmailForMediaUpload();
+      setUploadingGroupImage(true);
+
       const selectedAsset = pickerResult.assets[0];
       const webFile = (selectedAsset as any).file as Blob | undefined;
       const uploadedImageUrl = await uploadGroupImage(selectedGroup.id, webFile ?? selectedAsset.uri);
@@ -1151,7 +1146,12 @@ const GroupScreen = () => {
       await applyGroupImageLocally(selectedGroup.id, uploadedImageUrl);
     } catch (error) {
       console.error('Error uploading group image:', error);
-      showAlert('Feil', (error as Error).message || 'Kunne ikke laste opp gruppebilde.');
+      const errorMessage = (error as Error).message || 'Kunne ikke laste opp gruppebilde.';
+      if (errorMessage.toLowerCase().includes('verifiser')) {
+        showAlert('Verifisering kreves', errorMessage);
+      } else {
+        showAlert('Feil', errorMessage);
+      }
     } finally {
       setUploadingGroupImage(false);
     }
@@ -1739,7 +1739,7 @@ const GroupScreen = () => {
                   </View>
                 )}
                 {distributionValidationMessage ? (
-                  <Text style={groupStyles.validationHelperText}>{distributionValidationMessage}</Text>
+                  <Text style={globalStyles.validationHelperText}>{distributionValidationMessage}</Text>
                 ) : null}
                 <TouchableOpacity
                   style={[globalStyles.outlineButtonGold, groupStyles.memberDistributionAddButton, !canConfirmDistribution && globalStyles.disabledButton]}
@@ -2347,7 +2347,7 @@ const GroupScreen = () => {
 
   return (
     <KeyboardAvoidingView
-      style={[globalStyles.containerWeb, groupStyles.screenContainer]}
+      style={globalStyles.containerWeb}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {!selectedGroup ? (
@@ -2366,7 +2366,7 @@ const GroupScreen = () => {
             onPress={() => router.replace('/profile')}
             style={groupStyles.heroImageBackButton}
           >
-            <Text style={groupStyles.heroBackButtonText}>←</Text>
+            <Text style={globalStyles.iconBackButtonText}>←</Text>
           </TouchableOpacity>
           <View style={[globalStyles.overlay, groupStyles.groupHeaderOverlayCompact]}>
             <View style={globalStyles.headerInfo}>
@@ -2865,7 +2865,7 @@ const GroupScreen = () => {
                   />
                 </View>
                 {(hasInteractedPlaceBetAmount || placeBetAttempted) && placeBetValidationMessage ? (
-                  <Text style={groupStyles.validationHelperText}>{placeBetValidationMessage}</Text>
+                  <Text style={globalStyles.validationHelperText}>{placeBetValidationMessage}</Text>
                 ) : null}
               </View>
             </ScrollView>

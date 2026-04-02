@@ -24,8 +24,8 @@ import { getDefaultProfilePicture, isDefaultProfileImageKey, resolveProfileImage
 
 const DefaultProfilePicture = getDefaultProfilePicture();
 const ImageMissing = require('../../assets/images/image_missing.png');
-const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png');
 const FriendsIcon = require('../../assets/icons/noun-people-2196504.png');
+const SettingsIcon = require('../../assets/icons/noun-settings-2650525.png');
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 
 type DrinkFormState = {
@@ -153,9 +153,6 @@ const ProfileScreen: React.FC = () => {
     }
 
     try {
-      await authService.ensureVerifiedEmailForMediaUpload();
-      setUploadingProfileImage(true);
-
       if (Platform.OS !== 'web') {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permissionResult.granted) {
@@ -169,15 +166,25 @@ const ProfileScreen: React.FC = () => {
         allowsEditing: true,
         quality: 0.7,
         aspect: [1, 1],
+        base64: Platform.OS === 'web',
       });
 
       if (pickerResult.canceled || !pickerResult.assets?.length) {
         return;
       }
 
+      await authService.ensureVerifiedEmailForMediaUpload();
+      setUploadingProfileImage(true);
+
       const selectedAsset = pickerResult.assets[0];
       const webFile = (selectedAsset as any).file as Blob | undefined;
-      const uploadedImageUrl = await uploadProfileImage(user.id, webFile ?? selectedAsset.uri);
+      const webBase64 = (selectedAsset as any).base64 as string | undefined;
+      const uploadSource = webFile instanceof Blob
+        ? webFile
+        : webBase64
+          ? `data:${selectedAsset.mimeType || 'image/jpeg'};base64,${webBase64}`
+          : selectedAsset.uri;
+      const uploadedImageUrl = await uploadProfileImage(user.id, uploadSource);
       setSelectedProfileImage(uploadedImageUrl);
     } catch (error) {
       console.error(error);
@@ -572,19 +579,23 @@ const ProfileScreen: React.FC = () => {
 
   const loadUserData = useCallback(async () => {
     try {
-      const currentUser = authService.getCurrentUser();
-      if (currentUser) {
-        const userData = await profileService.getUserData(currentUser.uid);
-        setUserInfo(userData);
+      const currentUserId = user?.id ?? authService.getCurrentUser()?.uid;
+      if (!currentUserId) {
+        setUserInfo({});
+        return;
+      }
 
-        if (!userData.weight || !userData.gender) {
-          const alertStorageKey = `bacMissingInfoAlertShown:${currentUser.uid}`;
-          const hasShownAlert = await AsyncStorage.getItem(alertStorageKey);
+      setIsLoading(true);
+      const userData = await profileService.getUserData(currentUserId);
+      setUserInfo(userData);
 
-          if (!hasShownAlert) {
-            setOnboardingStorageKey(alertStorageKey);
-            setOnboardingModalVisible(true);
-          }
+      if (!userData.weight || !userData.gender) {
+        const alertStorageKey = `bacMissingInfoAlertShown:${currentUserId}`;
+        const hasShownAlert = await AsyncStorage.getItem(alertStorageKey);
+
+        if (!hasShownAlert) {
+          setOnboardingStorageKey(alertStorageKey);
+          setOnboardingModalVisible(true);
         }
       }
     } catch (error) {
@@ -593,13 +604,18 @@ const ProfileScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useFocusEffect(
     useCallback(() => {
       loadUserData();
     }, [loadUserData])
   );
+
+  useEffect(() => {
+    if (!user?.id) return;
+    loadUserData();
+  }, [user?.id, loadUserData]);
 
   useEffect(() => {
     if (userInfo.name) {
@@ -892,12 +908,16 @@ const ProfileScreen: React.FC = () => {
     }
   }, [endTimeAllowed, drinkForm.hasEndTime, drinkForm.consumedUntilTime]);
 
+  const navigateToFriends = () => {
+    router.push('/friends');
+  };
+
   const navigateToSettings = () => {
     router.push('/settings');
   };
 
-  const navigateToFriends = () => {
-    router.push('/friends');
+  const handleBack = () => {
+    router.back();
   };
 
   const dismissOnboarding = async () => {
@@ -1332,10 +1352,7 @@ const ProfileScreen: React.FC = () => {
 
   return (
     <KeyboardAvoidingView
-      style={[
-        Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container,
-        profileStyles.pageContainer,
-      ]}
+      style={Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
@@ -1345,7 +1362,10 @@ const ProfileScreen: React.FC = () => {
         {/* Profile content */}
         <View style={[globalStyles.centeredSection, profileStyles.compactCenteredSection, profileStyles.heroSection]}>
           <View style={[globalStyles.premiumCard, profileStyles.profileHeroCard]}>
-            <TouchableOpacity style={profileStyles.heroFriendsButton} onPress={navigateToFriends}>
+            <TouchableOpacity style={profileStyles.heroButton} onPress={navigateToSettings}>
+              <Image source={SettingsIcon} style={globalStyles.primaryIcon} />
+            </TouchableOpacity>
+            <TouchableOpacity style={profileStyles.heroButtonRight} onPress={navigateToFriends}>
               <Image source={FriendsIcon} style={profileStyles.heroFriendsIcon} />
               {incomingFriendRequestCount > 0 && (
                 <View style={profileStyles.heroFriendsBadge}>
@@ -1354,9 +1374,6 @@ const ProfileScreen: React.FC = () => {
                   </Text>
                 </View>
               )}
-            </TouchableOpacity>
-            <TouchableOpacity style={profileStyles.heroSettingsButton} onPress={navigateToSettings}>
-              <Image source={SettingsIcon} style={globalStyles.primaryIcon} />
             </TouchableOpacity>
             {/* Profile picture */}
             <View style={profileStyles.profileImageContainer}>
@@ -1393,11 +1410,16 @@ const ProfileScreen: React.FC = () => {
                 />
               </View>
               <TouchableOpacity
-                style={[globalStyles.outlineButtonGold, profileStyles.profileUploadButton]}
+                style={[
+                  globalStyles.outlineButtonGold,
+                  profileStyles.profileUploadButton,
+                  profileStyles.profileModalActionButton,
+                  uploadingProfileImage && globalStyles.disabledButton,
+                ]}
                 onPress={handleUploadProfileImage}
                 disabled={uploadingProfileImage}
               >
-                <Text style={globalStyles.outlineButtonGoldText}>
+                <Text style={[globalStyles.outlineButtonGoldText, profileStyles.profileModalActionButtonText]}>
                   {uploadingProfileImage ? 'Laster opp...' : 'Last opp'}
                 </Text>
               </TouchableOpacity>
@@ -1437,15 +1459,18 @@ const ProfileScreen: React.FC = () => {
                   />
                 </View>
               </View>
-              <View style={globalStyles.buttonRow}>
+              <View style={globalStyles.editButtonsContainer}>
                 <TouchableOpacity
-                  style={globalStyles.cancelButton}
+                  disabled={uploadingProfileImage}
                   onPress={() => setProfileImageModalVisible(false)}
                 >
                   <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={globalStyles.saveButton} onPress={handleProfileSave}>
-                  <Text style={globalStyles.saveButtonTextAlt}>Lagre</Text>
+                <TouchableOpacity
+                  disabled={uploadingProfileImage}
+                  onPress={handleProfileSave}
+                >
+                  <Text style={globalStyles.saveButtonText}>Lagre</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -2098,7 +2123,7 @@ const ProfileScreen: React.FC = () => {
                             <View style={[globalStyles.pickerInput, profileStyles.timePickerShell, profileStyles.pickerGlowShell]}>
                               <Picker
                                 style={globalStyles.picker}
-                                itemStyle={profileStyles.pickerItem}
+                                itemStyle={globalStyles.pickerItem}
                                 selectedValue={getTimeParts(drinkForm.consumedAtTime).hour}
                                 onValueChange={(value: string) =>
                                   setDrinkForm({
@@ -2116,7 +2141,7 @@ const ProfileScreen: React.FC = () => {
                             <View style={[globalStyles.pickerInput, profileStyles.timePickerShell, profileStyles.pickerGlowShell]}>
                               <Picker
                                 style={globalStyles.picker}
-                                itemStyle={profileStyles.pickerItem}
+                                itemStyle={globalStyles.pickerItem}
                                 selectedValue={getTimeParts(drinkForm.consumedAtTime).minute}
                                 onValueChange={(value: string) =>
                                   setDrinkForm({
@@ -2166,7 +2191,7 @@ const ProfileScreen: React.FC = () => {
                                 <View style={[globalStyles.pickerInput, profileStyles.timePickerShell, profileStyles.pickerGlowShell]}>
                                   <Picker
                                     style={globalStyles.picker}
-                                    itemStyle={profileStyles.pickerItem}
+                                    itemStyle={globalStyles.pickerItem}
                                     selectedValue={getTimeParts(drinkForm.consumedUntilTime || drinkForm.consumedAtTime).hour}
                                     onValueChange={(value: string) =>
                                       setDrinkForm({
@@ -2188,7 +2213,7 @@ const ProfileScreen: React.FC = () => {
                                 <View style={[globalStyles.pickerInput, profileStyles.timePickerShell, profileStyles.pickerGlowShell]}>
                                   <Picker
                                     style={globalStyles.picker}
-                                    itemStyle={profileStyles.pickerItem}
+                                    itemStyle={globalStyles.pickerItem}
                                     selectedValue={getTimeParts(drinkForm.consumedUntilTime || drinkForm.consumedAtTime).minute}
                                     onValueChange={(value: string) =>
                                       setDrinkForm({
@@ -2216,7 +2241,7 @@ const ProfileScreen: React.FC = () => {
                 </View>
                 <View style={profileStyles.drinkModalActions}>
                   {drinkForm.category && showDrinkValidationHint && drinkValidationMessage ? (
-                    <Text style={profileStyles.validationHelperText}>{drinkValidationMessage}</Text>
+                    <Text style={globalStyles.validationHelperText}>{drinkValidationMessage}</Text>
                   ) : null}
                   <View style={globalStyles.editButtonsContainer}>
                     <TouchableOpacity
