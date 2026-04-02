@@ -52,6 +52,34 @@ type BACEstimatorDrinkOption = {
   template: Omit<DrinkEntry, 'timestamp' | 'quantity'>;
 };
 
+const normalizeDrinkCategory = (category: unknown, alcoholPercent?: number): DrinkCategory => {
+  if (typeof category === 'string') {
+    const normalized = category.trim().toLowerCase();
+
+    if (['øl', 'ol', 'beer', 'cider', 'selzer', 'seltzer', 'hard selzer', 'hard seltzer'].includes(normalized)) {
+      return 'øl';
+    }
+    if (['vin', 'wine'].includes(normalized)) {
+      return 'vin';
+    }
+    if (['sprit', 'spirit', 'liquor', 'shot', 'shots', 'drink'].includes(normalized)) {
+      return 'sprit';
+    }
+  }
+
+  if (typeof alcoholPercent === 'number') {
+    if (alcoholPercent < 8) return 'øl';
+    if (alcoholPercent < 22) return 'vin';
+  }
+
+  return 'sprit';
+};
+
+const resolveDrinkTimestamp = (drink: DrinkEntry): number => {
+  const rawTimestamp = drink.endTimestamp ?? drink.timestamp;
+  return Number.isFinite(rawTimestamp) ? rawTimestamp : 0;
+};
+
 const getCurrentTimeInput = () => {
   const now = new Date();
   const hours = now.getHours().toString().padStart(2, '0');
@@ -354,9 +382,20 @@ const ProfileScreen: React.FC = () => {
 
   const latestDrinkEntry = useMemo(() => {
     if (!userInfo.drinks?.length) return null;
-    return [...userInfo.drinks].sort(
-      (a, b) => (b.endTimestamp ?? b.timestamp) - (a.endTimestamp ?? a.timestamp)
-    )[0];
+
+    return userInfo.drinks.reduce<DrinkEntry | null>((latest, drink) => {
+      const currentTimestamp = resolveDrinkTimestamp(drink);
+      const latestTimestamp = latest ? resolveDrinkTimestamp(latest) : Number.NEGATIVE_INFINITY;
+
+      if (currentTimestamp <= latestTimestamp) {
+        return latest;
+      }
+
+      return {
+        ...drink,
+        category: normalizeDrinkCategory((drink as DrinkEntry & { category?: unknown }).category, drink.alcoholPercent),
+      };
+    }, null);
   }, [userInfo.drinks]);
 
   const latestDrinkLabel = useMemo(() => {
@@ -1213,7 +1252,7 @@ const ProfileScreen: React.FC = () => {
 
       const drink: DrinkEntry = {
         ...(latestDrinkEntry.name ? { name: latestDrinkEntry.name } : {}),
-        category: latestDrinkEntry.category,
+        category: normalizeDrinkCategory(latestDrinkEntry.category, latestDrinkEntry.alcoholPercent),
         sizeDl: latestDrinkEntry.sizeDl,
         alcoholPercent: latestDrinkEntry.alcoholPercent,
         quantity: 1,
