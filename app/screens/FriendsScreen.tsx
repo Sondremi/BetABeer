@@ -16,6 +16,10 @@ const DefaultProfilePicture = getDefaultProfilePicture();
 const AddFriendIcon = require('../../assets/icons/noun-add-user-7539314.png');
 const PeopleIcon = require('../../assets/icons/noun-people-2196504.png');
 
+type FriendSuggestion = Friend & {
+  mutualCount: number;
+};
+
 const FriendsScreen = () => {
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -24,9 +28,12 @@ const FriendsScreen = () => {
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
   const [friends, setFriends] = useState<FriendWithPending[]>([]);
+  const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
   const [searchFocused, setSearchFocused] = useState(false);
   const [isFriendsExpanded, setIsFriendsExpanded] = useState(true);
   const [isRequestsExpanded, setIsRequestsExpanded] = useState(true);
+  const [isSuggestionsExpanded, setIsSuggestionsExpanded] = useState(true);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -107,6 +114,93 @@ const FriendsScreen = () => {
     if (loading) return;
     fetchFriends();
   }, [fetchFriends, loading]);
+
+  useEffect(() => {
+    const loadFriendSuggestions = async () => {
+      if (!user?.id) {
+        setFriendSuggestions([]);
+        return;
+      }
+
+      const directFriendIds = new Set(
+        friends
+          .filter((friend) => friend.type !== 'pending')
+          .map((friend) => friend.id)
+      );
+
+      if (directFriendIds.size === 0) {
+        setFriendSuggestions([]);
+        return;
+      }
+
+      setSuggestionsLoading(true);
+      try {
+        const outgoingIds = new Set(outgoingRequests.map((request) => request.toUserId));
+        const incomingIds = new Set(incomingRequests.map((request) => request.fromUserId));
+
+        const mutualByCandidate = new Map<string, Set<string>>();
+
+        await Promise.all(
+          Array.from(directFriendIds).map(async (friendId) => {
+            const friendDoc = await getDoc(doc(firestore, 'users', friendId));
+            if (!friendDoc.exists()) return;
+            const friendFriendIds = (friendDoc.data().friends || []) as string[];
+            friendFriendIds.forEach((candidateId) => {
+              if (
+                candidateId === user.id ||
+                directFriendIds.has(candidateId) ||
+                outgoingIds.has(candidateId) ||
+                incomingIds.has(candidateId)
+              ) {
+                return;
+              }
+              const mutualSet = mutualByCandidate.get(candidateId) || new Set<string>();
+              mutualSet.add(friendId);
+              mutualByCandidate.set(candidateId, mutualSet);
+            });
+          })
+        );
+
+        const candidateIds = Array.from(mutualByCandidate.keys());
+        if (candidateIds.length === 0) {
+          setFriendSuggestions([]);
+          return;
+        }
+
+        const candidateDocs = await Promise.all(
+          candidateIds.map((candidateId) => getDoc(doc(firestore, 'users', candidateId)))
+        );
+
+        const suggestions: FriendSuggestion[] = candidateDocs
+          .filter((candidateDoc) => candidateDoc.exists())
+          .map((candidateDoc) => {
+            const candidateData = candidateDoc.data();
+            return {
+              id: candidateDoc.id,
+              name: candidateData.name || 'Ukjent',
+              username: candidateData.username || 'ukjent',
+              profilePicture: candidateData.profileImage
+                ? resolveProfileImageSource(candidateData.profileImage, DefaultProfilePicture)
+                : DefaultProfilePicture,
+              mutualCount: mutualByCandidate.get(candidateDoc.id)?.size || 0,
+            };
+          })
+          .sort((a, b) => {
+            if (b.mutualCount !== a.mutualCount) return b.mutualCount - a.mutualCount;
+            return a.name.localeCompare(b.name);
+          });
+
+        setFriendSuggestions(suggestions);
+      } catch (error) {
+        console.error('Failed to load friend suggestions:', error);
+        setFriendSuggestions([]);
+      } finally {
+        setSuggestionsLoading(false);
+      }
+    };
+
+    loadFriendSuggestions();
+  }, [friends, incomingRequests, outgoingRequests, user?.id]);
 
   const performSearch = useCallback(async (term: string) => {
     const normalizedTerm = normalizeSingleLineText(term);
@@ -401,42 +495,6 @@ const FriendsScreen = () => {
           </View>
         </View>
 
-        {/* Friends section */}
-        <View style={[globalStyles.section, friendsStyles.compactSection]}>
-          <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
-            <View style={[globalStyles.sectionHeaderRow, !isFriendsExpanded && globalStyles.collapsedHeaderRow]}>
-              <Text style={globalStyles.sectionTitle}>Mine venner ({friends.length})</Text>
-              <TouchableOpacity
-                style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}
-                onPress={() => setIsFriendsExpanded((prev) => !prev)}
-                accessibilityRole="button"
-                accessibilityLabel={isFriendsExpanded ? 'Minimer venner' : 'Utvid venner'}
-              >
-                <Text style={[globalStyles.outlineButtonGoldText, globalStyles.sectionToggleIconButtonText]}>
-                  {isFriendsExpanded ? '▾' : '▸'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            {isFriendsExpanded && friends.length > 0 ? (
-              <View>
-                <View style={[globalStyles.warmListPanel, friendsStyles.listScrollBox]}>
-                  <ScrollView nestedScrollEnabled contentContainerStyle={globalStyles.listScrollContent}>
-                    {friends.map((item) => (
-                      <View key={item.id + (item.type === 'pending' ? '-pending' : '')}>{renderFriend({ item })}</View>
-                    ))}
-                  </ScrollView>
-                </View>
-              </View>
-            ) : isFriendsExpanded ? (
-              <View style={globalStyles.emptyState}>
-                <Image source={PeopleIcon} style={globalStyles.primaryIcon} />
-                <Text style={globalStyles.emptyStateText}>Du har ingen venner enda</Text>
-                <Text style={globalStyles.emptyStateSubtext}>Bruk søkefeltet over for å finne venner</Text>
-              </View>
-            ) : null}
-          </View>
-        </View>
-
         {/* Friend Requests section */}
         <View style={[globalStyles.section, friendsStyles.compactSection]}>
           <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
@@ -501,6 +559,101 @@ const FriendsScreen = () => {
               <View style={globalStyles.emptyState}>
                 <Image source={AddFriendIcon} style={globalStyles.primaryIcon} />
                 <Text style={globalStyles.emptyStateText}>Ingen forespørsler</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {/* Friends section */}
+        <View style={[globalStyles.section, friendsStyles.compactSection]}>
+          <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
+            <View style={[globalStyles.sectionHeaderRow, !isFriendsExpanded && globalStyles.collapsedHeaderRow]}>
+              <Text style={globalStyles.sectionTitle}>Mine venner ({friends.length})</Text>
+              <TouchableOpacity
+                style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}
+                onPress={() => setIsFriendsExpanded((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={isFriendsExpanded ? 'Minimer venner' : 'Utvid venner'}
+              >
+                <Text style={[globalStyles.outlineButtonGoldText, globalStyles.sectionToggleIconButtonText]}>
+                  {isFriendsExpanded ? '▾' : '▸'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {isFriendsExpanded && friends.length > 0 ? (
+              <View>
+                <View style={[globalStyles.warmListPanel, friendsStyles.listScrollBox]}>
+                  <ScrollView nestedScrollEnabled contentContainerStyle={globalStyles.listScrollContent}>
+                    {friends.map((item) => (
+                      <View key={item.id + (item.type === 'pending' ? '-pending' : '')}>{renderFriend({ item })}</View>
+                    ))}
+                  </ScrollView>
+                </View>
+              </View>
+            ) : isFriendsExpanded ? (
+              <View style={globalStyles.emptyState}>
+                <Image source={PeopleIcon} style={globalStyles.primaryIcon} />
+                <Text style={globalStyles.emptyStateText}>Du har ingen venner enda</Text>
+                <Text style={globalStyles.emptyStateSubtext}>Bruk søkefeltet over for å finne venner</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {/* Friends of Friends section */}
+        <View style={[globalStyles.section, friendsStyles.compactSection]}>
+          <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
+            <View style={[globalStyles.sectionHeaderRow, !isSuggestionsExpanded && globalStyles.collapsedHeaderRow]}>
+              <Text style={globalStyles.sectionTitle}>Venner av venner ({friendSuggestions.length})</Text>
+              <TouchableOpacity
+                style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}
+                onPress={() => setIsSuggestionsExpanded((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={isSuggestionsExpanded ? 'Minimer venner av venner' : 'Utvid venner av venner'}
+              >
+                <Text style={[globalStyles.outlineButtonGoldText, globalStyles.sectionToggleIconButtonText]}>
+                  {isSuggestionsExpanded ? '▾' : '▸'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {isSuggestionsExpanded && suggestionsLoading ? (
+              <Text style={globalStyles.secondaryText}>Laster forslag...</Text>
+            ) : isSuggestionsExpanded && friendSuggestions.length > 0 ? (
+              <View>
+                <View style={[globalStyles.warmListPanel, friendsStyles.listScrollBox]}>
+                  <ScrollView nestedScrollEnabled contentContainerStyle={globalStyles.listScrollContent}>
+                    {friendSuggestions.map((item) => (
+                      <View style={[globalStyles.listItemRow, globalStyles.friendSpacing, friendsStyles.friendRow]} key={item.id}>
+                        <Image
+                          source={item.profilePicture}
+                          style={[globalStyles.circularImage, friendsStyles.friendImage]}
+                        />
+                        <View style={globalStyles.itemInfo}>
+                          <Text style={friendsStyles.friendName}>{item.name}</Text>
+                          <Text style={globalStyles.secondaryText}>@{item.username}</Text>
+                          <Text style={globalStyles.secondaryText}>{item.mutualCount} felles venn{item.mutualCount === 1 ? '' : 'er'}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={[
+                            globalStyles.outlineButtonGold,
+                            globalStyles.actionButton,
+                          ]}
+                          onPress={() => handleAddFriend(item)}
+                        >
+                          <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionButtonText]}>
+                            Legg til
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              </View>
+            ) : isSuggestionsExpanded ? (
+              <View style={globalStyles.emptyState}>
+                <Image source={PeopleIcon} style={globalStyles.primaryIcon} />
+                <Text style={globalStyles.emptyStateText}>Ingen forslag akkurat nå</Text>
+                <Text style={globalStyles.emptyStateSubtext}>Forslag vises når venner du har til sammen peker på samme person.</Text>
               </View>
             ) : null}
           </View>
