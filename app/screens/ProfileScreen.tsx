@@ -368,14 +368,15 @@ const ProfileScreen: React.FC = () => {
   const highscoreUpdatedLabel = useMemo(() => {
     if (!userInfo.bacHighscoreUpdatedAt) return 'Ikke satt';
     const updatedAt = new Date(userInfo.bacHighscoreUpdatedAt);
-    const day = updatedAt.getDate();
-    const month = updatedAt.getMonth() + 1;
+    const day = updatedAt.getDate().toString().padStart(2, '0');
+    const month = (updatedAt.getMonth() + 1).toString().padStart(2, '0');
+    const year = updatedAt.getFullYear();
     const time = updatedAt.toLocaleTimeString('nb-NO', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
     });
-    return `${day}.${month}. kl ${time}`;
+    return `${day}.${month}.${year} kl: ${time}`;
   }, [userInfo.bacHighscoreUpdatedAt]);
   const canResetBacHighscore = (userInfo.bacHighscoreAllTime ?? 0) > 0 && !resettingBacHighscore;
 
