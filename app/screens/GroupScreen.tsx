@@ -137,6 +137,7 @@ const GroupScreen = () => {
   const [deleting, setDeleting] = useState(false);
   const [betModalVisible, setBetModalVisible] = useState(false);
   const [editingName, setEditingName] = useState(false);
+  const [groupNameFocused, setGroupNameFocused] = useState(false);
   const [betTitle, setBetTitle] = useState('');
   const [betOptions, setBetOptions] = useState<{ name: string }[]>([{ name: '' }]);
   const [hiddenBetMemberIds, setHiddenBetMemberIds] = useState<string[]>([]);
@@ -1923,7 +1924,7 @@ const GroupScreen = () => {
     return (
       <View style={groupStyles.betContainer}>
         <View style={[globalStyles.contentCard, globalStyles.betSpacing]}>
-          <View style={globalStyles.rowSpread}>
+          <View style={[globalStyles.rowSpread, { alignItems: 'flex-start' }]}>
             <View style={{ flex: 1 }}>
               <Text style={groupStyles.betTitle}>{item.title}</Text>
               {betMeta ? <Text style={groupStyles.betMetaText}>{betMeta}</Text> : null}
@@ -1934,7 +1935,7 @@ const GroupScreen = () => {
               )}
             </View>
             {canManageBet(item) && (
-              <TouchableOpacity onPress={() => openEditBetModal(item, index)}>
+              <TouchableOpacity onPress={() => openEditBetModal(item, index)} style={{ marginTop: 2 }}>
                 <Image source={PencilIcon} style={globalStyles.primaryIcon} />
               </TouchableOpacity>
             )}
@@ -2085,6 +2086,7 @@ const GroupScreen = () => {
       .sort((a, b) => b.timestamp - a.timestamp);
     const totalDistributedOut = memberDistributedTransactions.reduce((sum, transaction) => sum + (Number(transaction.amount) || 0), 0);
     const showDistributeTransferSection = selectedDetailView === 'distribute' && memberDistributedTransactions.length > 0;
+    const shouldScrollDistributedTransfers = memberDistributedTransactions.length > 5;
 
     const handleRegisterConsumedDrink = async (drinkType: DrinkType, measureType: MeasureType) => {
       if (!user?.id || !selectedGroup?.id) return;
@@ -2188,13 +2190,19 @@ const GroupScreen = () => {
             {showDistributeTransferSection && (
               <View>
                 <Text style={[groupStyles.modalSectionTitle, { marginTop: theme.spacing.sm }]}>Siste overføringer</Text>
-                <View style={[globalStyles.listContainer, globalStyles.leaderboardListWrap]}>
-                  {memberDistributedTransactions.slice(0, 6).map((transaction, idx) => (
-                    <View key={`${transaction.fromUserId}-${transaction.toUserId}-${transaction.timestamp}-${idx}`}>
-                      {renderTransactionItem({ item: transaction })}
-                    </View>
-                  ))}
-                </View>
+                <ScrollView
+                  style={shouldScrollDistributedTransfers ? globalStyles.betOptionsScrollWrap : undefined}
+                  nestedScrollEnabled={shouldScrollDistributedTransfers}
+                  showsVerticalScrollIndicator={shouldScrollDistributedTransfers}
+                >
+                  <View style={[globalStyles.listContainer, globalStyles.leaderboardListWrap]}>
+                    {memberDistributedTransactions.map((transaction, idx) => (
+                      <View key={`${transaction.fromUserId}-${transaction.toUserId}-${transaction.timestamp}-${idx}`}>
+                        {renderTransactionItem({ item: transaction })}
+                      </View>
+                    ))}
+                  </View>
+                </ScrollView>
               </View>
             )}
           </View>
@@ -2407,12 +2415,18 @@ const GroupScreen = () => {
                     <TextInput
                       value={groupName}
                       onChangeText={(text) => setGroupName(text.slice(0, INPUT_LIMITS.groupNameMax))}
-                      style={[groupStyles.groupNameInput, groupStyles.groupNameInputCompact]}
+                      style={[
+                        groupStyles.groupNameInput,
+                        groupStyles.groupNameInputCompact,
+                        groupNameFocused && globalStyles.inputShellFocusedGold,
+                      ]}
                       editable={!saving}
                       autoFocus
                       placeholder="Gruppenavn"
                       placeholderTextColor={theme.colors.textSecondary}
                       maxLength={INPUT_LIMITS.groupNameMax}
+                      onFocus={() => setGroupNameFocused(true)}
+                      onBlur={() => setGroupNameFocused(false)}
                       onSubmitEditing={handleSaveGroupName}
                       returnKeyType="done"
                     />
@@ -2421,6 +2435,7 @@ const GroupScreen = () => {
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => {
                       setGroupName(selectedGroup.name);
+                      setGroupNameFocused(false);
                       setEditingName(false);
                     }} disabled={saving} style={groupStyles.inlineIconActionButton}>
                       <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
@@ -2693,8 +2708,6 @@ const GroupScreen = () => {
           </View>
         </View>
       </Modal>
-
-
 
       <Modal visible={betModalVisible} animationType="slide" transparent onRequestClose={() => setBetModalVisible(false)}>
         <View style={globalStyles.modalContainer}>

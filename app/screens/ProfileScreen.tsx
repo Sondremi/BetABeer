@@ -15,6 +15,7 @@ import { uploadProfileImage } from '../services/profileImageUploadService';
 import { acceptGroupInvitation, createGroup, declineGroupInvitation, profileService } from '../services/profileService';
 import { profileChartConfig, profileChartDataset, profileScreenTokens, profileStyles } from '../styles/components/profileStyles';
 import { globalStyles } from '../styles/globalStyles';
+import { theme } from '../styles/theme';
 import { DrinkCategory, DrinkEntry, Group, GroupInvitation } from '../types/drinkTypes';
 import { Friend } from '../types/userTypes';
 import { defaultProfileImageMap, defaultProfileImages } from '../utils/defaultProfileImages';
@@ -221,6 +222,7 @@ const ProfileScreen: React.FC = () => {
   const [showDrinkValidationHint, setShowDrinkValidationHint] = useState(false);
   const [isBacExpanded, setIsBacExpanded] = useState(true);
   const [isInvitationsExpanded, setIsInvitationsExpanded] = useState(true);
+  const [resettingBacHighscore, setResettingBacHighscore] = useState(false);
   const [drinkForm, setDrinkForm] = useState<DrinkFormState>(() => createInitialDrinkForm());
   const [bacCalculationTime, setBacCalculationTime] = useState(() => Date.now());
   const [selectedEstimatorDrinkKey, setSelectedEstimatorDrinkKey] = useState<string>('');
@@ -365,13 +367,17 @@ const ProfileScreen: React.FC = () => {
 
   const highscoreUpdatedLabel = useMemo(() => {
     if (!userInfo.bacHighscoreUpdatedAt) return 'Ikke satt';
-    return new Date(userInfo.bacHighscoreUpdatedAt).toLocaleString([], {
-      day: '2-digit',
-      month: '2-digit',
+    const updatedAt = new Date(userInfo.bacHighscoreUpdatedAt);
+    const day = updatedAt.getDate();
+    const month = updatedAt.getMonth() + 1;
+    const time = updatedAt.toLocaleTimeString('nb-NO', {
       hour: '2-digit',
       minute: '2-digit',
+      hour12: false,
     });
+    return `${day}.${month}. kl ${time}`;
   }, [userInfo.bacHighscoreUpdatedAt]);
+  const canResetBacHighscore = (userInfo.bacHighscoreAllTime ?? 0) > 0 && !resettingBacHighscore;
 
   const estimatedAdditionalDrinksToBeatHighscore = useMemo(() => {
     if (!userInfo.drinks?.length || !userInfo.weight || !userInfo.gender) {
@@ -454,6 +460,12 @@ const ProfileScreen: React.FC = () => {
 
     persistHighscoreIfNeeded();
   }, [currentBACValue, user?.id, userInfo.weight, userInfo.gender, userInfo.drinks, userInfo.bacHighscoreAllTime]);
+
+  useEffect(() => {
+    if (userInfo.drinks?.length) {
+      setBacCalculationTime(Date.now());
+    }
+  }, [userInfo.drinks]);
 
   useEffect(() => {
     if (!userInfo.drinks?.length || !userInfo.weight || !userInfo.gender) {
@@ -588,6 +600,7 @@ const ProfileScreen: React.FC = () => {
       setIsLoading(true);
       const userData = await profileService.getUserData(currentUserId);
       setUserInfo(userData);
+      setBacCalculationTime(Date.now());
 
       if (!userData.weight || !userData.gender) {
         const alertStorageKey = `bacMissingInfoAlertShown:${currentUserId}`;
@@ -1116,6 +1129,7 @@ const ProfileScreen: React.FC = () => {
         await profileService.addDrink(currentUser.uid, drink);
         const updatedUserData = await profileService.getUserData(currentUser.uid);
         setUserInfo(updatedUserData);
+        setBacCalculationTime(Date.now());
       }
     } catch (error) {
       console.error(error);
@@ -1153,6 +1167,39 @@ const ProfileScreen: React.FC = () => {
     );
   };
 
+  const handleResetBacHighscore = () => {
+    if (!canResetBacHighscore) return;
+
+    showAlert(
+      'Nullstill promille-highscore',
+      'Er du sikker på at du vil nullstille promille-highscore?',
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: 'Nullstill',
+          style: 'destructive',
+          async onPress() {
+            if (!user?.id) return;
+            setResettingBacHighscore(true);
+            try {
+              await profileService.resetBACHighscore(user.id);
+              setUserInfo((prev) => ({
+                ...prev,
+                bacHighscoreAllTime: 0,
+                bacHighscoreUpdatedAt: undefined,
+              }));
+            } catch (error) {
+              console.error(error);
+              showAlert('Feil', 'Kunne ikke nullstille promille-highscore');
+            } finally {
+              setResettingBacHighscore(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleAddLatestDrinkAgain = async () => {
     if (!latestDrinkEntry) {
       showAlert('Ingen historikk', 'Du må registrere en drikke først.');
@@ -1175,6 +1222,7 @@ const ProfileScreen: React.FC = () => {
       await profileService.addDrink(currentUser.uid, drink);
       const updatedUserData = await profileService.getUserData(currentUser.uid);
       setUserInfo(updatedUserData);
+      setBacCalculationTime(Date.now());
     } catch (error) {
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : 'Kunne ikke registrere siste drikke';
@@ -1349,6 +1397,8 @@ const ProfileScreen: React.FC = () => {
       </View>
     );
   }
+
+  const canSubmitCreateGroup = !creatingGroup && normalizeSingleLineText(createGroupName).length > 0;
 
   return (
     <KeyboardAvoidingView
@@ -1625,7 +1675,35 @@ const ProfileScreen: React.FC = () => {
             )}
             {isBacExpanded && hasBacRequiredInfo && (
               <View style={[globalStyles.inputGroup, profileStyles.chartCard]}>
-                <Text style={globalStyles.sectionTitle}>Promille-highscore</Text>
+                <View style={[globalStyles.rowSpread, { marginBottom: theme.spacing.sm }]}> 
+                  <Text style={[globalStyles.sectionTitle, { marginBottom: 0 }]}>Promille-highscore</Text>
+                  <TouchableOpacity
+                    style={[
+                      globalStyles.dangerButton,
+                      {
+                        marginBottom: 0,
+                        paddingVertical: theme.spacing.xs,
+                        paddingHorizontal: theme.spacing.sm,
+                        borderColor: theme.colors.errorLight,
+                        backgroundColor: theme.colors.surface,
+                        opacity: 0.82,
+                      },
+                      !canResetBacHighscore && globalStyles.disabledButton,
+                    ]}
+                    onPress={handleResetBacHighscore}
+                    disabled={!canResetBacHighscore}
+                  >
+                    <Text
+                      style={[
+                        globalStyles.dangerButtonText,
+                        { fontSize: theme.fonts.sm },
+                        !canResetBacHighscore && { color: theme.colors.errorLight, opacity: 0.72 },
+                      ]}
+                    >
+                      {resettingBacHighscore ? 'Nullstiller...' : 'Nullstill'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
                 <View style={profileStyles.chartSummaryRow}>
                   <View style={profileStyles.statPill}>
                     <Text style={profileStyles.statLabel}>All-time</Text>
@@ -1646,18 +1724,23 @@ const ProfileScreen: React.FC = () => {
                 {userInfo.bacHighscoreAllTime && userInfo.bacHighscoreAllTime > 0 && estimatorDrinkOptions.length > 0 ? (
                   <>
                     <View style={[globalStyles.inputGroup, { marginBottom: 0 }]}> 
-                      <Text style={globalStyles.label}>Hva vil du drikke?</Text>
-                      <View style={[globalStyles.pickerInput, profileStyles.pickerGlowShell]}>
-                        <Picker
-                          style={globalStyles.picker}
-                          selectedValue={selectedEstimatorDrinkKey}
-                          onValueChange={(value: string) => setSelectedEstimatorDrinkKey(value)}
-                        >
-                          {estimatorDrinkOptions.map((option) => (
-                            <Picker.Item key={option.key} label={option.label} value={option.key} />
-                          ))}
-                        </Picker>
-                      </View>
+                      <Text style={globalStyles.addOptionText}>Se hva du må drikke for å slå highscore</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
+                        {estimatorDrinkOptions.map((option) => {
+                          const isSelected = selectedEstimatorDrinkKey === option.key;
+                          return (
+                            <TouchableOpacity
+                              key={option.key}
+                              style={[globalStyles.selectionButton, isSelected && globalStyles.selectionButtonSelected]}
+                              onPress={() => setSelectedEstimatorDrinkKey(option.key)}
+                            >
+                              <Text style={[globalStyles.selectionButtonText, isSelected && globalStyles.selectionButtonTextSelected]}>
+                                {option.label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
                     </View>
                     <Text style={globalStyles.secondaryText}>
                       {estimatedAdditionalDrinksToBeatHighscore === 0
@@ -1752,13 +1835,18 @@ const ProfileScreen: React.FC = () => {
           >
             <View style={globalStyles.modalContainer}>
               <View style={[globalStyles.modalContent, profileStyles.createGroupModalContent]}>
-                <Text style={globalStyles.modalTitle}>Opprett gruppe</Text>
-                <View style={globalStyles.inputGroup}>
-                  <Text style={globalStyles.label}>Gruppenavn</Text>
-                  <View style={globalStyles.requestActionRow}>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={{ paddingBottom: theme.spacing.sm }}
+                >
+                  <Text style={globalStyles.modalTitle}>Opprett gruppe</Text>
+                  <Text style={[globalStyles.mutedText, { marginBottom: theme.spacing.sm }]}>Kun personen som oppretter gruppen kan laste opp gruppebilde, fjerne medlemmer og slette gruppen</Text>
+                  <View style={globalStyles.inputGroup}>
+                    <Text style={globalStyles.label}>Gruppenavn</Text>
                     <View style={[globalStyles.inputShellDark, globalStyles.itemInfo, createGroupNameFocused && globalStyles.inputShellFocusedGold]}>
                       <TextInput
-                        placeholder="Skriv gruppenavn"
+                        placeholder="Velg et gruppenavn"
                         placeholderTextColor={profileScreenTokens.createGroupPlaceholderTextColor}
                         value={createGroupName}
                         onChangeText={(text) => setCreateGroupName(text.slice(0, INPUT_LIMITS.groupNameMax))}
@@ -1768,67 +1856,66 @@ const ProfileScreen: React.FC = () => {
                         onBlur={() => setCreateGroupNameFocused(false)}
                       />
                     </View>
-                    <TouchableOpacity
-                      style={[
-                        profileStyles.createGroupActionButton,
-                        (!createGroupName.trim() || creatingGroup) && globalStyles.disabledButton,
-                      ]}
-                      onPress={handleCreateGroup}
-                      disabled={creatingGroup || !createGroupName.trim()}
-                    >
-                      <Text style={profileStyles.createGroupActionButtonText}>Opprett</Text>
-                    </TouchableOpacity>
                   </View>
-                </View>
-                <View style={globalStyles.inputGroup}>
-                  <Text style={globalStyles.label}>Inviter venner</Text>
-                  {loadingGroupInviteCandidates ? (
-                    <Text style={globalStyles.secondaryText}>Laster venner...</Text>
-                  ) : groupInviteCandidates.length === 0 ? (
-                    <Text style={globalStyles.secondaryText}>Du har ingen venner å invitere enda.</Text>
-                  ) : (
-                    <View>
-                      <View style={profileStyles.inviteBulkActionsRow}>
-                        <TouchableOpacity onPress={() => setSelectedInviteeIds(groupInviteCandidates.map((friend) => friend.id))}>
-                          <Text style={profileStyles.inviteBulkActionText}>Velg alle</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => setSelectedInviteeIds([])}>
-                          <Text style={profileStyles.inviteBulkActionText}>Fjern alle</Text>
-                        </TouchableOpacity>
+                  <View style={globalStyles.inputGroup}>
+                    <Text style={globalStyles.label}>Inviter venner</Text>
+                    {loadingGroupInviteCandidates ? (
+                      <Text style={globalStyles.secondaryText}>Laster venner...</Text>
+                    ) : groupInviteCandidates.length === 0 ? (
+                      <Text style={globalStyles.secondaryText}>Du har ingen venner å invitere enda.</Text>
+                    ) : (
+                      <View>
+                        <View style={profileStyles.inviteBulkActionsRow}>
+                          <TouchableOpacity onPress={() => setSelectedInviteeIds(groupInviteCandidates.map((friend) => friend.id))}>
+                            <Text style={profileStyles.inviteBulkActionText}>Velg alle</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => setSelectedInviteeIds([])}>
+                            <Text style={profileStyles.inviteBulkActionText}>Fjern alle</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <View style={profileStyles.inviteListBox}>
+                          <ScrollView nestedScrollEnabled style={profileStyles.inviteListScroll} contentContainerStyle={globalStyles.listScrollContent}>
+                          {groupInviteCandidates.map((friend) => {
+                            const selected = selectedInviteeIds.includes(friend.id);
+                            return (
+                              <TouchableOpacity
+                                key={friend.id}
+                                style={[profileStyles.inviteListRow, selected && profileStyles.inviteListRowSelected]}
+                                onPress={() => toggleInvitee(friend.id)}
+                              >
+                                <Image source={friend.profilePicture} style={profileStyles.inviteListAvatar} />
+                                <View style={globalStyles.itemInfo}>
+                                  <Text style={profileStyles.inviteListName}>{friend.name}</Text>
+                                  <Text style={globalStyles.secondaryText}>@{friend.username}</Text>
+                                </View>
+                                <Text style={[profileStyles.inviteStatusText, selected && globalStyles.primaryColorText]}>
+                                  {selected ? 'Inviteres' : 'Trykk for å invitere'}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                          </ScrollView>
+                        </View>
                       </View>
-                      <View style={profileStyles.inviteListBox}>
-                        <ScrollView nestedScrollEnabled style={profileStyles.inviteListScroll} contentContainerStyle={globalStyles.listScrollContent}>
-                        {groupInviteCandidates.map((friend) => {
-                          const selected = selectedInviteeIds.includes(friend.id);
-                          return (
-                            <TouchableOpacity
-                              key={friend.id}
-                              style={[profileStyles.inviteListRow, selected && profileStyles.inviteListRowSelected]}
-                              onPress={() => toggleInvitee(friend.id)}
-                            >
-                              <Image source={friend.profilePicture} style={profileStyles.inviteListAvatar} />
-                              <View style={globalStyles.itemInfo}>
-                                <Text style={profileStyles.inviteListName}>{friend.name}</Text>
-                                <Text style={globalStyles.secondaryText}>@{friend.username}</Text>
-                              </View>
-                              <Text style={[profileStyles.inviteStatusText, selected && globalStyles.primaryColorText]}>
-                                {selected ? 'Inviteres' : 'Trykk for å invitere'}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                        </ScrollView>
-                      </View>
-                    </View>
-                  )}
-                </View>
-                <View style={globalStyles.editButtonsContainer}>
+                    )}
+                  </View>
+                </ScrollView>
+                <View style={[globalStyles.editButtonsContainer, globalStyles.modalFooter]}>
                   <TouchableOpacity onPress={() => {
                     setCreateGroupName('');
                     setSelectedInviteeIds([]);
                     setCreateGroupModalVisible(false);
                   }}>
                     <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleCreateGroup}
+                    disabled={!canSubmitCreateGroup}
+                    style={!canSubmitCreateGroup ? globalStyles.disabledButton : undefined}
+                  >
+                    <Text style={[globalStyles.saveButtonText, !canSubmitCreateGroup && globalStyles.disabledGoldActionText]}>
+                      {creatingGroup ? 'Oppretter...' : 'Opprett'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1845,9 +1932,8 @@ const ProfileScreen: React.FC = () => {
           >
             <View style={globalStyles.modalContainer}>
               <View style={[globalStyles.modalContent, profileStyles.drinkModalContent]}> 
-                <Text style={[globalStyles.modalTitle, globalStyles.friendSpacing]}> 
-                  Velg drikke
-                </Text>
+                <Text style={[globalStyles.modalTitle, globalStyles.friendSpacing]}>Velg drikke</Text>
+                <Text style={[globalStyles.mutedText, { marginBottom: theme.spacing.sm }]}>Dette påvirker ikke drikkestatistikk i grupper</Text>
 
                 <View style={profileStyles.drinkFormScrollBox}>
                   <ScrollView
