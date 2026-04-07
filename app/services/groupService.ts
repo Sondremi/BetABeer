@@ -224,11 +224,12 @@ export const distributeDrinks = async (
 
   // Validate distributions
   const totalsByDrink: { [key in DrinkType]: { [key in MeasureType]: number } } = {
-    'Øl': { 'Slurker': 0, 'Shot': 0, 'Chug': 0 },
-    'Cider': { 'Slurker': 0, 'Shot': 0, 'Chug': 0 },
-    'Hard selzer': { 'Slurker': 0, 'Shot': 0, 'Chug': 0 },
-    'Vin': { 'Slurker': 0, 'Shot': 0, 'Chug': 0 },
-    'Sprit': { 'Slurker': 0, 'Shot': 0, 'Chug': 0 }
+    'Øl': { 'Slurker': 0, 'Shot': 0, 'Enhet': 0, 'Chug': 0 },
+    'Cider': { 'Slurker': 0, 'Shot': 0, 'Enhet': 0, 'Chug': 0 },
+    'Hard selzer': { 'Slurker': 0, 'Shot': 0, 'Enhet': 0, 'Chug': 0 },
+    'Vin': { 'Slurker': 0, 'Shot': 0, 'Enhet': 0, 'Chug': 0 },
+    'Sprit': { 'Slurker': 0, 'Shot': 0, 'Enhet': 0, 'Chug': 0 },
+    'Drink': { 'Slurker': 0, 'Shot': 0, 'Enhet': 0, 'Chug': 0 },
   };
   
   distributions.forEach(({ drinkType, measureType, amount }) => {
@@ -327,24 +328,20 @@ export const registerConsumedDrinks = async (
     aggregated[key] = (aggregated[key] || 0) + amount;
   });
 
-  const updateArgs: any[] = [];
+  const updates: Record<string, ReturnType<typeof increment>> = {};
   Object.entries(aggregated).forEach(([key, amount]) => {
     const [drinkType, measureType] = key.split('|') as [DrinkType, MeasureType];
     const available = drinksToConsume[drinkType]?.[measureType] || 0;
     if (amount > available) {
       throw new Error(`Du kan ikke registrere mer enn du har for ${measureType} ${drinkType}`);
     }
-    updateArgs.push(
-      new FieldPath('groupDrinkStats', groupId, 'drinksToConsume', drinkType, measureType),
-      increment(-amount),
-      new FieldPath('groupDrinkStats', groupId, 'drinksConsumed', drinkType, measureType),
-      increment(amount)
-    );
+    updates[`groupDrinkStats.${groupId}.drinksToConsume.${drinkType}.${measureType}`] = increment(-amount);
+    updates[`groupDrinkStats.${groupId}.drinksConsumed.${drinkType}.${measureType}`] = increment(amount);
   });
 
-  if (!updateArgs.length) {
+  if (!Object.keys(updates).length) {
     throw new Error('Ingen gyldige endringer å lagre');
   }
 
-  await updateDoc(userRef, ...updateArgs);
+  await updateDoc(userRef, updates);
 };
