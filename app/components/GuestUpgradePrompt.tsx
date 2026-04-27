@@ -7,12 +7,20 @@ import { INPUT_LIMITS, normalizeSingleLineText } from '../utils/inputValidation'
 import { showAlert } from '../utils/platformAlert';
 
 type GuestUpgradePromptProps = {
+  backToGroupButtonLabel?: string;
+  backToGroupRoute?: string;
   description: string;
   showBackToGroupButton?: boolean;
   title: string;
 };
 
-export const GuestUpgradePrompt: React.FC<GuestUpgradePromptProps> = ({ title, description, showBackToGroupButton = false }) => {
+export const GuestUpgradePrompt: React.FC<GuestUpgradePromptProps> = ({
+  title,
+  description,
+  showBackToGroupButton = false,
+  backToGroupButtonLabel = 'Tilbake til gruppe',
+  backToGroupRoute = '/groups',
+}) => {
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -86,8 +94,8 @@ export const GuestUpgradePrompt: React.FC<GuestUpgradePromptProps> = ({ title, d
           <Text style={globalStyles.sectionTitle}>{title}</Text>
           <Text style={globalStyles.sectionDescription}>{description}</Text>
           {showBackToGroupButton && (
-            <TouchableOpacity style={[globalStyles.outlineButtonGold, { marginBottom: 10 }]} onPress={() => router.replace('/groups')}>
-              <Text style={globalStyles.outlineButtonGoldText}>Tilbake til gruppe</Text>
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, { marginBottom: 10 }]} onPress={() => router.replace(backToGroupRoute as any)}>
+              <Text style={globalStyles.outlineButtonGoldText}>{backToGroupButtonLabel}</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity style={globalStyles.primaryButton} onPress={() => setModalVisible(true)}>

@@ -1440,11 +1440,14 @@ const ProfileScreen: React.FC = () => {
   }
 
   if ((user as any)?.isGuest) {
+    const guestHasGroups = groups.length > 0;
     return (
       <GuestUpgradePrompt
         title="Profil er låst for gjest"
         description="Opprett en bruker for å få tilgang til profil, drikkehistorikk og gruppeinvitasjoner."
         showBackToGroupButton
+        backToGroupButtonLabel={guestHasGroups ? 'Tilbake til gruppe' : 'Bli med i gruppen igjen'}
+        backToGroupRoute={guestHasGroups ? '/groups' : '/login'}
       />
     );
   }
