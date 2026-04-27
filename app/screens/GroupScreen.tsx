@@ -1240,6 +1240,10 @@ const GroupScreen = () => {
       showAlert('Ikke tilgang', 'Kun gruppeeier kan fjerne gruppebildet.');
       return;
     }
+    if (!hasCustomGroupImage) {
+      showAlert('Ingen bilde', 'Gruppen bruker standardbilde og kan ikke slettes.');
+      return;
+    }
 
     setUploadingGroupImage(true);
     try {
