@@ -2569,7 +2569,25 @@ const GroupScreen = () => {
             >
               <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Inviter</Text>
             </TouchableOpacity>
-            {canManageGroupImage && (
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openMembersModal}>
+              <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Medlemmer</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openLeaderboardModal}>
+              <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Tabell</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={groupStyles.actionGridRow}>
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openBetModal}>
+              <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Opprett bett</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openDistributeModal}>
+              <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Del ut slurker</Text>
+            </TouchableOpacity>
+          </View>
+
+          {canManageGroupImage && (
+            <View style={[groupStyles.actionGridRow, groupStyles.actionGridRowLast]}>
               <TouchableOpacity
                 style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]}
                 onPress={handleUploadOrChangeGroupImage}
@@ -2579,35 +2597,17 @@ const GroupScreen = () => {
                   {uploadingGroupImage ? 'Laster...' : hasCustomGroupImage ? 'Endre bilde' : 'Last opp bilde'}
                 </Text>
               </TouchableOpacity>
-            )}
-            {canManageGroupImage && hasCustomGroupImage && (
-              <TouchableOpacity
-                style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton, groupStyles.groupRemoveImageButton, uploadingGroupImage && globalStyles.disabledButton]}
-                onPress={handleRemoveGroupImage}
-                disabled={uploadingGroupImage}
-              >
-                <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText, globalStyles.actionButtonDangerText]}>Fjern bilde</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <View style={groupStyles.actionGridRow}>
-            <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openMembersModal}>
-              <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Medlemmer</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openLeaderboardModal}>
-              <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Ledertavler</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={[groupStyles.actionGridRow, groupStyles.actionGridRowLast]}>
-            <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openBetModal}>
-              <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Opprett bett</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openDistributeModal}>
-              <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Del ut slurker</Text>
-            </TouchableOpacity>
-          </View>
+              {hasCustomGroupImage && (
+                <TouchableOpacity
+                  style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton, groupStyles.groupRemoveImageButton, uploadingGroupImage && globalStyles.disabledButton]}
+                  onPress={handleRemoveGroupImage}
+                  disabled={uploadingGroupImage}
+                >
+                  <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText, globalStyles.actionButtonDangerText]}>Fjern bilde</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
 
         <View style={groupStyles.betListSection}>
