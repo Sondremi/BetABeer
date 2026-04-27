@@ -1131,7 +1131,6 @@ const GroupScreen = () => {
       await Share.share({
         title: 'Inviter til gruppe',
         message: `Bli med i gruppen "${selectedGroup.name}" på BetABeer: ${inviteLink}`,
-        url: inviteLink,
       });
     } catch (error) {
       // Sharing can fail/cancel depending on platform and user action; avoid showing an error toast here.
