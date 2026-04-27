@@ -3,21 +3,56 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0f131a" />
-    <title>BetABeer</title>
+    <meta name="theme-color" content="#061526" />
+    <meta
+      name="description"
+      content="BetABeer er en sosial app der vennegjenger lager morsomme challenges og holder oversikt over hva som står på spill."
+    />
+    <title>BetABeer | Social Betting Challenges</title>
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body class="landing">
-    <main>
-      <h1>BetABeer</h1>
-      <p class="kicker">Denne siden brukes for policy-sider og OAuth-verifikasjon.</p>
+    <div class="hero-bg" aria-hidden="true">
+      <span class="orb orb-one"></span>
+      <span class="orb orb-two"></span>
+    </div>
 
-      <section class="card">
+    <main class="landing-main">
+      <p class="eyebrow">BetABeer</p>
+      <h1>Friendly bets. Better stories.</h1>
+      <p class="kicker">
+        BetABeer er en sosial app hvor du og vennene dine lager små challenges, følger resultatene
+        og holder konkurransen gående.
+      </p>
+
+      <section class="intro-panel">
+        <div class="pill-row" aria-label="Produktinformasjon">
+          <span class="pill">Mobile-first</span>
+          <span class="pill">Social challenges</span>
+          <span class="pill">Google Sign-In</span>
+        </div>
+        <p class="intro-text">
+          Denne siden brukes som offentlig landingsside for Firebase Hosting, OAuth og policy-lenker.
+        </p>
         <div class="links">
-          <a class="link-btn primary" href="https://bet-a-beer.netlify.app">Gå til innlogging</a>
-          <a class="link-btn" href="/privacy">Privacy Policy</a>
+          <a class="link-btn primary" href="/privacy">Privacy Policy</a>
           <a class="link-btn" href="/terms">Terms of Service</a>
         </div>
+      </section>
+
+      <section class="feature-grid" aria-label="App highlights">
+        <article class="feature-card">
+          <h2>Group Challenges</h2>
+          <p>Opprett bets med vennegjengen og la alle følge utfallet i samme feed.</p>
+        </article>
+        <article class="feature-card">
+          <h2>Shared Accountability</h2>
+          <p>Se hvem som leder, hvem som skylder en runde, og hva som fortsatt er i spill.</p>
+        </article>
+        <article class="feature-card">
+          <h2>Built For Trust</h2>
+          <p>Klar policy-informasjon og sikker innlogging gjør onboarding enklere for alle.</p>
+        </article>
       </section>
     </main>
   </body>
