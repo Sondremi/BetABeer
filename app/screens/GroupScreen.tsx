@@ -217,7 +217,6 @@ const GroupScreen = () => {
     normalizeSingleLineText(betTitle).length > 0 &&
     normalizeSingleLineText(betTitle).length <= INPUT_LIMITS.betTitleMax &&
     betOptions.length > 0 &&
-    betOptions.length <= INPUT_LIMITS.betOptionCountMax &&
     betOptions.every((opt) => {
       const name = normalizeSingleLineText(opt.name);
       return name.length > 0 && name.length <= INPUT_LIMITS.betOptionNameMax;
@@ -1222,6 +1221,21 @@ const GroupScreen = () => {
       return;
     }
     setBetOptions([...betOptions, { name: '' }]);
+  };
+
+  const addAllGroupMembersAsBetOptions = () => {
+    const uniqueMemberNames = Array.from(new Set(
+      memberData
+        .map((member) => normalizeSingleLineText(member.name || member.username || ''))
+        .filter((name) => name.length > 0)
+    ));
+
+    if (uniqueMemberNames.length === 0) {
+      showAlert('Feil', 'Fant ingen gruppemedlemmer å legge til som alternativer.');
+      return;
+    }
+
+    setBetOptions(uniqueMemberNames.map((name) => ({ name })));
   };
 
   const updateBetOption = (idx: number, field: 'name', value: string) => {
@@ -2788,6 +2802,9 @@ const GroupScreen = () => {
               </ScrollView>
               <TouchableOpacity onPress={addBetOption} style={{ marginBottom: theme.spacing.md, alignSelf: 'flex-start' }}>
                 <Text style={globalStyles.addOptionText}>+ Legg til alternativ</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={addAllGroupMembersAsBetOptions} style={{ marginBottom: theme.spacing.md, alignSelf: 'flex-start' }}>
+                <Text style={globalStyles.addOptionText}>+ Fyll med alle gruppemedlemmer</Text>
               </TouchableOpacity>
 
               <View style={globalStyles.inputGroup}>
