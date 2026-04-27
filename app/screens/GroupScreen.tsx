@@ -2005,6 +2005,15 @@ const GroupScreen = () => {
       : [creatorName ? `Av ${creatorName}` : '', createdAtLabel]
           .filter(Boolean)
           .join(' • ');
+    const hiddenMemberIds = (item.hiddenFromUserIds || []).filter((memberId) => memberId !== user?.id);
+    const hiddenForText = hiddenMemberIds.length > 0
+      ? hiddenMemberIds
+          .map((memberId) => {
+            const member = memberData.find((entry) => entry.id === memberId);
+            return member?.name || member?.username || 'Ukjent';
+          })
+          .join(', ')
+      : '';
     const shouldScrollOptions = item.options.length > 5;
     const shouldScrollWagers = Boolean(item.wagers && item.wagers.length > 5);
 
@@ -2015,6 +2024,11 @@ const GroupScreen = () => {
             <View style={{ flex: 1 }}>
               <Text style={groupStyles.betTitle}>{item.title}</Text>
               {betMeta ? <Text style={groupStyles.betMetaText}>{betMeta}</Text> : null}
+              {hiddenMemberIds.length > 0 ? (
+                <Text style={groupStyles.betMetaText}>
+                  Ikke synlig for: {hiddenForText}
+                </Text>
+              ) : null}
               {item.isFinished && (
                 <Text style={groupStyles.betStatusText}>
                   Ferdig - Riktig svar: {getOptionName(item, item.correctOptionId || '')}
