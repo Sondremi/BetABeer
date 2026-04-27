@@ -311,6 +311,24 @@ const GroupScreen = () => {
 
     const usernames = await fetchMemberUsernames(selectedGroup.members);
     const memberStats: { [userId: string]: GroupLeaderboardMemberStats } = {};
+    const ensureMemberStats = (userId: string, fallbackUsername = 'Ukjent') => {
+      if (!memberStats[userId]) {
+        memberStats[userId] = {
+          userId,
+          name: '',
+          username: fallbackUsername || 'Ukjent',
+          betsWon: 0,
+          betsLost: 0,
+          currentBAC: 0,
+          profilePicture: DefaultProfilePicture,
+          drinksToConsume: {},
+          drinksConsumed: {},
+          drinksToDistribute: {},
+          transactions: [],
+        };
+      }
+      return memberStats[userId];
+    };
 
     await Promise.all(
       selectedGroup.members.map(async (userId: string) => {
@@ -366,8 +384,10 @@ const GroupScreen = () => {
       const wagers = bet.wagers || [];
 
       wagers.forEach(wager => {
-        const stats = memberStats[wager.userId];
-        if (!stats) return;
+        const stats = ensureMemberStats(
+          wager.userId,
+          usernames[wager.userId] || wager.username || 'Ukjent'
+        );
 
         stats.username = usernames[wager.userId] || wager.username || 'Ukjent';
 
@@ -398,16 +418,56 @@ const GroupScreen = () => {
     });
 
     distributionHistory.forEach((dist: DrinkTransaction) => {
-      const receiverStats = memberStats[dist.toUserId];
-      if (receiverStats) {
-        const drinkTypeObj = receiverStats.drinksToConsume[dist.drinkType] ?? (receiverStats.drinksToConsume[dist.drinkType] = {});
-        drinkTypeObj[dist.measureType] = (drinkTypeObj[dist.measureType] ?? 0) + dist.amount;
-        receiverStats.transactions.push(dist);
-      }
+      const receiverStats = ensureMemberStats(
+        dist.toUserId,
+        usernames[dist.toUserId] || dist.toUsername || 'Ukjent'
+      );
+      const drinkTypeObj = receiverStats.drinksToConsume[dist.drinkType] ?? (receiverStats.drinksToConsume[dist.drinkType] = {});
+      drinkTypeObj[dist.measureType] = (drinkTypeObj[dist.measureType] ?? 0) + dist.amount;
+      receiverStats.transactions.push(dist);
+
+      const senderStats = ensureMemberStats(
+        dist.fromUserId,
+        usernames[dist.fromUserId] || dist.fromUsername || 'Ukjent'
+      );
+      senderStats.transactions.push(dist);
     });
 
     return Object.values(memberStats).sort((a, b) => b.betsWon - a.betsWon);
   }, [selectedGroup, fetchMemberUsernames, bets]);
+
+  useEffect(() => {
+    if (!selectedGroup?.id || !Array.isArray(selectedGroup.members) || selectedGroup.members.length === 0) {
+      return;
+    }
+
+    let isCancelled = false;
+    const pruneDeletedMembers = async () => {
+      try {
+        const memberChecks = await Promise.all(
+          selectedGroup.members.map(async (memberId) => {
+            const memberDoc = await getDoc(doc(firestore, 'users', memberId));
+            return { memberId, exists: memberDoc.exists() };
+          })
+        );
+        if (isCancelled) return;
+
+        const validMemberIds = memberChecks.filter((check) => check.exists).map((check) => check.memberId);
+        if (validMemberIds.length === selectedGroup.members.length) {
+          return;
+        }
+
+        await updateDoc(doc(firestore, 'groups', selectedGroup.id), { members: validMemberIds });
+      } catch (error) {
+        console.error('Error pruning deleted group members:', error);
+      }
+    };
+
+    pruneDeletedMembers();
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedGroup?.id, selectedGroup?.members?.join('|')]);
   const groupAverageBAC = useMemo(() => {
     if (bacLeaderboardData.length === 0) return 0;
     const totalBAC = bacLeaderboardData.reduce((sum, member) => sum + member.currentBAC, 0);
