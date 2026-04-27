@@ -14,6 +14,7 @@ import { joinGroupFromInviteLink } from '../services/groupService';
 import { globalStyles } from '../styles/globalStyles';
 import { INPUT_LIMITS, normalizeSingleLineText } from '../utils/inputValidation';
 import { showAlert } from '../utils/platformAlert';
+import { theme } from '../styles/theme';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -781,7 +782,7 @@ const LoginScreen: React.FC = () => {
 
             {isLoginMode && groupInviteId && (
               <View style={[globalStyles.inputGroup, loginStyles.formInputGroup]}>
-                <Text style={loginStyles.fieldLabel}>Bli med som gjest</Text>
+                <Text style={[loginStyles.fieldLabel, {marginTop: theme.spacing.xl}]}>Eller bli med som gjest</Text>
                 <Text style={[globalStyles.secondaryText, { marginBottom: 8 }]}>Velg et brukernavn og bli med i gruppen uten konto.</Text>
                 <View style={[globalStyles.inputShellDark, activeField === 'guestUsername' && globalStyles.inputShellFocusedGold]}>
                   <TextInput
@@ -790,14 +791,14 @@ const LoginScreen: React.FC = () => {
                     onChangeText={(text) => setGuestUsername(text.slice(0, INPUT_LIMITS.usernameMax))}
                     onFocus={() => setActiveField('guestUsername')}
                     onBlur={() => setActiveField(null)}
-                    placeholder="Gjestebrukernavn"
+                    placeholder="Brukernavn"
                     placeholderTextColor={loginScreenTokens.placeholderTextColor}
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
                 </View>
                 <TouchableOpacity
-                  style={[globalStyles.outlineButtonGold, isLoading && globalStyles.disabledButton]}
+                  style={[globalStyles.outlineButtonGold, isLoading && globalStyles.disabledButton, {marginTop: theme.spacing.xl}]}
                   onPress={handleJoinAsGuest}
                   disabled={isLoading}
                 >
@@ -806,7 +807,7 @@ const LoginScreen: React.FC = () => {
               </View>
             )}
 
-            {isLoginMode && (
+            { isLoginMode && (
               <>
                 <View style={loginStyles.authDividerRow}>
                   <View style={loginStyles.authDividerLine} />
@@ -828,7 +829,7 @@ const LoginScreen: React.FC = () => {
                   </View>
                 </TouchableOpacity>
               </>
-            )}
+            )} 
             </View>
             </LinearGradient>
           </View>
