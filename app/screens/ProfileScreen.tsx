@@ -7,6 +7,7 @@ import { collection, doc, getDoc, onSnapshot, query, updateDoc, where } from 'fi
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
+import { GuestUpgradePrompt } from '../components/GuestUpgradePrompt';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/firebase/authService';
 import { firestore } from '../services/firebase/FirebaseConfig';
@@ -1435,6 +1436,15 @@ const ProfileScreen: React.FC = () => {
       <View style={[globalStyles.container, globalStyles.centerContent]}>
         <Text style={globalStyles.largeBoldText}>Laster...</Text>
       </View>
+    );
+  }
+
+  if ((user as any)?.isGuest) {
+    return (
+      <GuestUpgradePrompt
+        title="Profil er låst for gjest"
+        description="Opprett en bruker for å få tilgang til profil, drikkehistorikk og gruppeinvitasjoner."
+      />
     );
   }
 

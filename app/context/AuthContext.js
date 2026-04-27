@@ -47,6 +47,7 @@ export const AuthProvider = ({ children }) => {
               phone: userData.phone,
               profileImage: userData.profileImage || null,
               emailVerified: Boolean(firebaseUser.emailVerified),
+              isGuest: Boolean(userData.isGuest) || Boolean(firebaseUser.isAnonymous),
             });
           }
           else {
@@ -59,6 +60,7 @@ export const AuthProvider = ({ children }) => {
               phone: null,
               profileImage: null,
               emailVerified: Boolean(firebaseUser.emailVerified),
+              isGuest: Boolean(firebaseUser.isAnonymous),
             });
           }
         } catch (error) {
@@ -71,6 +73,7 @@ export const AuthProvider = ({ children }) => {
             phone: null,
             profileImage: null,
             emailVerified: Boolean(firebaseUser.emailVerified),
+            isGuest: Boolean(firebaseUser.isAnonymous),
           });
         }
       } else {
@@ -103,6 +106,7 @@ export const AuthProvider = ({ children }) => {
               phone: userData.phone,
               profileImage: userData.profileImage || null,
               emailVerified: Boolean(authService.getCurrentUser()?.emailVerified ?? firebaseUser.emailVerified),
+              isGuest: Boolean(userData.isGuest) || Boolean(firebaseUser.isAnonymous),
             }));
           } else {
             // The Firestore profile may be created shortly after auth signup.
@@ -114,6 +118,7 @@ export const AuthProvider = ({ children }) => {
               phone: null,
               profileImage: null,
               emailVerified: Boolean(firebaseUser.emailVerified),
+              isGuest: Boolean(firebaseUser.isAnonymous),
             });
           }
 

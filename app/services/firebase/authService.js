@@ -1,4 +1,4 @@
-import { GoogleAuthProvider, createUserWithEmailAndPassword, onAuthStateChanged as firebaseOnAuthStateChanged, reload, sendEmailVerification, sendPasswordResetEmail, signInWithCredential, signInWithEmailAndPassword, signOut, verifyBeforeUpdateEmail } from 'firebase/auth';
+import { EmailAuthProvider, GoogleAuthProvider, createUserWithEmailAndPassword, linkWithCredential, onAuthStateChanged as firebaseOnAuthStateChanged, reload, sendEmailVerification, sendPasswordResetEmail, signInAnonymously, signInWithCredential, signInWithEmailAndPassword, signOut, updateProfile, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { auth } from './FirebaseConfig';
 
@@ -32,6 +32,7 @@ const ensureUserDocument = async (firebaseUser) => {
       name: displayName || username,
       email,
       emailLower,
+      isGuest: false,
       phone: firebaseUser.phoneNumber || null,
       weight: null,
       gender: null,
@@ -48,6 +49,7 @@ const ensureUserDocument = async (firebaseUser) => {
       phone: firebaseUser.phoneNumber || null,
       weight: null,
       gender: null,
+      isGuest: false,
       friends: [],
       groups: [],
     };
@@ -78,6 +80,7 @@ const ensureUserDocument = async (firebaseUser) => {
     phone: userData.phone,
     weight: userData.weight,
     gender: userData.gender,
+    isGuest: Boolean(userData.isGuest),
     friends: userData.friends || [],
     groups: userData.groups || [],
   };
@@ -108,6 +111,7 @@ export const authService = {
         name: userData.name,
         email: String(userData.email || '').trim(),
         emailLower: normalizedEmail,
+        isGuest: false,
         phone: userData.phone ?? null,
         weight: userData.weight ?? null,
         gender: userData.gender ?? null,
@@ -432,5 +436,152 @@ export const authService = {
 
   onAuthStateChanged: (callback) => {
     return firebaseOnAuthStateChanged(auth, callback);
+  },
+
+  loginGuestUser: async (guestUsername) => {
+    try {
+      const trimmedUsername = String(guestUsername || '').trim();
+      if (!trimmedUsername) {
+        throw new Error('missing-guest-username');
+      }
+      if (trimmedUsername.length < 3 || trimmedUsername.length > 24) {
+        throw new Error('invalid-guest-username-length');
+      }
+
+      const usernameTaken = await authService.checkUsernameExistsInsensitive(trimmedUsername);
+      if (usernameTaken) {
+        throw new Error('guest-username-taken');
+      }
+
+      const currentUser = auth.currentUser;
+      const userCredential = currentUser && currentUser.isAnonymous
+        ? { user: currentUser }
+        : await signInAnonymously(auth);
+      const guestUser = userCredential.user;
+
+      await setDoc(doc(firestore, 'users', guestUser.uid), {
+        username: trimmedUsername,
+        usernameLower: normalizeValue(trimmedUsername),
+        name: trimmedUsername,
+        email: '',
+        emailLower: '',
+        isGuest: true,
+        phone: null,
+        weight: null,
+        gender: null,
+        friends: [],
+        groups: [],
+        createdAt: serverTimestamp(),
+      }, { merge: true });
+
+      return {
+        id: guestUser.uid,
+        username: trimmedUsername,
+        name: trimmedUsername,
+        email: '',
+        isGuest: true,
+      };
+    } catch (error) {
+      console.error('Guest login error:', error);
+
+      if (error instanceof Error) {
+        if (error.message === 'missing-guest-username') {
+          throw new Error('Brukernavn er påkrevd for gjestebruker');
+        }
+        if (error.message === 'invalid-guest-username-length') {
+          throw new Error('Brukernavn må være mellom 3 og 24 tegn');
+        }
+        if (error.message === 'guest-username-taken') {
+          throw new Error('Brukernavnet er allerede tatt');
+        }
+      }
+
+      throw new Error('Kunne ikke logge inn som gjest');
+    }
+  },
+
+  upgradeGuestAccount: async (payload) => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser || !currentUser.isAnonymous) {
+        throw new Error('not-anonymous-user');
+      }
+
+      const trimmedUsername = String(payload.username || '').trim();
+      const trimmedName = String(payload.name || '').trim();
+      const trimmedEmail = String(payload.email || '').trim();
+      const normalizedUsername = normalizeValue(trimmedUsername);
+      const normalizedEmail = normalizeValue(trimmedEmail);
+
+      if (!trimmedUsername || !trimmedName || !trimmedEmail || !payload.password) {
+        throw new Error('missing-required-upgrade-fields');
+      }
+
+      const usernameSnapshot = await getDocs(query(
+        collection(firestore, 'users'),
+        where('usernameLower', '==', normalizedUsername)
+      ));
+      const usernameTakenByAnother = usernameSnapshot.docs.some((docSnap) => docSnap.id !== currentUser.uid);
+      if (usernameTakenByAnother) {
+        throw new Error('upgrade-username-taken');
+      }
+
+      const emailSnapshot = await getDocs(query(
+        collection(firestore, 'users'),
+        where('emailLower', '==', normalizedEmail)
+      ));
+      const emailTakenByAnother = emailSnapshot.docs.some((docSnap) => docSnap.id !== currentUser.uid);
+      if (emailTakenByAnother) {
+        throw new Error('upgrade-email-taken');
+      }
+
+      const credential = EmailAuthProvider.credential(trimmedEmail, String(payload.password));
+      await linkWithCredential(currentUser, credential);
+      await updateProfile(auth.currentUser, { displayName: trimmedName });
+
+      await updateDoc(doc(firestore, 'users', currentUser.uid), {
+        username: trimmedUsername,
+        usernameLower: normalizedUsername,
+        name: trimmedName,
+        email: trimmedEmail,
+        emailLower: normalizedEmail,
+        isGuest: false,
+        updatedAt: serverTimestamp(),
+      });
+
+      return { status: 'upgraded' };
+    } catch (error) {
+      console.error('Guest upgrade error:', error);
+
+      if (error && typeof error === 'object' && 'code' in error) {
+        const errorCode = String(error.code);
+        if (errorCode === 'auth/email-already-in-use') {
+          throw new Error('E-postadressen er allerede i bruk');
+        }
+        if (errorCode === 'auth/invalid-email') {
+          throw new Error('Ugyldig e-postadresse');
+        }
+        if (errorCode === 'auth/weak-password') {
+          throw new Error('Passordet er for svakt');
+        }
+      }
+
+      if (error instanceof Error) {
+        if (error.message === 'not-anonymous-user') {
+          throw new Error('Kun gjestebrukere kan oppgradere konto her');
+        }
+        if (error.message === 'missing-required-upgrade-fields') {
+          throw new Error('Alle felter må fylles ut');
+        }
+        if (error.message === 'upgrade-username-taken') {
+          throw new Error('Brukernavnet er allerede tatt');
+        }
+        if (error.message === 'upgrade-email-taken') {
+          throw new Error('E-postadressen er allerede i bruk');
+        }
+      }
+
+      throw new Error('Kunne ikke oppgradere gjestekonto');
+    }
   },
 };

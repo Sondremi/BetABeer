@@ -39,6 +39,7 @@ const LoginScreen: React.FC = () => {
   const [activeField, setActiveField] = useState<string | null>(null);
   const [inviterId, setInviterId] = useState<string | null>(null);
   const [groupInviteId, setGroupInviteId] = useState<string | null>(null);
+  const [guestUsername, setGuestUsername] = useState('');
   const [modeSwitchWidth, setModeSwitchWidth] = useState(0);
   const shineAnim = useRef(new Animated.Value(-1)).current;
   const modeAnim = useRef(new Animated.Value(0)).current;
@@ -441,6 +442,33 @@ const LoginScreen: React.FC = () => {
     }
   };
 
+  const handleJoinAsGuest = async () => {
+    const normalizedGuestUsername = normalizeSingleLineText(guestUsername);
+    if (!groupInviteId) {
+      showAlert('Gruppelenke', 'Gjestebruker kan kun brukes via gyldig gruppelenke.');
+      return;
+    }
+    if (!normalizedGuestUsername) {
+      showAlert('Feil', 'Brukernavn er påkrevd for gjestebruker');
+      return;
+    }
+    if (normalizedGuestUsername.length < INPUT_LIMITS.usernameMin || normalizedGuestUsername.length > INPUT_LIMITS.usernameMax) {
+      showAlert('Feil', `Brukernavn må være mellom ${INPUT_LIMITS.usernameMin} og ${INPUT_LIMITS.usernameMax} tegn.`);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await authService.loginGuestUser(normalizedGuestUsername);
+      await tryAutoJoinGroupFromInvite();
+      router.replace('/groups');
+    } catch (error) {
+      showAlert('Innlogging feilet', (error as Error).message || 'Kunne ikke logge inn som gjest');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       username: '',
@@ -755,6 +783,33 @@ const LoginScreen: React.FC = () => {
                 />
               </LinearGradient>
             </TouchableOpacity>
+
+            {isLoginMode && groupInviteId && (
+              <View style={[globalStyles.inputGroup, loginStyles.formInputGroup]}>
+                <Text style={loginStyles.fieldLabel}>Bli med som gjest</Text>
+                <Text style={[globalStyles.secondaryText, { marginBottom: 8 }]}>Skriv brukernavn og bli med i gruppen uten full konto.</Text>
+                <View style={[globalStyles.inputShellDark, activeField === 'guestUsername' && globalStyles.inputShellFocusedGold]}>
+                  <TextInput
+                    style={[globalStyles.input, loginStyles.authInput]}
+                    value={guestUsername}
+                    onChangeText={(text) => setGuestUsername(text.slice(0, INPUT_LIMITS.usernameMax))}
+                    onFocus={() => setActiveField('guestUsername')}
+                    onBlur={() => setActiveField(null)}
+                    placeholder="Gjestebrukernavn"
+                    placeholderTextColor={loginScreenTokens.placeholderTextColor}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={[globalStyles.outlineButtonGold, isLoading && globalStyles.disabledButton]}
+                  onPress={handleJoinAsGuest}
+                  disabled={isLoading}
+                >
+                  <Text style={globalStyles.outlineButtonGoldText}>Bli med som gjest</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {isLoginMode && (
               <>

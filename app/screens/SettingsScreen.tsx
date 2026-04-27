@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { GuestUpgradePrompt } from '../components/GuestUpgradePrompt';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/firebase/authService';
 import { firestore } from '../services/firebase/FirebaseConfig';
@@ -343,6 +344,15 @@ const SettingsScreen = () => {
       <View style={[globalStyles.container, globalStyles.centerContent]}>
         <Text style={settingsStyles.loadingText}>Laster...</Text>
       </View>
+    );
+  }
+
+  if ((user as any)?.isGuest) {
+    return (
+      <GuestUpgradePrompt
+        title="Innstillinger er låst for gjest"
+        description="Opprett en bruker for å endre kontoinnstillinger, passord og sikkerhet."
+      />
     );
   }
 

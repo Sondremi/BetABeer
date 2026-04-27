@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { GuestUpgradePrompt } from '../components/GuestUpgradePrompt';
 import { useAuth } from '../context/AuthContext';
 import { firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, friendSearch, getIncomingRequest, getOutgoingRequest, listenToIncomingRequests, listenToOutgoingRequests, removeFriend, sendFriendRequest } from '../services/friendService';
@@ -392,6 +393,15 @@ const FriendsScreen = () => {
   const handleBack = () => {
     router.replace('/profile');
   };
+
+  if ((user as any)?.isGuest) {
+    return (
+      <GuestUpgradePrompt
+        title="Venner er låst for gjest"
+        description="Opprett en bruker for å sende venneforespørsler og administrere vennelisten."
+      />
+    );
+  }
 
   const renderFriend = ({ item }: { item: FriendWithPending }) => (
     <View style={[globalStyles.listItemRow, globalStyles.friendSpacing, friendsStyles.friendRow]}>
