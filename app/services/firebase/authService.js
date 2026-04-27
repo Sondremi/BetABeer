@@ -448,20 +448,37 @@ export const authService = {
         throw new Error('invalid-guest-username-length');
       }
 
-      const usernameTaken = await authService.checkUsernameExistsInsensitive(trimmedUsername);
-      if (usernameTaken) {
+      const currentUser = auth.currentUser;
+      let guestUser = currentUser;
+      let createdAnonymousThisCall = false;
+
+      if (guestUser && !guestUser.isAnonymous) {
+        await signOut(auth);
+        guestUser = null;
+      }
+
+      if (!guestUser || !guestUser.isAnonymous) {
+        const userCredential = await signInAnonymously(auth);
+        guestUser = userCredential.user;
+        createdAnonymousThisCall = true;
+      }
+
+      const normalizedUsername = normalizeValue(trimmedUsername);
+      const usersRef = collection(firestore, 'users');
+      const lowerQuery = query(usersRef, where('usernameLower', '==', normalizedUsername));
+      const lowerSnapshot = await getDocs(lowerQuery);
+      const usernameTakenByAnother = lowerSnapshot.docs.some((docSnap) => docSnap.id !== guestUser.uid);
+
+      if (usernameTakenByAnother) {
+        if (createdAnonymousThisCall) {
+          await guestUser.delete().catch(() => {});
+        }
         throw new Error('guest-username-taken');
       }
 
-      const currentUser = auth.currentUser;
-      const userCredential = currentUser && currentUser.isAnonymous
-        ? { user: currentUser }
-        : await signInAnonymously(auth);
-      const guestUser = userCredential.user;
-
       await setDoc(doc(firestore, 'users', guestUser.uid), {
         username: trimmedUsername,
-        usernameLower: normalizeValue(trimmedUsername),
+        usernameLower: normalizedUsername,
         name: trimmedUsername,
         email: '',
         emailLower: '',
@@ -473,6 +490,8 @@ export const authService = {
         groups: [],
         createdAt: serverTimestamp(),
       }, { merge: true });
+
+      await updateProfile(guestUser, { displayName: trimmedUsername }).catch(() => {});
 
       return {
         id: guestUser.uid,
@@ -493,6 +512,16 @@ export const authService = {
         }
         if (error.message === 'guest-username-taken') {
           throw new Error('Brukernavnet er allerede tatt');
+        }
+      }
+
+      if (error && typeof error === 'object' && 'code' in error) {
+        const errorCode = String(error.code);
+        if (errorCode === 'auth/operation-not-allowed') {
+          throw new Error('Gjestelogin er ikke aktivert i Firebase Auth. Aktiver Anonymous provider i Firebase Console.');
+        }
+        if (errorCode === 'permission-denied') {
+          throw new Error('Manglende Firestore-tilgang for gjestelogin. Sjekk firestore.rules for users/{uid} create/update.');
         }
       }
 
