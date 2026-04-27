@@ -107,7 +107,6 @@ const FriendsScreen = () => {
       setFriends(allFriends);
     } catch (error) {
       console.error('Failed to fetch friends:', error);
-      showAlert('Feil', `Kunne ikke hente venner: ${(error as Error).message}`);
     }
   }, [outgoingRequests, user?.id]);
 
@@ -221,7 +220,6 @@ const FriendsScreen = () => {
       setSearchResults(filteredResults);
     } catch (error) {
       console.error('Error handling search: ', error);
-      showAlert('Feil', `Kunne ikke søke ${(error as Error).message}`);
     }
   }, [friends]);
 
@@ -267,7 +265,6 @@ const FriendsScreen = () => {
 
       if (result.status === 'accepted') {
         setIncomingRequests((prev) => prev.filter((req) => req.fromUserId !== friend.id));
-        showAlert('Suksess', `Du er nå venn med ${friend.name || friend.username || 'brukeren'}`);
         await fetchFriends();
       } else {
         setOutgoingRequests((prev) => [
@@ -376,7 +373,7 @@ const FriendsScreen = () => {
       fetchFriends();
     } catch(error) {
       console.error(error);
-      showAlert('Feil', `Kunne ikke godta forespørselen: ${(error as Error).message}`);
+      showAlert('Feil', `Kunne ikke godta forespørselen`);
     }
   };
 
@@ -386,7 +383,7 @@ const FriendsScreen = () => {
       setIncomingRequests((prev) => prev.filter((r) => r.id !== request.id));
     } catch(error) {
       console.error(error);
-      showAlert('Feil', `Feil med å avslå forespørsel: ${(error as Error).message}`);
+      showAlert('Feil', `Feil med å avslå forespørsel`);
     }
   };
 

@@ -133,11 +133,11 @@ const ProfileScreen: React.FC = () => {
     if (!user) return;
     const trimmedName = normalizeSingleLineText(displayName);
     if (!trimmedName) {
-      showAlert('Feil', 'Name cannot be empty');
+      showAlert('Feil', 'Navn kan ikke være tomt');
       return;
     }
     if (trimmedName.length > INPUT_LIMITS.profileNameMax) {
-      showAlert('Feil', `Navn kan maks være ${INPUT_LIMITS.profileNameMax} tegn.`);
+      showAlert('Feil', `Navn kan maks være ${INPUT_LIMITS.profileNameMax} tegn`);
       return;
     }
 
@@ -151,7 +151,7 @@ const ProfileScreen: React.FC = () => {
       setProfileImageModalVisible(false);
     } catch (error) {
       console.error(error)
-      showAlert('Feil', 'Could not update profile');
+      showAlert('Feil', 'Kunne ikke oppdatere');
     }
   };
 
@@ -178,7 +178,7 @@ const ProfileScreen: React.FC = () => {
     };
 
     if (!user?.id) {
-      showUploadAlert('Feil', 'Du må være logget inn for å laste opp bilde.');
+      showUploadAlert('Feil', 'Du må være logget inn for å laste opp bilde');
       return;
     }
 
@@ -855,19 +855,15 @@ const ProfileScreen: React.FC = () => {
     if (drinkForm.alcoholPercent !== 'custom') return true;
     const value = parseNumericInput(drinkForm.customAlcoholPercent);
     if (isNaN(value)) {
-      showAlert('Feil', 'Ugyldig alkoholprosent');
       return false;
     }
     if (drinkForm.category === 'vin' && (value < 10 || value > 20)) {
-      showAlert('Feil', 'Alkoholprosent for vin må være mellom 10 og 20');
       return false;
     }
     if (drinkForm.category === 'øl' && (value <= 0 || value > 20)) {
-      showAlert('Feil', 'Alkoholprosent for øl må være mellom 0.1 og 20');
       return false;
     }
     if (drinkForm.category === 'sprit' && (value < 22 || value > 70)) {
-      showAlert('Feil', 'Alkoholprosent for sprit må være mellom 22 og 70');
       return false;
     }
     return true;
@@ -1011,37 +1007,30 @@ const ProfileScreen: React.FC = () => {
       : parseFloat(String(drinkForm.quantity));
 
     if (isNaN(quantity) || quantity <= 0) {
-      showAlert('Feil', 'Antall må være et tall større enn 0');
       return;
     }
     if (!isNumberInRange(quantity, 0.1, INPUT_LIMITS.drinkQuantityMax)) {
-      showAlert('Feil', `Antall må være mellom 0.1 og ${INPUT_LIMITS.drinkQuantityMax}.`);
       return;
     }
     if (drinkForm.quantity === 'custom' && !hasMaxOneDecimal(drinkForm.customQuantity)) {
-      showAlert('Feil', 'Antall kan ha maks ett desimal');
       return;
     }
 
     const startTimestamp = parseTimeToTimestamp(drinkForm.consumedAtTime);
     if (!startTimestamp) {
-      showAlert('Feil', 'Ugyldig starttid. Bruk format HH:MM');
       return;
     }
 
     let endTimestamp: number | undefined;
     if (drinkForm.hasEndTime) {
       if (!allowsEndTimeForSelection()) {
-        showAlert('Feil', 'Sluttid kan bare settes for store enheter');
         return;
       }
       const parsedEnd = parseTimeToTimestamp(drinkForm.consumedUntilTime);
       if (!parsedEnd) {
-        showAlert('Feil', 'Ugyldig sluttid. Bruk format HH:MM');
         return;
       }
       if (parsedEnd < startTimestamp) {
-        showAlert('Feil', 'Sluttid må være etter starttid');
         return;
       }
       endTimestamp = parsedEnd;
@@ -1049,15 +1038,12 @@ const ProfileScreen: React.FC = () => {
 
     if (drinkForm.category !== 'custom') {
       if (!drinkForm.category) {
-        showAlert('Feil', 'Velg en drikkekategori');
         return;
       }
       if (!drinkForm.sizeDl) {
-        showAlert('Feil', 'Velg en størrelse');
         return;
       }
       if (!drinkForm.alcoholPercent) {
-        showAlert('Feil', 'Velg en alkoholprosent');
         return;
       }
       if (!validateCustomAlcoholPercent()) {
@@ -1068,11 +1054,9 @@ const ProfileScreen: React.FC = () => {
       if (drinkForm.sizeDl === 'custom') {
         const customSizeValue = parseNumericInput(drinkForm.customSizeValue);
         if (isNaN(customSizeValue) || customSizeValue <= 0) {
-          showAlert('Feil', 'Størrelse må være et tall større enn 0');
           return;
         }
         if (!hasMaxOneDecimal(drinkForm.customSizeValue)) {
-          showAlert('Feil', 'Størrelse kan ha maks ett desimal');
           return;
         }
         sizeDl = convertSizeToDl(customSizeValue, drinkForm.sizeUnit);
@@ -1081,7 +1065,6 @@ const ProfileScreen: React.FC = () => {
       }
 
       if (!isNumberInRange(sizeDl, 0.1, INPUT_LIMITS.drinkSizeDlMax)) {
-        showAlert('Feil', `Størrelse må være realistisk (maks ${INPUT_LIMITS.drinkSizeDlMax} liter).`);
         return;
       }
 
@@ -1091,7 +1074,6 @@ const ProfileScreen: React.FC = () => {
           : parseFloat(drinkForm.alcoholPercent.toString());
 
       if (!isNumberInRange(alcoholPercent, INPUT_LIMITS.drinkAlcoholPercentMin, INPUT_LIMITS.drinkAlcoholPercentMax)) {
-        showAlert('Feil', `Alkoholprosent må være mellom ${INPUT_LIMITS.drinkAlcoholPercentMin} og ${INPUT_LIMITS.drinkAlcoholPercentMax}.`);
         return;
       }
 
@@ -1106,11 +1088,9 @@ const ProfileScreen: React.FC = () => {
     } else {
       const trimmedName = normalizeSingleLineText(drinkForm.customDrinkName);
       if (trimmedName.length > INPUT_LIMITS.drinkNameMax) {
-        showAlert('Feil', `Drikkenavn kan maks være ${INPUT_LIMITS.drinkNameMax} tegn.`);
         return;
       }
       if (!drinkForm.sizeDl) {
-        showAlert('Feil', 'Velg en størrelse');
         return;
       }
 
@@ -1125,31 +1105,24 @@ const ProfileScreen: React.FC = () => {
         : Number(drinkForm.sizeDl);
 
       if (!drinkForm.alcoholPercent) {
-        showAlert('Feil', 'Velg en alkoholprosent');
         return;
       }
       if (!isNumberInRange(alcoholPercent, INPUT_LIMITS.drinkAlcoholPercentMin, INPUT_LIMITS.drinkAlcoholPercentMax)) {
-        showAlert('Feil', `Alkoholprosent må være mellom ${INPUT_LIMITS.drinkAlcoholPercentMin} og ${INPUT_LIMITS.drinkAlcoholPercentMax}.`);
         return;
       }
       if (isNaN(sizeValue) || sizeValue <= 0) {
-        showAlert('Feil', 'Størrelse må være større enn 0');
         return;
       }
       if (!isNumberInRange(sizeValue, 0.1, INPUT_LIMITS.drinkSizeDlMax * 10)) {
-        showAlert('Feil', `Størrelse må være realistisk (maks ${INPUT_LIMITS.drinkSizeDlMax} liter).`);
         return;
       }
       if (drinkForm.sizeDl === 'custom' && !hasMaxOneDecimal(drinkForm.customSizeValue)) {
-        showAlert('Feil', 'Størrelse kan ha maks ett desimal');
         return;
       }
       if (drinkForm.alcoholPercent === 'custom' && !hasMaxOneDecimal(drinkForm.customAlcoholPercentManual)) {
-        showAlert('Feil', 'Alkoholprosent kan ha maks ett desimal');
         return;
       }
       if (!isNumberInRange(sizeDl, 0.1, INPUT_LIMITS.drinkSizeDlMax)) {
-        showAlert('Feil', `Størrelse må være realistisk (maks ${INPUT_LIMITS.drinkSizeDlMax} liter).`);
         return;
       }
 
@@ -1174,8 +1147,7 @@ const ProfileScreen: React.FC = () => {
       }
     } catch (error) {
       console.error(error);
-      const errorMessage = error instanceof Error ? error.message : 'Kunne ikke legge til drikke';
-      showAlert('Feil', `Kunne ikke legge til drikke: ${errorMessage}`);
+      showAlert('Feil', `Kunne ikke legge til drikke`);
     }
     setDrinkModalVisible(false);
     setShowDrinkValidationHint(false);
@@ -1243,7 +1215,6 @@ const ProfileScreen: React.FC = () => {
 
   const handleAddLatestDrinkAgain = async () => {
     if (!latestDrinkEntry) {
-      showAlert('Ingen historikk', 'Du må registrere en drikke først.');
       return;
     }
 
@@ -1266,8 +1237,7 @@ const ProfileScreen: React.FC = () => {
       setBacCalculationTime(Date.now());
     } catch (error) {
       console.error(error);
-      const errorMessage = error instanceof Error ? error.message : 'Kunne ikke registrere siste drikke';
-      showAlert('Feil', `Kunne ikke registrere siste drikke: ${errorMessage}`);
+      showAlert('Feil', `Kunne ikke registrere siste drikke`);
     }
   };
 
@@ -1279,7 +1249,7 @@ const ProfileScreen: React.FC = () => {
       return;
     }
     if (trimmedGroupName.length > INPUT_LIMITS.groupNameMax) {
-      showAlert('Feil', `Gruppenavn kan maks være ${INPUT_LIMITS.groupNameMax} tegn.`);
+      showAlert('Feil', `Gruppenavn kan maks være ${INPUT_LIMITS.groupNameMax} tegn`);
       return;
     }
     setCreatingGroup(true);
@@ -1298,7 +1268,7 @@ const ProfileScreen: React.FC = () => {
       setCreateGroupModalVisible(false);
 
       if (failedInvitations > 0) {
-        showAlert('Delvis fullført', `Gruppen ble opprettet, men ${failedInvitations} invitasjon(er) feilet.`);
+        showAlert('Delvis fullført', `Gruppen ble opprettet, men ${failedInvitations} invitasjon(er) feilet`);
       }
       
       router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(groupWithImage) } });
@@ -1318,7 +1288,7 @@ const ProfileScreen: React.FC = () => {
       setGroupInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
     } catch (error) {
       console.error('Error accepting invitation:', error);
-      showAlert('Feil', `Kunne ikke godta invitasjonen: ${(error as Error).message}`);
+      showAlert('Feil', `Kunne ikke godta invitasjonen`);
     } finally {
       setHandlingInvitation(false);
     }
@@ -1370,7 +1340,6 @@ const ProfileScreen: React.FC = () => {
       setGroupInviteCandidates(friends);
     } catch (error) {
       console.error(error);
-      showAlert('Feil', 'Kunne ikke laste vennelisten');
       setGroupInviteCandidates([]);
     } finally {
       setLoadingGroupInviteCandidates(false);

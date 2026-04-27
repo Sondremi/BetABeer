@@ -52,7 +52,7 @@ export const GuestUpgradePrompt: React.FC<GuestUpgradePromptProps> = ({
     const password = formData.password;
 
     if (!canSubmit) {
-      showAlert('Feil', 'Fyll ut alle felter korrekt før du oppretter bruker.');
+      showAlert('Feil', 'Fyll ut alle felter korrekt før du oppretter bruker');
       return;
     }
 
@@ -76,9 +76,8 @@ export const GuestUpgradePrompt: React.FC<GuestUpgradePromptProps> = ({
         password: '',
         confirmPassword: '',
       });
-      showAlert('Suksess', 'Bruker opprettet. Du er nå logget inn med full konto.');
     } catch (error) {
-      showAlert('Feil', (error as Error).message || 'Kunne ikke opprette bruker');
+      showAlert('Feil', 'Kunne ikke opprette bruker');
     } finally {
       setSaving(false);
     }

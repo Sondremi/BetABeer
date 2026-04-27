@@ -97,7 +97,7 @@ const SettingsScreen = () => {
     }
 
     if (normalizedName.length > INPUT_LIMITS.profileNameMax) {
-      showAlert('Feil', `Navn kan maks være ${INPUT_LIMITS.profileNameMax} tegn.`);
+      showAlert('Feil', `Navn kan maks være ${INPUT_LIMITS.profileNameMax} tegn`);
       return false;
     }
 
@@ -107,7 +107,7 @@ const SettingsScreen = () => {
     }
 
     if (normalizedEmail.length > INPUT_LIMITS.emailMax) {
-      showAlert('Feil', `E-postadresse kan maks være ${INPUT_LIMITS.emailMax} tegn.`);
+      showAlert('Feil', `E-postadresse kan maks være ${INPUT_LIMITS.emailMax} tegn`);
       return false;
     }
 
@@ -118,7 +118,7 @@ const SettingsScreen = () => {
     }
 
     if (editedInfo.weight != null && (isNaN(editedInfo.weight) || editedInfo.weight < INPUT_LIMITS.weightMinKg || editedInfo.weight > INPUT_LIMITS.weightMaxKg)) {
-      showAlert('Feil', `Vekt må være mellom ${INPUT_LIMITS.weightMinKg} og ${INPUT_LIMITS.weightMaxKg} kg.`);
+      showAlert('Feil', `Vekt må være mellom ${INPUT_LIMITS.weightMinKg} og ${INPUT_LIMITS.weightMaxKg} kg`);
       return false;
     }
 
@@ -187,12 +187,11 @@ const SettingsScreen = () => {
       if (hasEmailChanged) {
         showAlert(
           'Bekreft e-postendring',
-          `Vi har sendt en bekreftelse til ${trimmedEditedEmail}. Når du bekrefter, blir e-postadressen oppdatert.`
+          `Vi har sendt en bekreftelse til ${trimmedEditedEmail}. Når du bekrefter, blir e-postadressen oppdatert`
         );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Kunne ikke lagre endringene';
-      showAlert('Feil', errorMessage);
+      showAlert('Feil', 'Kunne ikke lagre endringene');
     } finally {
       setIsLoading(false);
     }
@@ -236,7 +235,7 @@ const SettingsScreen = () => {
   const handleDeleteUser = () => {
     showAlert(
       'Slett bruker',
-      'Er du sikker på at du vil slette brukeren din? Dette kan ikke angres og vil slette all data knyttet til brukeren.',
+      'Er du sikker på at du vil slette brukeren din? Dette kan ikke angres og vil slette all data knyttet til brukeren',
       [
         {
           text: 'Avbryt',
@@ -302,7 +301,6 @@ const SettingsScreen = () => {
     const targetEmail = String(currentAuthUser?.email || userInfo.email || '').trim();
 
     if (!targetEmail) {
-      showAlert('Feil', 'Fant ingen e-postadresse å sende reset-lenke til');
       return;
     }
 
@@ -311,8 +309,7 @@ const SettingsScreen = () => {
       await authService.requestPasswordReset(targetEmail);
       showAlert('E-post sendt', `Vi har sendt en passord-reset lenke til ${targetEmail}.`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Kunne ikke sende passord-reset e-post';
-      showAlert('Feil', errorMessage);
+      showAlert('Feil', 'Kunne ikke sende passord-reset e-post');
     } finally {
       setIsSendingPasswordReset(false);
     }
@@ -325,14 +322,13 @@ const SettingsScreen = () => {
 
       if (result.status === 'already-verified') {
         setIsEmailVerified(true);
-        showAlert('E-post verifisert', 'E-postadressen din er allerede verifisert.');
+        showAlert('E-post verifisert', 'E-postadressen din er allerede verifisert');
         return;
       }
 
-      showAlert('Verifiseringsmail sendt', `Vi har sendt en ny verifiseringsmail til ${result.email}.`);
+      showAlert('Verifiseringsmail sendt', `Vi har sendt en ny verifiseringsmail til ${result.email}. Den kan havne i spam`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Kunne ikke sende verifiseringsmail';
-      showAlert('Feil', errorMessage);
+      showAlert('Feil', 'Kunne ikke sende verifiseringsmail');
     } finally {
       setIsSendingVerificationEmail(false);
       loadUserData();

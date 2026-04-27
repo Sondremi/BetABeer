@@ -195,12 +195,9 @@ const LoginScreen: React.FC = () => {
 
     try {
       const result = await joinGroupFromInviteLink(groupInviteId);
-      if (result.status === 'joined') {
-        showAlert('Suksess', `Du ble med i gruppen "${result.group.name}".`);
-      }
     } catch (error) {
       console.error('Invite-link group join failed:', error);
-      showAlert('Gruppelenke', (error as Error).message || 'Kunne ikke bli med i gruppen fra lenken.');
+      showAlert('Gruppelenke', 'Kunne ikke bli med i gruppen fra lenken');
     }
   };
 
@@ -213,7 +210,7 @@ const LoginScreen: React.FC = () => {
         return false;
       }
       if (normalizedEmail.length > INPUT_LIMITS.emailMax) {
-        showAlert('Feil', `E-postadresse kan maks være ${INPUT_LIMITS.emailMax} tegn.`);
+        showAlert('Feil', `E-postadresse kan maks være ${INPUT_LIMITS.emailMax} tegn`);
         return false;
       }
       if (!formData.password.trim()) {
@@ -221,7 +218,7 @@ const LoginScreen: React.FC = () => {
         return false;
       }
       if (formData.password.length > INPUT_LIMITS.passwordMax) {
-        showAlert('Feil', `Passord kan maks være ${INPUT_LIMITS.passwordMax} tegn.`);
+        showAlert('Feil', `Passord kan maks være ${INPUT_LIMITS.passwordMax} tegn`);
         return false;
       }
       return true;
@@ -235,7 +232,7 @@ const LoginScreen: React.FC = () => {
       return false;
     }
     if (normalizedUsername.length < INPUT_LIMITS.usernameMin || normalizedUsername.length > INPUT_LIMITS.usernameMax) {
-      showAlert('Feil', `Brukernavn må være mellom ${INPUT_LIMITS.usernameMin} og ${INPUT_LIMITS.usernameMax} tegn.`);
+      showAlert('Feil', `Brukernavn må være mellom ${INPUT_LIMITS.usernameMin} og ${INPUT_LIMITS.usernameMax} tegn`);
       return false;
     }
 
@@ -244,7 +241,7 @@ const LoginScreen: React.FC = () => {
       return false;
     }
     if (formData.password.length > INPUT_LIMITS.passwordMax) {
-      showAlert('Feil', `Passord kan maks være ${INPUT_LIMITS.passwordMax} tegn.`);
+      showAlert('Feil', `Passord kan maks være ${INPUT_LIMITS.passwordMax} tegn`);
       return false;
     }
 
@@ -253,7 +250,7 @@ const LoginScreen: React.FC = () => {
       return false;
     }
     if (normalizedName.length > INPUT_LIMITS.profileNameMax) {
-      showAlert('Feil', `Navn kan maks være ${INPUT_LIMITS.profileNameMax} tegn.`);
+      showAlert('Feil', `Navn kan maks være ${INPUT_LIMITS.profileNameMax} tegn`);
       return false;
     }
 
@@ -262,7 +259,7 @@ const LoginScreen: React.FC = () => {
       return false;
     }
     if (normalizedEmail.length > INPUT_LIMITS.emailMax) {
-      showAlert('Feil', `E-postadresse kan maks være ${INPUT_LIMITS.emailMax} tegn.`);
+      showAlert('Feil', `E-postadresse kan maks være ${INPUT_LIMITS.emailMax} tegn`);
       return false;
     }
 
@@ -299,7 +296,7 @@ const LoginScreen: React.FC = () => {
       }
     } catch (error) {
       console.error(error);
-      showAlert('Feil', 'Kunne ikke opprette bruker. Prøv igjen senere.');
+      showAlert('Feil', 'Kunne ikke opprette bruker');
       return false;
     }
 
@@ -313,7 +310,7 @@ const LoginScreen: React.FC = () => {
       return;
     }
     if (normalizedEmail.length > INPUT_LIMITS.emailMax) {
-      showAlert('Feil', `E-postadresse kan maks være ${INPUT_LIMITS.emailMax} tegn.`);
+      showAlert('Feil', `E-postadresse kan maks være ${INPUT_LIMITS.emailMax} tegn`);
       return;
     }
 
@@ -332,7 +329,7 @@ const LoginScreen: React.FC = () => {
     } catch (error) {
       setIsLoading(false);
       const errorMessage = error instanceof Error ? error.message : 'Noe gikk galt under innlogging.';
-      showAlert('Innlogging feilet', errorMessage);
+      showAlert('Feil', 'Kunne ikke logge inn');
     }
   };
 
@@ -376,14 +373,14 @@ const LoginScreen: React.FC = () => {
           errorMessage = error.message;
         }
       }
-      showAlert('Registrering feilet', errorMessage);
+      showAlert('Feil', 'Kunne ikke registrere bruker');
     }
   };
 
   const handleForgotPassword = async () => {
     const trimmedEmail = formData.email.trim();
     if (!trimmedEmail) {
-      showAlert('Glemt passord', 'Skriv inn e-postadressen din først, så sender vi deg en reset-lenke.');
+      showAlert('Feil', 'Skriv inn e-postadressen din først');
       return;
     }
 
@@ -396,10 +393,9 @@ const LoginScreen: React.FC = () => {
     try {
       setIsLoading(true);
       await authService.requestPasswordReset(trimmedEmail);
-      showAlert('E-post sendt', `Vi har sendt en passord-reset lenke til ${trimmedEmail}.`);
+      showAlert('E-post sendt', `Vi har sendt en mail med lenke for å nullstille passordet til ${trimmedEmail}. Den kan havne i spam`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Kunne ikke sende reset-lenke.';
-      showAlert('Feil', errorMessage);
+      showAlert('Feil', 'Kunne ikke sende mail for å nullstille passordet');
     } finally {
       setIsLoading(false);
     }
@@ -407,7 +403,6 @@ const LoginScreen: React.FC = () => {
 
   const handleGoogleLogin = async () => {
     if (!googleRequest) {
-      showAlert('Google-innlogging', 'Google-innlogging er ikke klar enda. Prøv igjen om et øyeblikk.');
       return;
     }
 
@@ -436,7 +431,7 @@ const LoginScreen: React.FC = () => {
       const errorMessage = hasRedirectUriMismatch
         ? `Google avviser redirect URI. Legg denne URI-en inn i Google Cloud Console (OAuth client -> Authorized redirect URIs): ${googleRequest?.redirectUri || webRedirectUri || 'ukjent URI'}`
         : rawErrorMessage;
-      showAlert('Google-innlogging feilet', errorMessage);
+      showAlert('Feil', 'Google-innlogging feilet');
     } finally {
       setIsLoading(false);
     }
@@ -453,7 +448,7 @@ const LoginScreen: React.FC = () => {
       return;
     }
     if (normalizedGuestUsername.length < INPUT_LIMITS.usernameMin || normalizedGuestUsername.length > INPUT_LIMITS.usernameMax) {
-      showAlert('Feil', `Brukernavn må være mellom ${INPUT_LIMITS.usernameMin} og ${INPUT_LIMITS.usernameMax} tegn.`);
+      showAlert('Feil', `Brukernavn må være mellom ${INPUT_LIMITS.usernameMin} og ${INPUT_LIMITS.usernameMax} tegn`);
       return;
     }
 
@@ -463,7 +458,7 @@ const LoginScreen: React.FC = () => {
       await tryAutoJoinGroupFromInvite();
       router.replace('/groups');
     } catch (error) {
-      showAlert('Innlogging feilet', (error as Error).message || 'Kunne ikke logge inn som gjest');
+      showAlert('Innlogging feilet', 'Kunne ikke logge inn som gjest');
     } finally {
       setIsLoading(false);
     }

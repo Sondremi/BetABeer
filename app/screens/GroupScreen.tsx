@@ -862,7 +862,6 @@ const GroupScreen = () => {
     } catch (error) {
       console.error('Failed to load leaderboard data:', error);
       setLeaderboardData([]);
-      showAlert('Feil', 'Kunne ikke laste ledertavle. Prøv igjen.');
     } finally {
       setLeaderboardLoading(false);
     }
@@ -888,7 +887,6 @@ const GroupScreen = () => {
 
   const handleDistributeDrinks = async () => {
     if (!user?.id || !selectedGroup?.id) {
-      showAlert('Feil', 'Bruker eller gruppe ikke tilgjengelig');
       return;
     }
     setDistributingDrinks(true);
@@ -906,11 +904,9 @@ const GroupScreen = () => {
       // Clear state
       setDistributions([]);
 
-      showAlert('Suksess', 'Drikker fordelt!');
       setDistributeModalVisible(false);
     } catch (error) {
       console.error('Error distributing drinks:', error);
-      showAlert('Feil', (error as Error).message || 'Kunne ikke fordele drikker');
     } finally {
       setDistributingDrinks(false);
     }
@@ -937,7 +933,7 @@ const GroupScreen = () => {
       }
     } catch (error) {
       console.error('Error handling friend request:', error);
-      showAlert('Feil', (error as Error).message || 'Kunne ikke håndtere vennerequest');
+      showAlert('Feil', 'Kunne ikke håndtere venneforespørsel');
     } finally {
       setSendingFriendRequest(false);
     }
@@ -954,7 +950,7 @@ const GroupScreen = () => {
       setIncomingFriendRequests((prev) => prev.filter((request) => request.id !== incomingRequest.id));
     } catch (error) {
       console.error('Error accepting friend request:', error);
-      showAlert('Feil', (error as Error).message || 'Kunne ikke godta vennerequest');
+      showAlert('Feil', 'Kunne ikke godta venneforespørsel');
     } finally {
       setSendingFriendRequest(false);
     }
@@ -971,7 +967,7 @@ const GroupScreen = () => {
       setPendingFriendRequests(updatedRequests);
     } catch (error) {
       console.error('Error cancelling friend request:', error);
-      showAlert('Feil', (error as Error).message || 'Kunne ikke angre vennerequest');
+      showAlert('Feil', 'Kunne ikke angre venneforespørsel');
     } finally {
       setSendingFriendRequest(false);
     }
@@ -980,7 +976,6 @@ const GroupScreen = () => {
   const handleInviteFriend = async (friend: Friend) => {
     if (!user || !selectedGroup) {
       console.error('=== DEBUG: Missing user or selectedGroup ===', { user, selectedGroup });
-      showAlert('Feil', 'Bruker eller gruppe ikke tilgjengelig');
       return;
     }
     setInviting(true);
@@ -1003,7 +998,7 @@ const GroupScreen = () => {
       }
     } catch(error) {
       console.error(error);
-      showAlert('Feil', `Kunne ikke sende invitasjon til ${friend.name}: ${(error as Error).message}`)
+      showAlert('Feil', `Kunne ikke sende invitasjon til ${friend.name}`)
     } finally {
       setInviting(false);
     }
@@ -1020,7 +1015,7 @@ const GroupScreen = () => {
       setSentGroupInvitations((prev) => prev.filter((invitation) => invitation.id !== sentInvitation.id));
     } catch (error) {
       console.error('Error cancelling group invitation:', error);
-      showAlert('Feil', (error as Error).message || 'Kunne ikke angre gruppeinvitasjon');
+      showAlert('Feil', 'Kunne ikke angre gruppeinvitasjon');
     } finally {
       setInviting(false);
     }
@@ -1056,7 +1051,7 @@ const GroupScreen = () => {
               await exitGroup(selectedGroup.id);
               router.replace('/profile');
             } catch (error) {
-              showAlert('Feil', `Kunne ikke forlate gruppe: ${(error as Error).message}`);
+              showAlert('Feil', `Kunne ikke forlate gruppe`);
             }
           },
         },
@@ -1068,7 +1063,7 @@ const GroupScreen = () => {
     if (!selectedGroup) return;
     showAlert(
       'Bekreft sletting',
-      `Er du sikker på at du vil slette gruppen "${selectedGroup.name}"? Dette kan ikke angres.`,
+      `Er du sikker på at du vil slette gruppen "${selectedGroup.name}"? Dette kan ikke angres`,
       [
         { text: 'Avbryt', style: 'cancel' },
         {
@@ -1099,7 +1094,7 @@ const GroupScreen = () => {
       return;
     }
     if (trimmedGroupName.length > INPUT_LIMITS.groupNameMax) {
-      showAlert('Feil', `Gruppenavn kan maks være ${INPUT_LIMITS.groupNameMax} tegn.`);
+      showAlert('Feil', `Gruppenavn kan maks være ${INPUT_LIMITS.groupNameMax} tegn`);
       return;
     }
     setCreatingGroup(true);
@@ -1112,8 +1107,6 @@ const GroupScreen = () => {
       setCreateGroupName('');
       
       await AsyncStorage.setItem('lastSelectedGroup', JSON.stringify(groupWithImage));
-      
-      showAlert('Suksess', 'Gruppe opprettet!');
     } catch (error) {
       console.error('Error creating group:', error);
       showAlert('Feil', 'Kunne ikke opprette gruppe');
@@ -1152,7 +1145,7 @@ const GroupScreen = () => {
       return;
     }
     if (trimmedName.length > INPUT_LIMITS.groupNameMax) {
-      showAlert('Feil', `Gruppenavn kan maks være ${INPUT_LIMITS.groupNameMax} tegn.`);
+      showAlert('Feil', `Gruppenavn kan maks være ${INPUT_LIMITS.groupNameMax} tegn`);
       return;
     }
     setSaving(true);
@@ -1165,7 +1158,7 @@ const GroupScreen = () => {
       setEditingName(false);
     } catch (error) {
       console.error('Error saving group name:', error);
-      showAlert('Feil', `Kunne ikke oppdatere gruppenavn: ${(error as Error).message}`);
+      showAlert('Feil', `Kunne ikke oppdatere gruppenavn`);
     } finally {
       setSaving(false);
     }
@@ -1190,7 +1183,7 @@ const GroupScreen = () => {
 
   const handleUploadOrChangeGroupImage = async () => {
     if (!selectedGroup?.id || !canManageGroupImage) {
-      showAlert('Ikke tilgang', 'Kun gruppeeier kan oppdatere gruppebildet.');
+      showAlert('Ikke tilgang', 'Kun gruppeeier kan oppdatere gruppebildet');
       return;
     }
 
@@ -1198,7 +1191,7 @@ const GroupScreen = () => {
       if (Platform.OS !== 'web') {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permissionResult.granted) {
-          showAlert('Tilgang mangler', 'Gi tilgang til bilder for å laste opp gruppebilde.');
+          showAlert('Tilgang mangler', 'Gi tilgang til bilder for å laste opp gruppebilde');
           return;
         }
       }
@@ -1237,11 +1230,10 @@ const GroupScreen = () => {
 
   const handleRemoveGroupImage = async () => {
     if (!selectedGroup?.id || !canManageGroupImage) {
-      showAlert('Ikke tilgang', 'Kun gruppeeier kan fjerne gruppebildet.');
+      showAlert('Ikke tilgang', 'Kun gruppeeier kan fjerne gruppebildet');
       return;
     }
     if (!hasCustomGroupImage) {
-      showAlert('Ingen bilde', 'Gruppen bruker standardbilde og kan ikke slettes.');
       return;
     }
 
@@ -1254,7 +1246,7 @@ const GroupScreen = () => {
       await applyGroupImageLocally(selectedGroup.id, null);
     } catch (error) {
       console.error('Error removing group image:', error);
-      showAlert('Feil', (error as Error).message || 'Kunne ikke fjerne gruppebilde.');
+      showAlert('Feil', 'Kunne ikke fjerne gruppebilde');
     } finally {
       setUploadingGroupImage(false);
     }
@@ -1282,7 +1274,7 @@ const GroupScreen = () => {
 
   const addBetOption = () => {
     if (betOptions.length >= INPUT_LIMITS.betOptionCountMax) {
-      showAlert('Feil', `Maks ${INPUT_LIMITS.betOptionCountMax} alternativer per bet.`);
+      showAlert('Feil', `Maks ${INPUT_LIMITS.betOptionCountMax} alternativer per bet`);
       return;
     }
     setBetOptions([...betOptions, { name: '' }]);
@@ -1296,7 +1288,7 @@ const GroupScreen = () => {
     ));
 
     if (uniqueMemberNames.length === 0) {
-      showAlert('Feil', 'Fant ingen gruppemedlemmer å legge til som alternativer.');
+      showAlert('Feil', 'Fant ingen gruppemedlemmer å legge til som alternativer');
       return;
     }
 
@@ -1316,7 +1308,7 @@ const GroupScreen = () => {
     }
 
     if (trimmedBetTitle.length > INPUT_LIMITS.betTitleMax) {
-      showAlert('Feil', `Bet-tittel kan maks være ${INPUT_LIMITS.betTitleMax} tegn.`);
+      showAlert('Feil', `Bet-tittel kan maks være ${INPUT_LIMITS.betTitleMax} tegn`);
       return;
     }
 
@@ -1326,7 +1318,7 @@ const GroupScreen = () => {
       return;
     }
     if (normalizedOptions.some((name) => name.length > INPUT_LIMITS.betOptionNameMax)) {
-      showAlert('Feil', `Alternativ-navn kan maks være ${INPUT_LIMITS.betOptionNameMax} tegn.`);
+      showAlert('Feil', `Alternativ-navn kan maks være ${INPUT_LIMITS.betOptionNameMax} tegn`);
       return;
     }
     setBetSaving(true);
@@ -1452,7 +1444,6 @@ const GroupScreen = () => {
 
   const openEditBetModal = (bet: Bet, idx: number) => {
     if (!canManageBet(bet)) {
-      showAlert('Ikke tilgang', 'Kun oppretter kan redigere bettet. Hvis oppretter forlater gruppen, kan gruppeeier overta.');
       return;
     }
     setSelectedEditBet({ bet, index: idx });
@@ -1531,7 +1522,7 @@ const GroupScreen = () => {
 
   const addEditBetOption = () => {
     if (editBetOptions.length >= INPUT_LIMITS.betOptionCountMax) {
-      showAlert('Feil', `Maks ${INPUT_LIMITS.betOptionCountMax} alternativer per bet.`);
+      showAlert('Feil', `Maks ${INPUT_LIMITS.betOptionCountMax} alternativer per bet`);
       return;
     }
     setEditBetOptions([...editBetOptions, { name: '' }]);
@@ -1546,7 +1537,7 @@ const GroupScreen = () => {
     }
 
     if (trimmedEditBetTitle.length > INPUT_LIMITS.betTitleMax) {
-      showAlert('Feil', `Bet-tittel kan maks være ${INPUT_LIMITS.betTitleMax} tegn.`);
+      showAlert('Feil', `Bet-tittel kan maks være ${INPUT_LIMITS.betTitleMax} tegn`);
       return;
     }
 
@@ -1556,7 +1547,7 @@ const GroupScreen = () => {
       return;
     }
     if (normalizedEditOptions.some((name) => name.length > INPUT_LIMITS.betOptionNameMax)) {
-      showAlert('Feil', `Alternativ-navn kan maks være ${INPUT_LIMITS.betOptionNameMax} tegn.`);
+      showAlert('Feil', `Alternativ-navn kan maks være ${INPUT_LIMITS.betOptionNameMax} tegn`);
       return;
     }
     setEditBetSaving(true);
@@ -1667,7 +1658,7 @@ const GroupScreen = () => {
     const amount = distributionAmountMode === 'custom' ? amountFromInput : selectedDistribution.amount;
 
     if (!Number.isInteger(amount) || amount <= 0) {
-      showAlert('Feil', 'Velg et gyldig antall større enn 0.');
+      showAlert('Feil', 'Velg et gyldig antall større enn 0');
       return;
     }
     
@@ -2203,7 +2194,7 @@ const GroupScreen = () => {
         setLeaderboardData(updatedLeaderboard);
       } catch (error) {
         console.error('Error registering consumed drink:', error);
-        showAlert('Feil', (error as Error).message || 'Kunne ikke registrere drukket');
+        showAlert('Feil', 'Kunne ikke registrere drikke drukket');
       } finally {
         setConsumingDrinkKey(null);
       }
@@ -3465,7 +3456,7 @@ const GroupScreen = () => {
                   setEditMenuModalVisible(false);
                   showAlert(
                     'Bekreft sletting',
-                    'Er du sikker på at du vil slette dette bettet? Dette kan ikke angres.',
+                    'Er du sikker på at du vil slette dette bettet? Dette kan ikke angres',
                     [
                       { text: 'Avbryt', style: 'cancel' },
                       {
