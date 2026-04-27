@@ -26,6 +26,7 @@ const ImageMissing = require('../../assets/images/image_missing.png');
 const DefaultProfilePicture = getDefaultProfilePicture();
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 const GroupImageIcon = require('../../assets/icons/noun-image-7746215.png');
+const TrashIcon = require('../../assets/icons/noun-delete-7938028.png');
 
 type SentGroupInvitation = {
   id: string;
@@ -2559,6 +2560,15 @@ const GroupScreen = () => {
                           style={globalStyles.groupActionIconButton}
                         >
                           <Image source={GroupImageIcon} style={globalStyles.primaryIcon} />
+                        </TouchableOpacity>
+                      )}
+                      {canManageGroupImage && hasCustomGroupImage && (
+                        <TouchableOpacity
+                          onPress={handleRemoveGroupImage}
+                          disabled={uploadingGroupImage}
+                          style={globalStyles.groupActionIconButton}
+                        >
+                          <Image source={TrashIcon} style={globalStyles.deleteIcon} />
                         </TouchableOpacity>
                       )}
                     </View>
