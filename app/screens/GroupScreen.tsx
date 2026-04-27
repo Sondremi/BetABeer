@@ -2529,12 +2529,24 @@ const GroupScreen = () => {
             <Text style={globalStyles.sectionTitleLeft}>Aktive bets</Text>
             <Text style={[globalStyles.secondaryText, { marginTop: theme.spacing.xs }]}>Plasser bet, følg status og se resultater samlet her.</Text>
             <View style={{ marginTop: theme.spacing.md }}>
-              {bets
-                .filter((bet) => bet.isFinished || !bet.hiddenFromUserIds?.includes(user?.id || ''))
-                .map((item) => {
-                  const originalIndex = bets.findIndex((bet) => bet.id === item.id);
-                  return <View key={item.id}>{renderBet({ item, index: originalIndex })}</View>;
-                })}
+              {bets.map((item) => {
+                const isHiddenForCurrentUser = item.hiddenFromUserIds?.includes(user?.id || '');
+                if (isHiddenForCurrentUser) {
+                  return (
+                    <View key={item.id} style={groupStyles.betContainer}>
+                      <View style={[globalStyles.contentCard, globalStyles.betSpacing]}>
+                        <Text style={groupStyles.betTitle}>Skjult bett</Text>
+                        <Text style={groupStyles.betMetaText}>
+                          Dette bettet er skjult for deg av oppretteren.
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                }
+
+                const originalIndex = bets.findIndex((bet) => bet.id === item.id);
+                return <View key={item.id}>{renderBet({ item, index: originalIndex })}</View>;
+              })}
             </View>
           </View>
         </View>
