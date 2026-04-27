@@ -1347,7 +1347,6 @@ const GroupScreen = () => {
         createdAt: Date.now(),
       };
       await updateDoc(groupRef, { bets: [newBet, ...groupBets] });
-      setBets(prev => [newBet, ...prev]);
       setBetModalVisible(false);
     } catch (error) {
       console.error('Error saving bet:', error);
