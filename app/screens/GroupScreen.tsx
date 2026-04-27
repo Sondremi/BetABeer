@@ -2586,28 +2586,6 @@ const GroupScreen = () => {
             </TouchableOpacity>
           </View>
 
-          {canManageGroupImage && (
-            <View style={[groupStyles.actionGridRow, groupStyles.actionGridRowLast]}>
-              <TouchableOpacity
-                style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]}
-                onPress={handleUploadOrChangeGroupImage}
-                disabled={uploadingGroupImage}
-              >
-                <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>
-                  {uploadingGroupImage ? 'Laster...' : hasCustomGroupImage ? 'Endre bilde' : 'Last opp bilde'}
-                </Text>
-              </TouchableOpacity>
-              {hasCustomGroupImage && (
-                <TouchableOpacity
-                  style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton, groupStyles.groupRemoveImageButton, uploadingGroupImage && globalStyles.disabledButton]}
-                  onPress={handleRemoveGroupImage}
-                  disabled={uploadingGroupImage}
-                >
-                  <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText, globalStyles.actionButtonDangerText]}>Fjern bilde</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
         </View>
 
         <View style={groupStyles.betListSection}>
