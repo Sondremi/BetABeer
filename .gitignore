@@ -46,8 +46,9 @@ pglite-debug.log
 # Firebase local state/cache
 .firebase/
 
-# Local Copilot/agent artifacts
+# Local agent artifacts
 .agents/
 skills-lock.json
+docs/
 
 app-example
