@@ -25,6 +25,7 @@ import { getDefaultProfilePicture, resolveProfileImageSource } from '../utils/pr
 const ImageMissing = require('../../assets/images/image_missing.png');
 const DefaultProfilePicture = getDefaultProfilePicture();
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
+const GroupImageIcon = require('../../assets/icons/noun-image-7746215.png');
 
 type SentGroupInvitation = {
   id: string;
@@ -2549,6 +2550,15 @@ const GroupScreen = () => {
                       {canEditGroupName && (
                         <TouchableOpacity onPress={() => setEditingName(true)} style={globalStyles.groupActionIconButton}>
                           <Image source={PencilIcon} style={globalStyles.primaryIcon} />
+                        </TouchableOpacity>
+                      )}
+                      {canManageGroupImage && (
+                        <TouchableOpacity
+                          onPress={handleUploadOrChangeGroupImage}
+                          disabled={uploadingGroupImage}
+                          style={globalStyles.groupActionIconButton}
+                        >
+                          <Image source={GroupImageIcon} style={globalStyles.primaryIcon} />
                         </TouchableOpacity>
                       )}
                     </View>
