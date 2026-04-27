@@ -425,14 +425,24 @@ const GroupScreen = () => {
   const groupAverageBacTone = useMemo(() => getBacRangeTone(groupAverageBAC), [groupAverageBAC]);
 
   useEffect(() => {
-    if (!user) return;
-    let isMounted = true;
+    if (!user?.id) return;
 
-    const fetchGroups = async () => {
-      setGroupsResolved(false);
-      const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
-      const groupSnapshot = await getDocs(groupQuery);
-      if (!isMounted) return;
+    setGroupsResolved(false);
+
+    let selectedGroupFromParamsId: string | null = null;
+    if (params.selectedGroup) {
+      try {
+        const groupFromParams = Array.isArray(params.selectedGroup)
+          ? JSON.parse(params.selectedGroup[0])
+          : JSON.parse(params.selectedGroup);
+        selectedGroupFromParamsId = typeof groupFromParams?.id === 'string' ? groupFromParams.id : null;
+      } catch (error) {
+        console.error('Error parsing selectedGroup:', error);
+      }
+    }
+
+    const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
+    const unsubscribe = onSnapshot(groupQuery, (groupSnapshot) => {
       const groupList = groupSnapshot.docs.map((docSnap) => {
         const groupData = docSnap.data();
         return {
@@ -445,40 +455,40 @@ const GroupScreen = () => {
           members: groupData.members || [],
         };
       });
+
       const uniqueGroups = Array.from(new Map(groupList.map((group) => [group.id, group])).values());
       setGroups(uniqueGroups);
 
-      let groupFromParams = null;
-      if (params.selectedGroup) {
-        try {
-          groupFromParams = Array.isArray(params.selectedGroup)
-            ? JSON.parse(params.selectedGroup[0])
-            : JSON.parse(params.selectedGroup);
-        } catch (e) {
-          console.error('Error parsing selectedGroup:', e);
-          groupFromParams = null;
-        }
-      }
-      const foundGroup = groupFromParams
-        ? groupList.find(g => g.id === groupFromParams.id)
-        : groupList.length > 0
-        ? groupList[0]
-        : null;
-      
-      if (groupFromParams && !foundGroup) {
-        AsyncStorage.removeItem('lastSelectedGroup').catch(error => {
+      if (selectedGroupFromParamsId && !uniqueGroups.some((group) => group.id === selectedGroupFromParamsId)) {
+        AsyncStorage.removeItem('lastSelectedGroup').catch((error) => {
           console.error('Error removing invalid group from storage:', error);
         });
       }
-      
-      setSelectedGroup(foundGroup ?? null);
+
+      setSelectedGroup((previous) => {
+        if (selectedGroupFromParamsId) {
+          const groupFromParams = uniqueGroups.find((group) => group.id === selectedGroupFromParamsId);
+          if (groupFromParams) return groupFromParams;
+        }
+
+        if (previous?.id) {
+          const updatedCurrentGroup = uniqueGroups.find((group) => group.id === previous.id);
+          if (updatedCurrentGroup) return updatedCurrentGroup;
+        }
+
+        return uniqueGroups[0] ?? null;
+      });
+
       setGroupsResolved(true);
-    };
-    fetchGroups();
+    }, (error) => {
+      console.error('Error syncing groups snapshot:', error);
+      setGroupsResolved(true);
+    });
+
     return () => {
-      isMounted = false;
+      unsubscribe();
     };
-  }, [user, params.selectedGroup]);
+  }, [user?.id, params.selectedGroup]);
 
   useEffect(() => {
     if (!user || !groupsResolved) return;
@@ -546,26 +556,29 @@ const GroupScreen = () => {
   }, [user]);
 
   useEffect(() => {
-    if (!selectedGroup) {
+    if (!selectedGroup?.id) {
       setBets([]);
       return;
     }
-    let isMounted = true;
-    const fetchBets = async () => {
-      const groupRef = doc(firestore, 'groups', selectedGroup.id);
-      const groupSnap = await getDoc(groupRef);
-      if (!isMounted) return;
-      if (groupSnap.exists() && groupSnap.data().bets) {
-        setBets(groupSnap.data().bets);
-      } else {
+
+    const groupRef = doc(firestore, 'groups', selectedGroup.id);
+    const unsubscribe = onSnapshot(groupRef, (groupSnap) => {
+      if (!groupSnap.exists()) {
         setBets([]);
+        return;
       }
-    };
-    fetchBets();
+
+      const groupData = groupSnap.data();
+      const nextBets = Array.isArray(groupData.bets) ? groupData.bets : [];
+      setBets(nextBets);
+    }, (error) => {
+      console.error('Error syncing bets snapshot:', error);
+    });
+
     return () => {
-      isMounted = false;
+      unsubscribe();
     };
-  }, [selectedGroup]);
+  }, [selectedGroup?.id]);
 
   useEffect(() => {
     if (!leaderboardModalVisible) return;
