@@ -536,23 +536,17 @@ export const authService = {
         throw new Error('not-anonymous-user');
       }
 
-      const trimmedUsername = String(payload.username || '').trim();
       const trimmedName = String(payload.name || '').trim();
       const trimmedEmail = String(payload.email || '').trim();
-      const normalizedUsername = normalizeValue(trimmedUsername);
       const normalizedEmail = normalizeValue(trimmedEmail);
+      const userRef = doc(firestore, 'users', currentUser.uid);
+      const userSnapshot = await getDoc(userRef);
+      const existingUsername = toDisplayValue(userSnapshot.data()?.username);
+      const resolvedUsername = existingUsername || buildFallbackUsername(trimmedEmail, currentUser.uid);
+      const normalizedUsername = normalizeValue(resolvedUsername);
 
-      if (!trimmedUsername || !trimmedName || !trimmedEmail || !payload.password) {
+      if (!trimmedName || !trimmedEmail || !payload.password) {
         throw new Error('missing-required-upgrade-fields');
-      }
-
-      const usernameSnapshot = await getDocs(query(
-        collection(firestore, 'users'),
-        where('usernameLower', '==', normalizedUsername)
-      ));
-      const usernameTakenByAnother = usernameSnapshot.docs.some((docSnap) => docSnap.id !== currentUser.uid);
-      if (usernameTakenByAnother) {
-        throw new Error('upgrade-username-taken');
       }
 
       const emailSnapshot = await getDocs(query(
@@ -568,8 +562,8 @@ export const authService = {
       await linkWithCredential(currentUser, credential);
       await updateProfile(auth.currentUser, { displayName: trimmedName });
 
-      await updateDoc(doc(firestore, 'users', currentUser.uid), {
-        username: trimmedUsername,
+      await updateDoc(userRef, {
+        username: resolvedUsername,
         usernameLower: normalizedUsername,
         name: trimmedName,
         email: trimmedEmail,
@@ -601,9 +595,6 @@ export const authService = {
         }
         if (error.message === 'missing-required-upgrade-fields') {
           throw new Error('Alle felter må fylles ut');
-        }
-        if (error.message === 'upgrade-username-taken') {
-          throw new Error('Brukernavnet er allerede tatt');
         }
         if (error.message === 'upgrade-email-taken') {
           throw new Error('E-postadressen er allerede i bruk');

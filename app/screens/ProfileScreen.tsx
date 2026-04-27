@@ -1444,6 +1444,7 @@ const ProfileScreen: React.FC = () => {
       <GuestUpgradePrompt
         title="Profil er låst for gjest"
         description="Opprett en bruker for å få tilgang til profil, drikkehistorikk og gruppeinvitasjoner."
+        showBackToGroupButton
       />
     );
   }

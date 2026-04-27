@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useRouter } from 'expo-router';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { authService } from '../services/firebase/authService';
 import { globalStyles } from '../styles/globalStyles';
@@ -7,14 +8,15 @@ import { showAlert } from '../utils/platformAlert';
 
 type GuestUpgradePromptProps = {
   description: string;
+  showBackToGroupButton?: boolean;
   title: string;
 };
 
-export const GuestUpgradePrompt: React.FC<GuestUpgradePromptProps> = ({ title, description }) => {
+export const GuestUpgradePrompt: React.FC<GuestUpgradePromptProps> = ({ title, description, showBackToGroupButton = false }) => {
+  const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
-    username: '',
     name: '',
     email: '',
     password: '',
@@ -22,13 +24,10 @@ export const GuestUpgradePrompt: React.FC<GuestUpgradePromptProps> = ({ title, d
   });
 
   const canSubmit = useMemo(() => {
-    const username = normalizeSingleLineText(formData.username);
     const name = normalizeSingleLineText(formData.name);
     const email = formData.email.trim();
     const password = formData.password;
     return (
-      username.length >= INPUT_LIMITS.usernameMin &&
-      username.length <= INPUT_LIMITS.usernameMax &&
       name.length > 0 &&
       name.length <= INPUT_LIMITS.profileNameMax &&
       email.length > 0 &&
@@ -40,7 +39,6 @@ export const GuestUpgradePrompt: React.FC<GuestUpgradePromptProps> = ({ title, d
   }, [formData]);
 
   const handleUpgrade = async () => {
-    const username = normalizeSingleLineText(formData.username);
     const name = normalizeSingleLineText(formData.name);
     const email = formData.email.trim();
     const password = formData.password;
@@ -59,14 +57,12 @@ export const GuestUpgradePrompt: React.FC<GuestUpgradePromptProps> = ({ title, d
     setSaving(true);
     try {
       await authService.upgradeGuestAccount({
-        username,
         name,
         email,
         password,
       });
       setModalVisible(false);
       setFormData({
-        username: '',
         name: '',
         email: '',
         password: '',
@@ -89,6 +85,11 @@ export const GuestUpgradePrompt: React.FC<GuestUpgradePromptProps> = ({ title, d
         <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
           <Text style={globalStyles.sectionTitle}>{title}</Text>
           <Text style={globalStyles.sectionDescription}>{description}</Text>
+          {showBackToGroupButton && (
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, { marginBottom: 10 }]} onPress={() => router.replace('/groups')}>
+              <Text style={globalStyles.outlineButtonGoldText}>Tilbake til gruppe</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={globalStyles.primaryButton} onPress={() => setModalVisible(true)}>
             <Text style={globalStyles.primaryButtonText}>Opprett bruker</Text>
           </TouchableOpacity>
@@ -101,21 +102,6 @@ export const GuestUpgradePrompt: React.FC<GuestUpgradePromptProps> = ({ title, d
             <ScrollView contentContainerStyle={globalStyles.fullWidthScrollContent} keyboardShouldPersistTaps="handled">
               <Text style={globalStyles.modalTitle}>Opprett bruker</Text>
               <Text style={globalStyles.secondaryText}>Fullfør kontoen for å låse opp alle funksjoner.</Text>
-
-              <View style={globalStyles.inputGroup}>
-                <Text style={globalStyles.label}>Brukernavn</Text>
-                <View style={globalStyles.inputShellDark}>
-                  <TextInput
-                    style={globalStyles.input}
-                    value={formData.username}
-                    onChangeText={(text) => setFormData((prev) => ({ ...prev, username: text.slice(0, INPUT_LIMITS.usernameMax) }))}
-                    placeholder="Brukernavn"
-                    placeholderTextColor="#9CA3AF"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                </View>
-              </View>
 
               <View style={globalStyles.inputGroup}>
                 <Text style={globalStyles.label}>Navn</Text>

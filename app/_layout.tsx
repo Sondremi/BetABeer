@@ -113,15 +113,18 @@ function PersistedRouteStack() {
       const normalizedLastRoute = normalizeRoutePath(lastRoute);
       const normalizedCurrentPath = normalizeRoutePath(pathname);
       const normalizedProfileRoute = normalizeRoutePath('/(tabs)/profile');
+      const isGuestUser = Boolean((user as any)?.isGuest);
 
       const redirectTarget =
-        normalizedLastRoute &&
-        normalizedLastRoute !== '/login' &&
-        normalizedLastRoute !== normalizedCurrentPath
-          ? lastRoute
-          : pathname === '/login' && !groupInviteId
-            ? '/(tabs)/profile'
-            : null;
+        pathname === '/login' && isGuestUser
+          ? '/groups'
+          : normalizedLastRoute &&
+            normalizedLastRoute !== '/login' &&
+            normalizedLastRoute !== normalizedCurrentPath
+            ? lastRoute
+            : pathname === '/login' && !groupInviteId
+              ? '/(tabs)/profile'
+              : null;
 
       const normalizedTarget = normalizeRoutePath(redirectTarget);
       if (cancelled || !normalizedCurrentPath || !normalizedTarget) return;
@@ -149,7 +152,7 @@ function PersistedRouteStack() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, loading, pathname, groupInviteId, router]);
+  }, [user?.id, (user as any)?.isGuest, loading, pathname, groupInviteId, router]);
 
   return (
     <Stack initialRouteName="login">

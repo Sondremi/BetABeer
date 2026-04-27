@@ -787,7 +787,7 @@ const LoginScreen: React.FC = () => {
             {isLoginMode && groupInviteId && (
               <View style={[globalStyles.inputGroup, loginStyles.formInputGroup]}>
                 <Text style={loginStyles.fieldLabel}>Bli med som gjest</Text>
-                <Text style={[globalStyles.secondaryText, { marginBottom: 8 }]}>Skriv brukernavn og bli med i gruppen uten full konto.</Text>
+                <Text style={[globalStyles.secondaryText, { marginBottom: 8 }]}>Velg et brukernavn og bli med i gruppen uten konto.</Text>
                 <View style={[globalStyles.inputShellDark, activeField === 'guestUsername' && globalStyles.inputShellFocusedGold]}>
                   <TextInput
                     style={[globalStyles.input, loginStyles.authInput]}
