@@ -9,12 +9,16 @@
     <meta property="og:title" content="BetABeer" />
     <meta property="og:site_name" content="BetABeer" />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://betabeer-3b7fb.firebaseapp.com/" />
+    <meta property="og:url" content="https://betabeer-3b7fb.web.app/" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="twitter:title" content="BetABeer">
     <meta
       name="description"
-      content="BetABeer er en sosial app der vennegjenger lager morsomme challenges og holder oversikt over hva som står på spill."
+      content="BetABeer er en sosial drikkelek-app der du og vennene dine lager morsomme bets, betaler med slurker eller shots og følger resultatene i sanntid. Perfekt for vors, fest eller en kveld på byen."
     />
-    <title>BetABeer | Social Betting Challenges</title>
+    <title>Bet A Beer</title>
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body class="landing">
@@ -24,43 +28,57 @@
     </div>
 
     <main class="landing-main">
-      <p class="eyebrow">BetABeer</p>
-      <h1>Friendly bets. Better stories.</h1>
+      <p class="eyebrow">Bet A Beer</p>
+      <h1>Vennskapelige veddemål. Gode minner.</h1>
       <p class="kicker">
-        BetABeer er en sosial app hvor du og vennene dine lager små challenges, følger resultatene
-        og holder konkurransen gående.
+        BetABeer er en sosial drikkelek-app der du og vennene dine lager morsomme bets, betaler med slurker eller shots og følger resultatene i sanntid. 
+        Perfekt for vors, fest eller en kveld på byen.
       </p>
+      <a class="link-btn primary" href="https://bet-a-beer.netlify.app/login">Logg inn</a>
 
       <section class="intro-panel">
         <div class="pill-row" aria-label="Produktinformasjon">
-          <span class="pill">Mobile-first</span>
-          <span class="pill">Social challenges</span>
-          <span class="pill">Google Sign-In</span>
+          <span class="pill">Sosiale utfordringer</span>
+          <span class="pill">Google-innlogging</span>
         </div>
         <p class="intro-text">
-          Denne siden brukes som offentlig landingsside for Firebase Hosting, OAuth og policy-lenker.
+          Legg til venner, opprett eller bli med i grupper, og kjør bets med live oppdateringer gjennom hele kvelden.
         </p>
-        <a class="link-btn primary" href="https://bet-a-beer.netlify.app/login">Logg inn</a>
-        <div class="links">
-          <a class="link-btn" href="/privacy">Privacy Policy</a>
-          <a class="link-btn" href="/terms">Terms of Service</a>
-        </div>
+
+        <section class="feature-grid" aria-label="Appfunksjoner">
+          <article class="feature-card">
+            <h2>Venner og grupper</h2>
+            <p>Bygg nettverket ditt ved å legge til venner, opprette grupper eller bli med i eksisterende grupper.</p>
+          </article>
+          <article class="feature-card">
+            <h2>Lag og plasser bets</h2>
+            <p>Opprett egne bets og velg hva du better med, som slurker, shots eller andre drikketyper.</p>
+          </article>
+          <article class="feature-card">
+            <h2>Live aktivitet</h2>
+            <p>Følg i sanntid hvem som better hva, og se resultater oppdatere seg live når bettene avgjøres.</p>
+          </article>
+          <article class="feature-card">
+            <h2>Poeng og vinnere</h2>
+            <p>Få løpende oversikt over hvem som har vunnet flest bets i gruppen.</p>
+          </article>
+          <article class="feature-card">
+            <h2>Utfall av bet</h2>
+            <p>Vinner du, kan du dele ut det du bettet til andre i gruppen. Taper du, må du drikke det du bettet.</p>
+          </article>
+          <article class="feature-card">
+            <h2>Promillemåler og profil</h2>
+            <p>Promillemåleren oppdateres etter hvert som du drikker, og du kan laste opp profilbilde når e-posten er verifisert.</p>
+          </article>
+        </section>
       </section>
 
-      <section class="feature-grid" aria-label="App highlights">
-        <article class="feature-card">
-          <h2>Group Challenges</h2>
-          <p>Opprett bets med vennegjengen og la alle følge utfallet i samme feed.</p>
-        </article>
-        <article class="feature-card">
-          <h2>Shared Accountability</h2>
-          <p>Se hvem som leder, hvem som skylder en runde, og hva som fortsatt er i spill.</p>
-        </article>
-        <article class="feature-card">
-          <h2>Built For Trust</h2>
-          <p>Klar policy-informasjon og sikker innlogging gjør onboarding enklere for alle.</p>
-        </article>
-      </section>
+      <div class="links">
+        <a class="link-btn" href="/privacy">Privacy Policy</a>
+        <a class="link-btn" href="/terms">Terms of Service</a>
+      </div>
+
+
     </main>
   </body>
 </html>
