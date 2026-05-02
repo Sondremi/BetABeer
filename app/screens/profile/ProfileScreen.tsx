@@ -1,12 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import { LineChart } from 'react-native-chart-kit';
+import React, { useCallback, useEffect, useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { GuestUpgradePrompt } from '../../components/GuestUpgradePrompt';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/firebase/authService';
@@ -14,109 +12,48 @@ import { firestore } from '../../services/firebase/FirebaseConfig';
 import { sendGroupInvitation } from '../../services/groupService';
 import { uploadProfileImage } from '../../services/profileImageUploadService';
 import { acceptGroupInvitation, createGroup, declineGroupInvitation, profileService } from '../../services/profileService';
-import { profileChartConfig, profileChartDataset, profileScreenTokens, profileStyles } from '../../styles/components/profileStyles';
 import { globalStyles } from '../../styles/globalStyles';
-import { theme } from '../../styles/theme';
-import { DrinkCategory, DrinkEntry, Group, GroupInvitation } from '../../types/drinkTypes';
-import { Friend } from '../../types/userTypes';
-import { INPUT_LIMITS, isNumberInRange, normalizeSingleLineText } from '../../utils/inputValidation';
+import type { Group, GroupInvitation } from '../../types/drinkTypes';
+import type { Friend } from '../../types/userTypes';
+import { INPUT_LIMITS, normalizeSingleLineText } from '../../utils/inputValidation';
 import { showAlert } from '../../utils/platformAlert';
 import { resolveProfileImageSource } from '../../utils/profileImage';
-import { DefaultProfilePicture, ImageMissing } from './profileAssets';
+import ProfileBacSection from './bac/ProfileBacSection';
 import ProfileGroupInvitationsSection from './components/ProfileGroupInvitationsSection';
 import ProfileGroupsSection from './components/ProfileGroupsSection';
 import ProfileHeaderSection from './components/ProfileHeaderSection';
 import ProfileImageModal from './components/ProfileImageModal';
 import ProfileOnboardingModal from './components/ProfileOnboardingModal';
-
-
-type DrinkFormState = {
-  category: DrinkCategory | 'custom' | '';
-  sizeDl: number | '' | 'custom';
-  sizeUnit: 'cl' | 'dl' | 'l';
-  alcoholPercent: number | '' | 'custom';
-  quantity: number | '' | 'custom';
-  customAlcoholPercent: string;
-  customDrinkName: string;
-  customSizeValue: string;
-  customSizeUnit: 'cl' | 'dl' | 'l';
-  customAlcoholPercentManual: string;
-  customQuantity: string;
-  consumedAtTime: string;
-  hasEndTime: boolean;
-  consumedUntilTime: string;
-};
-
-type BACEstimatorDrinkOption = {
-  key: string;
-  label: string;
-  template: Omit<DrinkEntry, 'timestamp' | 'quantity'>;
-};
-
-const normalizeDrinkCategory = (category: unknown, alcoholPercent?: number): DrinkCategory => {
-  if (typeof category === 'string') {
-    const normalized = category.trim().toLowerCase();
-
-    if (['øl', 'ol', 'beer', 'cider', 'selzer', 'seltzer', 'hard selzer', 'hard seltzer'].includes(normalized)) {
-      return 'øl';
-    }
-    if (['vin', 'wine'].includes(normalized)) {
-      return 'vin';
-    }
-    if (['sprit', 'spirit', 'liquor', 'shot', 'shots', 'drink'].includes(normalized)) {
-      return 'sprit';
-    }
-  }
-
-  if (typeof alcoholPercent === 'number') {
-    if (alcoholPercent < 8) return 'øl';
-    if (alcoholPercent < 22) return 'vin';
-  }
-
-  return 'sprit';
-};
-
-const resolveDrinkTimestamp = (drink: DrinkEntry): number => {
-  const rawTimestamp = drink.endTimestamp ?? drink.timestamp;
-  return Number.isFinite(rawTimestamp) ? rawTimestamp : 0;
-};
-
-const getCurrentTimeInput = () => {
-  const now = new Date();
-  const hours = now.getHours().toString().padStart(2, '0');
-  const minutes = now.getMinutes().toString().padStart(2, '0');
-  return `${hours}:${minutes}`;
-};
-
-const createInitialDrinkForm = (): DrinkFormState => ({
-  category: '',
-  sizeDl: '',
-  sizeUnit: 'dl',
-  alcoholPercent: '',
-  quantity: '',
-  customAlcoholPercent: '',
-  customDrinkName: '',
-  customSizeValue: '',
-  customSizeUnit: 'dl',
-  customAlcoholPercentManual: '',
-  customQuantity: '',
-  consumedAtTime: getCurrentTimeInput(),
-  hasEndTime: false,
-  consumedUntilTime: '',
-});
-
-const hourOptions = Array.from({ length: 24 }, (_, index) => index.toString().padStart(2, '0'));
-const minuteOptions = Array.from({ length: 60 }, (_, index) => index.toString().padStart(2, '0'));
+import { DefaultProfilePicture, ImageMissing } from './profileAssets';
+import type { ProfileUserInfo } from './profileTypes';
 
 const ProfileScreen: React.FC = () => {
+  const router = useRouter();
   const { user, loading } = useAuth();
-  const { width: windowWidth } = useWindowDimensions();
+
   const [profileImageModalVisible, setProfileImageModalVisible] = useState(false);
   const [onboardingModalVisible, setOnboardingModalVisible] = useState(false);
   const [onboardingStorageKey, setOnboardingStorageKey] = useState<string | null>(null);
   const [selectedProfileImage, setSelectedProfileImage] = useState<string | null>(null);
   const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
   const [displayName, setDisplayName] = useState('');
+
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [createGroupModalVisible, setCreateGroupModalVisible] = useState(false);
+  const [createGroupName, setCreateGroupName] = useState('');
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [groupInviteCandidates, setGroupInviteCandidates] = useState<Friend[]>([]);
+  const [selectedInviteeIds, setSelectedInviteeIds] = useState<string[]>([]);
+  const [loadingGroupInviteCandidates, setLoadingGroupInviteCandidates] = useState(false);
+
+  const [groupInvitations, setGroupInvitations] = useState<GroupInvitation[]>([]);
+  const [handlingInvitation, setHandlingInvitation] = useState(false);
+  const [userNames, setUserNames] = useState<Record<string, string>>({});
+  const [incomingFriendRequestCount, setIncomingFriendRequestCount] = useState(0);
+
+  const [userInfo, setUserInfo] = useState<ProfileUserInfo>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [isInvitationsExpanded, setIsInvitationsExpanded] = useState(true);
 
   useEffect(() => {
     setSelectedProfileImage((user as any)?.profileImage || null);
@@ -128,8 +65,199 @@ const ProfileScreen: React.FC = () => {
     }
   }, [user?.name]);
 
+  useEffect(() => {
+    if (userInfo.name) {
+      setDisplayName(userInfo.name);
+    }
+  }, [userInfo.name]);
+
+  const loadUserData = useCallback(async () => {
+    try {
+      const currentUserId = user?.id ?? authService.getCurrentUser()?.uid;
+      if (!currentUserId) {
+        setUserInfo({});
+        return;
+      }
+
+      setIsLoading(true);
+      const userData = await profileService.getUserData(currentUserId);
+      setUserInfo(userData);
+
+      if (!userData.weight || !userData.gender) {
+        const alertStorageKey = `bacMissingInfoAlertShown:${currentUserId}`;
+        const hasShownAlert = await AsyncStorage.getItem(alertStorageKey);
+
+        if (!hasShownAlert) {
+          setOnboardingStorageKey(alertStorageKey);
+          setOnboardingModalVisible(true);
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      showAlert('Feil', 'Kunne ikke laste brukerdata');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUserData();
+    }, [loadUserData])
+  );
+
+  useEffect(() => {
+    if (!user?.id) return;
+    loadUserData();
+  }, [user?.id, loadUserData]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
+    const invitationQuery = query(
+      collection(firestore, 'group_invitations'),
+      where('toUserId', '==', user.id),
+      where('status', '==', 'pending')
+    );
+
+    const unsubscribeGroups = onSnapshot(groupQuery, (groupSnapshot) => {
+      const groupMap = new Map<string, Group>();
+      const sortedGroupDocs = [...groupSnapshot.docs].sort((a, b) => {
+        const aCreatedAt = a.data().createdAt?.toMillis?.() ?? 0;
+        const bCreatedAt = b.data().createdAt?.toMillis?.() ?? 0;
+        return bCreatedAt - aCreatedAt;
+      });
+
+      sortedGroupDocs.forEach((docSnap) => {
+        const groupData = docSnap.data();
+        groupMap.set(docSnap.id, {
+          id: docSnap.id,
+          name: groupData.name || groupData.groupName || groupData.group_name || 'Gruppenavn',
+          memberCount: groupData.members?.length || 0,
+          image: resolveProfileImageSource(groupData.image, ImageMissing),
+          imageUrl: typeof groupData.image === 'string' ? groupData.image : null,
+          createdBy: groupData.createdBy || '',
+          members: groupData.members || [],
+        });
+      });
+
+      setGroups(Array.from(groupMap.values()));
+    });
+
+    const unsubscribeInvitations = onSnapshot(invitationQuery, (snapshot) => {
+      const invitationList = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...data,
+          groupName: data.groupName || data.group_name || 'Group',
+        };
+      }) as GroupInvitation[];
+
+      setGroupInvitations(invitationList);
+    });
+
+    return () => {
+      unsubscribeGroups();
+      unsubscribeInvitations();
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setIncomingFriendRequestCount(0);
+      return;
+    }
+
+    const incomingFriendRequestsQuery = query(
+      collection(firestore, 'friendRequests'),
+      where('toUserId', '==', user.id),
+      where('status', '==', 'pending')
+    );
+
+    const unsubscribeIncomingFriendRequests = onSnapshot(incomingFriendRequestsQuery, (snapshot) => {
+      setIncomingFriendRequestCount(snapshot.size);
+    });
+
+    return () => {
+      unsubscribeIncomingFriendRequests();
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    const fetchNames = async () => {
+      if (!groupInvitations.length) return;
+
+      const idsToFetch = groupInvitations
+        .map((invitation) => invitation.fromUserId)
+        .filter((id) => !(id in userNames));
+
+      if (!idsToFetch.length) return;
+
+      const newNames: Record<string, string> = {};
+      await Promise.all(
+        idsToFetch.map(async (id) => {
+          const userDoc = await getDoc(doc(firestore, 'users', id));
+          newNames[id] = userDoc.exists() ? userDoc.data().name || id : id;
+        })
+      );
+
+      if (Object.keys(newNames).length > 0) {
+        setUserNames((prev) => ({ ...prev, ...newNames }));
+      }
+    };
+
+    fetchNames();
+  }, [groupInvitations, userNames]);
+
+  const loadGroupInviteCandidates = useCallback(async () => {
+    if (!user) {
+      setGroupInviteCandidates([]);
+      return;
+    }
+
+    setLoadingGroupInviteCandidates(true);
+    try {
+      const userSnap = await getDoc(doc(firestore, 'users', user.id));
+      const friendIds = userSnap.exists() ? ((userSnap.data().friends || []) as string[]) : [];
+
+      if (!friendIds.length) {
+        setGroupInviteCandidates([]);
+        return;
+      }
+
+      const friendSnaps = await Promise.all(friendIds.map((friendId) => getDoc(doc(firestore, 'users', friendId))));
+      const friends = friendSnaps
+        .filter((snap) => snap.exists())
+        .map((snap) => {
+          const data = snap.data();
+          return {
+            id: snap.id,
+            name: data.name || 'Ukjent',
+            username: data.username || 'ukjent',
+            profilePicture: resolveProfileImageSource(data.profileImage, DefaultProfilePicture),
+          } as Friend;
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      setGroupInviteCandidates(friends);
+    } catch (error) {
+      console.error(error);
+      setGroupInviteCandidates([]);
+    } finally {
+      setLoadingGroupInviteCandidates(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!createGroupModalVisible) return;
+    loadGroupInviteCandidates();
+  }, [createGroupModalVisible, loadGroupInviteCandidates]);
+
   const handleProfileSave = async () => {
     if (!user) return;
+
     const trimmedName = normalizeSingleLineText(displayName);
     if (!trimmedName) {
       showAlert('Feil', 'Navn kan ikke være tomt');
@@ -149,7 +277,7 @@ const ProfileScreen: React.FC = () => {
       await updateDoc(doc(firestore, 'users', user.id), payload);
       setProfileImageModalVisible(false);
     } catch (error) {
-      console.error(error)
+      console.error(error);
       showAlert('Feil', 'Kunne ikke oppdatere');
     }
   };
@@ -213,6 +341,7 @@ const ProfileScreen: React.FC = () => {
         : webBase64
           ? `data:${selectedAsset.mimeType || 'image/jpeg'};base64,${webBase64}`
           : selectedAsset.uri;
+
       const uploadedImageUrl = await uploadProfileImage(user.id, uploadSource);
       setSelectedProfileImage(uploadedImageUrl);
     } catch (error) {
@@ -222,739 +351,6 @@ const ProfileScreen: React.FC = () => {
       setUploadingProfileImage(false);
     }
   };
-  const router = useRouter();
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [createGroupModalVisible, setCreateGroupModalVisible] = useState(false);
-  const [createGroupName, setCreateGroupName] = useState('');
-  const [creatingGroup, setCreatingGroup] = useState(false);
-  const [groupInviteCandidates, setGroupInviteCandidates] = useState<Friend[]>([]);
-  const [selectedInviteeIds, setSelectedInviteeIds] = useState<string[]>([]);
-  const [loadingGroupInviteCandidates, setLoadingGroupInviteCandidates] = useState(false);
-  const [groupInvitations, setGroupInvitations] = useState<GroupInvitation[]>([]);
-  const [handlingInvitation, setHandlingInvitation] = useState(false);
-  const [userNames, setUserNames] = useState<{ [id: string]: string }>({});
-  const [incomingFriendRequestCount, setIncomingFriendRequestCount] = useState(0);
-  // Move Hook call to top level
-  const [userInfo, setUserInfo] = useState<{
-    name?: string;
-    username?: string;
-    weight?: number;
-    gender?: 'male' | 'female';
-    drinks?: DrinkEntry[];
-    bacHighscoreAllTime?: number;
-    bacHighscoreUpdatedAt?: number;
-  }>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [drinkModalVisible, setDrinkModalVisible] = useState(false);
-  const [showDrinkValidationHint, setShowDrinkValidationHint] = useState(false);
-  const [isBacExpanded, setIsBacExpanded] = useState(true);
-  const [isInvitationsExpanded, setIsInvitationsExpanded] = useState(true);
-  const [resettingBacHighscore, setResettingBacHighscore] = useState(false);
-  const [drinkForm, setDrinkForm] = useState<DrinkFormState>(() => createInitialDrinkForm());
-  const [bacCalculationTime, setBacCalculationTime] = useState(() => Date.now());
-  const [selectedEstimatorDrinkKey, setSelectedEstimatorDrinkKey] = useState<string>('');
-  const twentyFourHoursMs = 24 * 60 * 60 * 1000;
-  const soberBacThreshold = 0.2;
-  const currentBACValue = useMemo(() => {
-    if (!userInfo.drinks || !userInfo.weight || !userInfo.gender) return 0;
-    return profileService.calculateBAC(userInfo.drinks, userInfo.weight, userInfo.gender, bacCalculationTime);
-  }, [userInfo.drinks, userInfo.weight, userInfo.gender, bacCalculationTime]);
-  const roundedCurrentBACValue = Number(currentBACValue.toFixed(3));
-  const currentBAC = roundedCurrentBACValue.toFixed(3);
-  const hasBacRequiredInfo = useMemo(
-    () => typeof userInfo.weight === 'number' && userInfo.weight > 0 && Boolean(userInfo.gender),
-    [userInfo.weight, userInfo.gender]
-  );
-  const chartProjection = useMemo(() => {
-    if (!userInfo.weight || !userInfo.gender || !userInfo.drinks || userInfo.drinks.length === 0) {
-      return null;
-    }
-
-    const latestDrinkTimestamp = Math.max(...userInfo.drinks.map((d) => d.endTimestamp ?? d.timestamp));
-    if (bacCalculationTime - latestDrinkTimestamp >= twentyFourHoursMs) {
-      return null;
-    }
-
-    if (roundedCurrentBACValue <= 0) {
-      return null;
-    }
-
-    const fifteenMinuteMs = 15 * 60 * 1000;
-    const points = Array.from({ length: 13 }, (_, i) => {
-      const time = bacCalculationTime + i * fifteenMinuteMs;
-      const value = profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
-      return { time, value };
-    });
-
-    const fullLabels = points.map((point) => new Date(point.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    // Keep x-axis readable on mobile by showing hourly clock labels.
-    const labels = points.map((_, index) => {
-      if (index === points.length - 2) return fullLabels[points.length - 1];
-      if (index === points.length - 1) return '';
-      if (index % 4 === 0) return fullLabels[index];
-      return '';
-    });
-    const values = points.map((point) => point.value);
-    const peak = Math.max(...values);
-    const peakIndex = values.findIndex((value) => value === peak);
-    const soberSearchStartIndex = Math.max(1, peakIndex + 1);
-
-    let soberTimeLabel = '--:--';
-    const soberWithinProjectionIndex = values.findIndex(
-      (value, index) => index >= soberSearchStartIndex && value <= soberBacThreshold
-    );
-    if (soberWithinProjectionIndex >= 0) {
-      soberTimeLabel = fullLabels[soberWithinProjectionIndex];
-    } else {
-      const maxLookaheadSteps = Math.floor((24 * 60) / 15);
-      const lookaheadStartStep = Math.max(points.length, soberSearchStartIndex);
-      for (let step = lookaheadStartStep; step <= maxLookaheadSteps; step += 1) {
-        const time = latestDrinkTimestamp + step * fifteenMinuteMs;
-        const value = profileService.calculateBAC(userInfo.drinks!, userInfo.weight!, userInfo.gender!, time);
-        if (value <= soberBacThreshold) {
-          soberTimeLabel = new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          break;
-        }
-      }
-    }
-
-    return {
-      labels,
-      values,
-      peak,
-      peakTime: peakIndex >= 0 ? fullLabels[peakIndex] : '--:--',
-      soberTime: soberTimeLabel,
-      endBAC: values[values.length - 1] ?? 0,
-    };
-  }, [userInfo.drinks, userInfo.gender, userInfo.weight, bacCalculationTime, twentyFourHoursMs, soberBacThreshold, roundedCurrentBACValue]);
-  const chartWidth = useMemo(() => {
-    const calculated = windowWidth - 116;
-
-    // Keep current mobile behavior, but clamp harder on wider screens/web so chart never spills outside card padding.
-    const maxWidth = Platform.OS === 'web' || windowWidth >= 768 ? 372 : 440;
-    return Math.max(280, Math.min(calculated, maxWidth));
-  }, [windowWidth]);
-
-  const estimatorDrinkOptions = useMemo<BACEstimatorDrinkOption[]>(() => {
-    const drinks = userInfo.drinks || [];
-    const unique = new Map<string, BACEstimatorDrinkOption>();
-
-    drinks.forEach((drink) => {
-      const namePart = drink.name?.trim() || '';
-      const key = `${namePart}|${drink.category}|${drink.sizeDl}|${drink.alcoholPercent}`;
-      if (unique.has(key)) return;
-
-      const baseLabel = `${drink.sizeDl} dl ${drink.category} (${drink.alcoholPercent}%)`;
-      const label = namePart ? `${namePart} - ${baseLabel}` : baseLabel;
-
-      unique.set(key, {
-        key,
-        label,
-        template: {
-          name: namePart || undefined,
-          category: drink.category,
-          sizeDl: drink.sizeDl,
-          alcoholPercent: drink.alcoholPercent,
-        },
-      });
-    });
-
-    return Array.from(unique.values());
-  }, [userInfo.drinks]);
-
-  useEffect(() => {
-    if (!estimatorDrinkOptions.length) {
-      setSelectedEstimatorDrinkKey('');
-      return;
-    }
-
-    const selectionStillExists = estimatorDrinkOptions.some((option) => option.key === selectedEstimatorDrinkKey);
-    if (!selectedEstimatorDrinkKey || !selectionStillExists) {
-      setSelectedEstimatorDrinkKey(estimatorDrinkOptions[0].key);
-    }
-  }, [estimatorDrinkOptions, selectedEstimatorDrinkKey]);
-
-  const selectedEstimatorOption = useMemo(
-    () => estimatorDrinkOptions.find((option) => option.key === selectedEstimatorDrinkKey),
-    [estimatorDrinkOptions, selectedEstimatorDrinkKey]
-  );
-
-  const latestDrinkEntry = useMemo(() => {
-    if (!userInfo.drinks?.length) return null;
-
-    return userInfo.drinks.reduce<DrinkEntry | null>((latest, drink) => {
-      const currentTimestamp = resolveDrinkTimestamp(drink);
-      const latestTimestamp = latest ? resolveDrinkTimestamp(latest) : Number.NEGATIVE_INFINITY;
-
-      if (currentTimestamp <= latestTimestamp) {
-        return latest;
-      }
-
-      return {
-        ...drink,
-        category: normalizeDrinkCategory((drink as DrinkEntry & { category?: unknown }).category, drink.alcoholPercent),
-      };
-    }, null);
-  }, [userInfo.drinks]);
-
-  const latestDrinkLabel = useMemo(() => {
-    if (!latestDrinkEntry) return 'Ingen tidligere drikke registrert';
-    const namePrefix = latestDrinkEntry.name?.trim() ? `${latestDrinkEntry.name} - ` : '';
-    return `${namePrefix}${latestDrinkEntry.sizeDl} dl ${latestDrinkEntry.category} (${latestDrinkEntry.alcoholPercent}%)`;
-  }, [latestDrinkEntry]);
-
-  const highscoreUpdatedLabel = useMemo(() => {
-    if (!userInfo.bacHighscoreUpdatedAt) return 'Ikke satt';
-    const updatedAt = new Date(userInfo.bacHighscoreUpdatedAt);
-    const day = updatedAt.getDate().toString().padStart(2, '0');
-    const month = (updatedAt.getMonth() + 1).toString().padStart(2, '0');
-    const year = updatedAt.getFullYear();
-    const time = updatedAt.toLocaleTimeString('nb-NO', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-    return `${day}.${month}.${year} kl: ${time}`;
-  }, [userInfo.bacHighscoreUpdatedAt]);
-  const canResetBacHighscore = (userInfo.bacHighscoreAllTime ?? 0) > 0 && !resettingBacHighscore;
-
-  const estimatedAdditionalDrinksToBeatHighscore = useMemo(() => {
-    if (!userInfo.drinks?.length || !userInfo.weight || !userInfo.gender) {
-      return null;
-    }
-
-    const highscore = userInfo.bacHighscoreAllTime ?? 0;
-    if (highscore <= 0 || !selectedEstimatorOption) {
-      return null;
-    }
-
-    const now = bacCalculationTime;
-    const threshold = highscore + 0.0005;
-    const timeStepMs = 5 * 60 * 1000;
-    const horizonMs = 6 * 60 * 60 * 1000;
-
-    const getProjectedPeakBAC = (drinks: DrinkEntry[]) => {
-      let peak = 0;
-      for (let offset = 0; offset <= horizonMs; offset += timeStepMs) {
-        const pointInTime = now + offset;
-        const bac = profileService.calculateBAC(drinks, userInfo.weight!, userInfo.gender!, pointInTime);
-        if (bac > peak) {
-          peak = bac;
-        }
-      }
-      return peak;
-    };
-
-    const baselinePeak = getProjectedPeakBAC(userInfo.drinks);
-    if (baselinePeak > threshold) {
-      return 0;
-    }
-
-    const maxAdditionalServings = 50;
-    for (let servings = 1; servings <= maxAdditionalServings; servings += 1) {
-      const addedDrinks: DrinkEntry[] = Array.from({ length: servings }, () => ({
-        ...selectedEstimatorOption.template,
-        quantity: 1,
-        timestamp: now,
-      }));
-
-      const projectedPeak = getProjectedPeakBAC([...userInfo.drinks, ...addedDrinks]);
-      if (projectedPeak > threshold) {
-        return servings;
-      }
-    }
-
-    return null;
-  }, [
-    userInfo.drinks,
-    userInfo.weight,
-    userInfo.gender,
-    userInfo.bacHighscoreAllTime,
-    selectedEstimatorOption,
-    bacCalculationTime,
-  ]);
-
-  useEffect(() => {
-    const persistHighscoreIfNeeded = async () => {
-      if (!user?.id || !userInfo.weight || !userInfo.gender) return;
-      if (!userInfo.drinks?.length) return;
-      if (currentBACValue <= 0) return;
-
-      const existingHighscore = userInfo.bacHighscoreAllTime ?? 0;
-      const epsilon = 0.0005;
-      if (currentBACValue <= existingHighscore + epsilon) return;
-
-      const roundedHighscore = Number(currentBACValue.toFixed(3));
-      try {
-        await profileService.updateBACHighscore(user.id, roundedHighscore);
-        setUserInfo(prev => ({
-          ...prev,
-          bacHighscoreAllTime: roundedHighscore,
-          bacHighscoreUpdatedAt: Date.now(),
-        }));
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    persistHighscoreIfNeeded();
-  }, [currentBACValue, user?.id, userInfo.weight, userInfo.gender, userInfo.drinks, userInfo.bacHighscoreAllTime]);
-
-  useEffect(() => {
-    if (userInfo.drinks?.length) {
-      setBacCalculationTime(Date.now());
-    }
-  }, [userInfo.drinks]);
-
-  useEffect(() => {
-    if (!userInfo.drinks?.length || !userInfo.weight || !userInfo.gender) {
-      return;
-    }
-
-    // Keep BAC display current as metabolism changes over time.
-    const intervalId = setInterval(() => {
-      setBacCalculationTime(Date.now());
-    }, 15000);
-
-    return () => clearInterval(intervalId);
-  }, [userInfo.drinks, userInfo.weight, userInfo.gender]);
-
-  useEffect(() => {
-    const clearExpiredDrinks = async () => {
-      if (!user?.id || !userInfo.drinks?.length) return;
-
-      const latestDrinkTimestamp = Math.max(...userInfo.drinks.map((d) => d.endTimestamp ?? d.timestamp));
-      if (bacCalculationTime - latestDrinkTimestamp < twentyFourHoursMs) return;
-
-      try {
-        await profileService.resetDrinks(user.id);
-        setUserInfo((prev) => ({ ...prev, drinks: [] }));
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    clearExpiredDrinks();
-  }, [user?.id, userInfo.drinks, bacCalculationTime, twentyFourHoursMs]);
-
-  useEffect(() => {
-    if (!user) return;
-    const groupQuery = query(collection(firestore, 'groups'), where('members', 'array-contains', user.id));
-    const invitationQuery = query(
-      collection(firestore, 'group_invitations'),
-      where('toUserId', '==', user.id),
-      where('status', '==', 'pending')
-    );
-
-    const unsubscribeGroups = onSnapshot(groupQuery, (groupSnapshot) => {
-      const groupMap = new Map<string, Group>();
-      const sortedGroupDocs = [...groupSnapshot.docs].sort((a, b) => {
-        const aCreatedAt = a.data().createdAt?.toMillis?.() ?? 0;
-        const bCreatedAt = b.data().createdAt?.toMillis?.() ?? 0;
-        return bCreatedAt - aCreatedAt;
-      });
-
-      sortedGroupDocs.forEach((docSnap) => {
-        const groupData = docSnap.data();
-        groupMap.set(docSnap.id, {
-          id: docSnap.id,
-          name: groupData.name || groupData.groupName || groupData.group_name || 'Gruppenavn',
-          memberCount: groupData.members?.length || 0,
-          image: resolveProfileImageSource(groupData.image, ImageMissing),
-          imageUrl: typeof groupData.image === 'string' ? groupData.image : null,
-          createdBy: groupData.createdBy || '',
-          members: groupData.members || [],
-        });
-      });
-      setGroups(Array.from(groupMap.values()));
-    });
-
-    const unsubscribeInvitations = onSnapshot(invitationQuery, (snapshot) => {
-      const invitationList = snapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
-        return {
-          id: docSnap.id,
-          ...data,
-          groupName: data.groupName || data.group_name || 'Group',
-        };
-      }) as GroupInvitation[];
-      setGroupInvitations(invitationList);
-    });
-
-    return () => {
-      unsubscribeGroups();
-      unsubscribeInvitations();
-    };
-  }, [user]);
-
-  useEffect(() => {
-    if (!user?.id) {
-      setIncomingFriendRequestCount(0);
-      return;
-    }
-
-    const incomingFriendRequestsQuery = query(
-      collection(firestore, 'friendRequests'),
-      where('toUserId', '==', user.id),
-      where('status', '==', 'pending')
-    );
-
-    const unsubscribeIncomingFriendRequests = onSnapshot(incomingFriendRequestsQuery, (snapshot) => {
-      setIncomingFriendRequestCount(snapshot.size);
-    });
-
-    return () => {
-      unsubscribeIncomingFriendRequests();
-    };
-  }, [user?.id]);
-
-  useEffect(() => {
-    const fetchNames = async () => {
-      if (!groupInvitations.length) return;
-      const idsToFetch = groupInvitations
-        .map(inv => inv.fromUserId)
-        .filter(id => !(id in userNames));
-      const newNames: { [id: string]: string } = {};
-      await Promise.all(
-        idsToFetch.map(async (id) => {
-          const userDoc = await getDoc(doc(firestore, 'users', id));
-          newNames[id] = userDoc.exists() ? userDoc.data().name || id : id;
-        })
-      );
-      if (Object.keys(newNames).length > 0) {
-        setUserNames(prev => ({ ...prev, ...newNames }));
-      }
-    };
-    fetchNames();
-  }, [groupInvitations, userNames]);
-
-  const loadUserData = useCallback(async () => {
-    try {
-      const currentUserId = user?.id ?? authService.getCurrentUser()?.uid;
-      if (!currentUserId) {
-        setUserInfo({});
-        return;
-      }
-
-      setIsLoading(true);
-      const userData = await profileService.getUserData(currentUserId);
-      setUserInfo(userData);
-      setBacCalculationTime(Date.now());
-
-      if (!userData.weight || !userData.gender) {
-        const alertStorageKey = `bacMissingInfoAlertShown:${currentUserId}`;
-        const hasShownAlert = await AsyncStorage.getItem(alertStorageKey);
-
-        if (!hasShownAlert) {
-          setOnboardingStorageKey(alertStorageKey);
-          setOnboardingModalVisible(true);
-        }
-      }
-    } catch (error) {
-      console.error(error);
-      showAlert('Feil', 'Kunne ikke laste brukerdata');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user?.id]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadUserData();
-    }, [loadUserData])
-  );
-
-  useEffect(() => {
-    if (!user?.id) return;
-    loadUserData();
-  }, [user?.id, loadUserData]);
-
-  useEffect(() => {
-    if (userInfo.name) {
-      setDisplayName(userInfo.name);
-    }
-  }, [userInfo.name]);
-
-  const getSizeOptions = (category: DrinkCategory | '') => {
-    switch (category) {
-      case 'øl':
-        return [3.3, 4, 5, 'custom'] as const;
-      case 'vin':
-        return [1.2, 7.5, 'custom'] as const;
-      case 'sprit':
-        return [0.2, 0.4, 5, 'custom'] as const;
-      default:
-        return [] as const;
-    }
-  };
-
-  const getSizeOptionLabel = (category: DrinkCategory | 'custom' | '', size: number | 'custom') => {
-    if (size === 'custom') return 'Egendefinert';
-    if (category === 'øl') {
-      if (size === 3.3) return '0,33 L';
-      if (size === 4) return '0,4 L';
-      if (size === 5) return '0,5 L';
-    }
-    if (category === 'vin') {
-      if (size === 1.2) return '12 cl (Glass)';
-      if (size === 7.5) return '0,75 L';
-    }
-    if (category === 'sprit') {
-      if (size === 0.2) return '2 cl';
-      if (size === 0.4) return '4 cl';
-      if (size === 5) return '5 dl';
-    }
-
-    return `${size} dl`;
-  };
-
-  const getAlcoholPercentOptions = (category: DrinkCategory | '') => {
-    switch (category) {
-      case 'øl':
-        return [4.7, 'custom'];
-      case 'vin':
-        return [10, 12, 14, 'custom'];
-      case 'sprit':
-        return [22, 40, 60, 'custom'];
-      default:
-        return [];
-    }
-  };
-
-  const getCustomSizeOptions = () => [3.3, 4, 5, 1.2, 7.5, 0.2, 0.4, 'custom'] as const;
-
-  const getCustomSizeOptionLabel = (size: number | 'custom') => {
-    if (size === 'custom') return 'Egendefinert';
-    if (size === 3.3) return '0,33 L';
-    if (size === 4) return '0,4 L';
-    if (size === 5) return '0,5 L / 5 dl';
-    if (size === 1.2) return '12 cl (Glass)';
-    if (size === 7.5) return '0,75 L';
-    if (size === 0.2) return '2 cl';
-    if (size === 0.4) return '4 cl';
-    return `${size} dl`;
-  };
-
-  const getCustomAlcoholPercentOptions = () => [4.7, 12, 22, 40, 'custom'] as const;
-
-  const inferCategoryFromAlcoholPercent = (alcoholPercent: number): DrinkCategory => {
-    if (alcoholPercent < 8) return 'øl';
-    if (alcoholPercent < 22) return 'vin';
-    return 'sprit';
-  };
-
-  const convertSizeToDl = (value: number, unit: 'cl' | 'dl' | 'l') => {
-    if (unit === 'cl') return value / 10;
-    if (unit === 'l') return value * 10;
-    return value;
-  };
-
-  const DRINK_NUMBER_PLACEHOLDER = 'Skriv verdi';
-  const DRINK_TEXT_PLACEHOLDER = 'Skriv type/navn';
-
-  const parseNumericInput = (value: string): number => parseFloat(value.replace(',', '.'));
-  const hasMaxOneDecimal = (value: string): boolean => /^\d+(?:[.,]\d{1})?$/.test(value.trim());
-  const isValidTimeInput = (value: string): boolean => /^([01]\d|2[0-3]):([0-5]\d)$/.test(value.trim());
-
-  const parseTimeToTimestamp = (timeValue: string): number | null => {
-    if (!isValidTimeInput(timeValue)) return null;
-    const [hours, minutes] = timeValue.split(':').map((part) => parseInt(part, 10));
-    const date = new Date();
-    date.setHours(hours, minutes, 0, 0);
-    return date.getTime();
-  };
-
-  const getTimeParts = (timeValue: string) => {
-    if (!isValidTimeInput(timeValue)) return { hour: '00', minute: '00' };
-    const [hour, minute] = timeValue.split(':');
-    return { hour, minute };
-  };
-
-  const updateTimeValue = (timeValue: string, nextPart: 'hour' | 'minute', nextValue: string) => {
-    const { hour, minute } = getTimeParts(timeValue);
-    const resolvedHour = nextPart === 'hour' ? nextValue : hour;
-    const resolvedMinute = nextPart === 'minute' ? nextValue : minute;
-    return `${resolvedHour}:${resolvedMinute}`;
-  };
-
-  const resolveSelectedDrinkSizeDl = (): number | null => {
-    if (drinkForm.category === 'custom') {
-      if (drinkForm.sizeDl && drinkForm.sizeDl !== 'custom') {
-        return Number(drinkForm.sizeDl);
-      }
-      const customValue = parseNumericInput(drinkForm.customSizeValue);
-      if (isNaN(customValue) || customValue <= 0) return null;
-      return convertSizeToDl(customValue, drinkForm.customSizeUnit);
-    }
-    if (drinkForm.sizeDl === 'custom') {
-      const customValue = parseNumericInput(drinkForm.customSizeValue);
-      if (isNaN(customValue) || customValue <= 0) return null;
-      return convertSizeToDl(customValue, drinkForm.sizeUnit);
-    }
-    if (typeof drinkForm.sizeDl === 'number') return drinkForm.sizeDl;
-    return null;
-  };
-
-  const resolveSelectedAlcoholPercent = (): number | null => {
-    if (!drinkForm.category || !drinkForm.alcoholPercent) return null;
-
-    if (drinkForm.category === 'custom') {
-      const value = drinkForm.alcoholPercent === 'custom'
-        ? parseNumericInput(drinkForm.customAlcoholPercentManual)
-        : Number(drinkForm.alcoholPercent);
-      return Number.isFinite(value) ? value : null;
-    }
-
-    const value = drinkForm.alcoholPercent === 'custom'
-      ? parseNumericInput(drinkForm.customAlcoholPercent)
-      : Number(drinkForm.alcoholPercent);
-    return Number.isFinite(value) ? value : null;
-  };
-
-  const getRecommendedQuantityOptions = (): number[] => {
-    if (!drinkForm.category) return [1, 2, 3];
-
-    const alcoholPercent = resolveSelectedAlcoholPercent();
-    const sizeDl = resolveSelectedDrinkSizeDl();
-    let maxRecommended = 6;
-
-    if (drinkForm.category === 'sprit') maxRecommended = 3;
-    if (drinkForm.category === 'vin') maxRecommended = 4;
-    if (drinkForm.category === 'øl') maxRecommended = 8;
-
-    if (alcoholPercent !== null) {
-      if (alcoholPercent >= 40) maxRecommended = Math.min(maxRecommended, 2);
-      else if (alcoholPercent >= 22) maxRecommended = Math.min(maxRecommended, 3);
-      else if (alcoholPercent >= 10) maxRecommended = Math.min(maxRecommended, 5);
-    }
-
-    if (sizeDl !== null) {
-      if (sizeDl >= 7.5) maxRecommended = Math.min(maxRecommended, 2);
-      else if (sizeDl >= 5) maxRecommended = Math.min(maxRecommended, 3);
-      else if (sizeDl >= 3.3) maxRecommended = Math.min(maxRecommended, 5);
-    }
-
-    const cappedMax = Math.max(1, Math.min(maxRecommended, INPUT_LIMITS.drinkQuantityMax));
-    return Array.from({ length: cappedMax }, (_, index) => index + 1);
-  };
-
-  const allowsEndTimeForSelection = (): boolean => {
-    const sizeDl = resolveSelectedDrinkSizeDl();
-    if (!sizeDl || !drinkForm.category) return false;
-    if (drinkForm.category === 'vin') return sizeDl >= 7.5;
-    if (drinkForm.category === 'sprit') return sizeDl >= 5;
-    return sizeDl >= 5;
-  };
-
-  const endTimeAllowed = allowsEndTimeForSelection();
-
-  const validateCustomAlcoholPercent = () => {
-    if (drinkForm.category === 'custom') return true;
-    if (drinkForm.alcoholPercent !== 'custom') return true;
-    const value = parseNumericInput(drinkForm.customAlcoholPercent);
-    if (isNaN(value)) {
-      return false;
-    }
-    if (drinkForm.category === 'vin' && (value < 10 || value > 20)) {
-      return false;
-    }
-    if (drinkForm.category === 'øl' && (value <= 0 || value > 20)) {
-      return false;
-    }
-    if (drinkForm.category === 'sprit' && (value < 22 || value > 70)) {
-      return false;
-    }
-    return true;
-  };
-
-  const drinkValidationMessage = (() => {
-    if (!drinkForm.category) return 'Velg type drikke først.';
-
-    if (!isValidTimeInput(drinkForm.consumedAtTime)) return 'Velg gyldig starttid.';
-    if (drinkForm.hasEndTime) {
-      if (!allowsEndTimeForSelection()) return 'Sluttid kan bare brukes for store enheter.';
-      if (!isValidTimeInput(drinkForm.consumedUntilTime)) return 'Velg gyldig sluttid.';
-      const start = parseTimeToTimestamp(drinkForm.consumedAtTime);
-      const end = parseTimeToTimestamp(drinkForm.consumedUntilTime);
-      if (!start || !end || end < start) return 'Sluttid må være etter starttid.';
-    }
-
-    const quantityValue = drinkForm.quantity === 'custom'
-      ? parseNumericInput(drinkForm.customQuantity)
-      : Number(drinkForm.quantity);
-    if (isNaN(quantityValue) || quantityValue <= 0) return 'Antall må være større enn 0.';
-    if (!isNumberInRange(quantityValue, 0.1, INPUT_LIMITS.drinkQuantityMax)) {
-      return `Antall må være mellom 0.1 og ${INPUT_LIMITS.drinkQuantityMax}.`;
-    }
-    if (drinkForm.quantity === 'custom' && !hasMaxOneDecimal(drinkForm.customQuantity)) {
-      return 'Antall kan ha maks ett desimal.';
-    }
-
-    if (drinkForm.category === 'custom') {
-      if (!drinkForm.sizeDl) return 'Velg størrelse.';
-      if (!drinkForm.alcoholPercent) return 'Velg alkoholprosent.';
-
-      const sizeValue = drinkForm.sizeDl === 'custom'
-        ? parseNumericInput(drinkForm.customSizeValue)
-        : Number(drinkForm.sizeDl);
-      const resolvedSizeDl = drinkForm.sizeDl === 'custom'
-        ? convertSizeToDl(sizeValue, drinkForm.customSizeUnit)
-        : sizeValue;
-      const alcoholPercent = drinkForm.alcoholPercent === 'custom'
-        ? parseNumericInput(drinkForm.customAlcoholPercentManual)
-        : Number(drinkForm.alcoholPercent);
-
-      if (isNaN(sizeValue) || sizeValue <= 0) return 'Størrelse må være større enn 0.';
-      if (drinkForm.sizeDl === 'custom' && !hasMaxOneDecimal(drinkForm.customSizeValue)) {
-        return 'Størrelse kan ha maks ett desimal.';
-      }
-      if (!isNumberInRange(resolvedSizeDl, 0.1, INPUT_LIMITS.drinkSizeDlMax)) {
-        return `Størrelse må være realistisk (maks ${INPUT_LIMITS.drinkSizeDlMax} liter).`;
-      }
-      if (drinkForm.alcoholPercent === 'custom' && !hasMaxOneDecimal(drinkForm.customAlcoholPercentManual)) {
-        return 'Alkoholprosent kan ha maks ett desimal.';
-      }
-      if (!isNumberInRange(alcoholPercent, INPUT_LIMITS.drinkAlcoholPercentMin, INPUT_LIMITS.drinkAlcoholPercentMax)) {
-        return `Alkoholprosent må være mellom ${INPUT_LIMITS.drinkAlcoholPercentMin} og ${INPUT_LIMITS.drinkAlcoholPercentMax}.`;
-      }
-      return null;
-    }
-
-    if (!drinkForm.sizeDl) return 'Velg størrelse.';
-    if (!drinkForm.alcoholPercent) return 'Velg alkoholprosent.';
-
-    if (drinkForm.sizeDl === 'custom') {
-      const customSizeValue = parseNumericInput(drinkForm.customSizeValue);
-      const resolvedSizeDl = convertSizeToDl(customSizeValue, drinkForm.sizeUnit);
-      if (isNaN(customSizeValue) || customSizeValue <= 0) return 'Størrelse må være større enn 0.';
-      if (!hasMaxOneDecimal(drinkForm.customSizeValue)) return 'Størrelse kan ha maks ett desimal.';
-      if (!isNumberInRange(resolvedSizeDl, 0.1, INPUT_LIMITS.drinkSizeDlMax)) {
-        return `Størrelse må være realistisk (maks ${INPUT_LIMITS.drinkSizeDlMax} liter).`;
-      }
-    }
-
-    if (drinkForm.alcoholPercent === 'custom') {
-      const value = parseNumericInput(drinkForm.customAlcoholPercent);
-      if (!hasMaxOneDecimal(drinkForm.customAlcoholPercent)) return 'Alkoholprosent kan ha maks ett desimal.';
-      if (isNaN(value)) return 'Ugyldig alkoholprosent.';
-      if (!isNumberInRange(value, INPUT_LIMITS.drinkAlcoholPercentMin, INPUT_LIMITS.drinkAlcoholPercentMax)) {
-        return `Alkoholprosent må være mellom ${INPUT_LIMITS.drinkAlcoholPercentMin} og ${INPUT_LIMITS.drinkAlcoholPercentMax}.`;
-      }
-      if (drinkForm.category === 'vin' && (value < 10 || value > 20)) return 'Alkoholprosent for vin må være mellom 10 og 20.';
-      if (drinkForm.category === 'sprit' && (value < 22 || value > 70)) return 'Alkoholprosent for sprit må være mellom 22 og 70.';
-      if (drinkForm.category === 'øl' && (value <= 0 || value > 20)) return 'Alkoholprosent for øl må være mellom 0.1 og 20.';
-    }
-
-    return null;
-  })();
-
-  const canSaveDrink = drinkValidationMessage === null;
-
-  useEffect(() => {
-    if (!endTimeAllowed && (drinkForm.hasEndTime || drinkForm.consumedUntilTime)) {
-      setDrinkForm((prev) => ({ ...prev, hasEndTime: false, consumedUntilTime: '' }));
-    }
-  }, [endTimeAllowed, drinkForm.hasEndTime, drinkForm.consumedUntilTime]);
 
   const navigateToFriends = () => {
     router.push('/friends');
@@ -962,10 +358,6 @@ const ProfileScreen: React.FC = () => {
 
   const navigateToSettings = () => {
     router.push('/settings');
-  };
-
-  const handleBack = () => {
-    router.back();
   };
 
   const dismissOnboarding = async () => {
@@ -993,254 +385,9 @@ const ProfileScreen: React.FC = () => {
     router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(group) } });
   };
 
-  const handleAddDrink = async () => {
-    if (drinkValidationMessage) {
-      setShowDrinkValidationHint(true);
-      return;
-    }
-
-    let drink: DrinkEntry;
-    const quantity = drinkForm.quantity === 'custom'
-      ? parseNumericInput(drinkForm.customQuantity)
-      : parseFloat(String(drinkForm.quantity));
-
-    if (isNaN(quantity) || quantity <= 0) {
-      return;
-    }
-    if (!isNumberInRange(quantity, 0.1, INPUT_LIMITS.drinkQuantityMax)) {
-      return;
-    }
-    if (drinkForm.quantity === 'custom' && !hasMaxOneDecimal(drinkForm.customQuantity)) {
-      return;
-    }
-
-    const startTimestamp = parseTimeToTimestamp(drinkForm.consumedAtTime);
-    if (!startTimestamp) {
-      return;
-    }
-
-    let endTimestamp: number | undefined;
-    if (drinkForm.hasEndTime) {
-      if (!allowsEndTimeForSelection()) {
-        return;
-      }
-      const parsedEnd = parseTimeToTimestamp(drinkForm.consumedUntilTime);
-      if (!parsedEnd) {
-        return;
-      }
-      if (parsedEnd < startTimestamp) {
-        return;
-      }
-      endTimestamp = parsedEnd;
-    }
-
-    if (drinkForm.category !== 'custom') {
-      if (!drinkForm.category) {
-        return;
-      }
-      if (!drinkForm.sizeDl) {
-        return;
-      }
-      if (!drinkForm.alcoholPercent) {
-        return;
-      }
-      if (!validateCustomAlcoholPercent()) {
-        return;
-      }
-
-      let sizeDl: number;
-      if (drinkForm.sizeDl === 'custom') {
-        const customSizeValue = parseNumericInput(drinkForm.customSizeValue);
-        if (isNaN(customSizeValue) || customSizeValue <= 0) {
-          return;
-        }
-        if (!hasMaxOneDecimal(drinkForm.customSizeValue)) {
-          return;
-        }
-        sizeDl = convertSizeToDl(customSizeValue, drinkForm.sizeUnit);
-      } else {
-        sizeDl = parseFloat(drinkForm.sizeDl.toString());
-      }
-
-      if (!isNumberInRange(sizeDl, 0.1, INPUT_LIMITS.drinkSizeDlMax)) {
-        return;
-      }
-
-      const alcoholPercent =
-        drinkForm.alcoholPercent === 'custom'
-          ? parseNumericInput(drinkForm.customAlcoholPercent)
-          : parseFloat(drinkForm.alcoholPercent.toString());
-
-      if (!isNumberInRange(alcoholPercent, INPUT_LIMITS.drinkAlcoholPercentMin, INPUT_LIMITS.drinkAlcoholPercentMax)) {
-        return;
-      }
-
-      drink = {
-        category: drinkForm.category,
-        sizeDl,
-        alcoholPercent,
-        quantity,
-        timestamp: startTimestamp,
-        ...(typeof endTimestamp === 'number' ? { endTimestamp } : {}),
-      };
-    } else {
-      const trimmedName = normalizeSingleLineText(drinkForm.customDrinkName);
-      if (trimmedName.length > INPUT_LIMITS.drinkNameMax) {
-        return;
-      }
-      if (!drinkForm.sizeDl) {
-        return;
-      }
-
-      const sizeValue = drinkForm.sizeDl === 'custom'
-        ? parseNumericInput(drinkForm.customSizeValue)
-        : Number(drinkForm.sizeDl);
-      const alcoholPercent = drinkForm.alcoholPercent === 'custom'
-        ? parseNumericInput(drinkForm.customAlcoholPercentManual)
-        : parseFloat(String(drinkForm.alcoholPercent));
-      const sizeDl = drinkForm.sizeDl === 'custom'
-        ? convertSizeToDl(sizeValue, drinkForm.customSizeUnit)
-        : Number(drinkForm.sizeDl);
-
-      if (!drinkForm.alcoholPercent) {
-        return;
-      }
-      if (!isNumberInRange(alcoholPercent, INPUT_LIMITS.drinkAlcoholPercentMin, INPUT_LIMITS.drinkAlcoholPercentMax)) {
-        return;
-      }
-      if (isNaN(sizeValue) || sizeValue <= 0) {
-        return;
-      }
-      if (!isNumberInRange(sizeValue, 0.1, INPUT_LIMITS.drinkSizeDlMax * 10)) {
-        return;
-      }
-      if (drinkForm.sizeDl === 'custom' && !hasMaxOneDecimal(drinkForm.customSizeValue)) {
-        return;
-      }
-      if (drinkForm.alcoholPercent === 'custom' && !hasMaxOneDecimal(drinkForm.customAlcoholPercentManual)) {
-        return;
-      }
-      if (!isNumberInRange(sizeDl, 0.1, INPUT_LIMITS.drinkSizeDlMax)) {
-        return;
-      }
-
-      drink = {
-        ...(trimmedName ? { name: trimmedName } : {}),
-        category: inferCategoryFromAlcoholPercent(alcoholPercent),
-        sizeDl,
-        alcoholPercent,
-        quantity,
-        timestamp: startTimestamp,
-        ...(typeof endTimestamp === 'number' ? { endTimestamp } : {}),
-      };
-    }
-
-    try {
-      const currentUser = authService.getCurrentUser();
-      if (currentUser) {
-        await profileService.addDrink(currentUser.uid, drink);
-        const updatedUserData = await profileService.getUserData(currentUser.uid);
-        setUserInfo(updatedUserData);
-        setBacCalculationTime(Date.now());
-      }
-    } catch (error) {
-      console.error(error);
-      showAlert('Feil', `Kunne ikke legge til drikke`);
-    }
-    setDrinkModalVisible(false);
-    setShowDrinkValidationHint(false);
-    setDrinkForm(createInitialDrinkForm());
-  };
-
-  const handleResetDrinks = () => {
-    showAlert(
-      'Nullstill drikker',
-      'Er du sikker på at du vil slette alle registrerte drikker?',
-      [
-        { text: 'Avbryt', style: 'cancel' },
-        {
-          text: 'Nullstill',
-          style: 'destructive',
-          async onPress() {
-            try {
-              const currentUser = authService.getCurrentUser();
-              if (currentUser) {
-                await profileService.resetDrinks(currentUser.uid);
-                setUserInfo(prev => ({ ...prev, drinks: [] }));
-              }
-            } catch (error) {
-              console.error(error);
-              showAlert('Feil', 'Kunne ikke nullstille drikker');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleResetBacHighscore = () => {
-    if (!canResetBacHighscore) return;
-
-    showAlert(
-      'Nullstill promille-highscore',
-      'Er du sikker på at du vil nullstille promille-highscore?',
-      [
-        { text: 'Avbryt', style: 'cancel' },
-        {
-          text: 'Nullstill',
-          style: 'destructive',
-          async onPress() {
-            if (!user?.id) return;
-            setResettingBacHighscore(true);
-            try {
-              await profileService.resetBACHighscore(user.id);
-              setUserInfo((prev) => ({
-                ...prev,
-                bacHighscoreAllTime: 0,
-                bacHighscoreUpdatedAt: undefined,
-              }));
-            } catch (error) {
-              console.error(error);
-              showAlert('Feil', 'Kunne ikke nullstille promille-highscore');
-            } finally {
-              setResettingBacHighscore(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleAddLatestDrinkAgain = async () => {
-    if (!latestDrinkEntry) {
-      return;
-    }
-
-    try {
-      const currentUser = authService.getCurrentUser();
-      if (!currentUser) return;
-
-      const drink: DrinkEntry = {
-        ...(latestDrinkEntry.name ? { name: latestDrinkEntry.name } : {}),
-        category: normalizeDrinkCategory(latestDrinkEntry.category, latestDrinkEntry.alcoholPercent),
-        sizeDl: latestDrinkEntry.sizeDl,
-        alcoholPercent: latestDrinkEntry.alcoholPercent,
-        quantity: 1,
-        timestamp: Date.now(),
-      };
-
-      await profileService.addDrink(currentUser.uid, drink);
-      const updatedUserData = await profileService.getUserData(currentUser.uid);
-      setUserInfo(updatedUserData);
-      setBacCalculationTime(Date.now());
-    } catch (error) {
-      console.error(error);
-      showAlert('Feil', `Kunne ikke registrere siste drikke`);
-    }
-  };
-
   const handleCreateGroup = async () => {
     if (!user) return;
+
     const trimmedGroupName = normalizeSingleLineText(createGroupName);
     if (!trimmedGroupName) {
       showAlert('Feil', 'Gruppenavn kan ikke være tomt');
@@ -1250,16 +397,18 @@ const ProfileScreen: React.FC = () => {
       showAlert('Feil', `Gruppenavn kan maks være ${INPUT_LIMITS.groupNameMax} tegn`);
       return;
     }
+
     setCreatingGroup(true);
     try {
       const newGroup = await createGroup(user.id, trimmedGroupName);
       const groupWithImage: Group = { ...newGroup, image: ImageMissing, imageUrl: null };
       const inviteTargets = selectedInviteeIds.filter((inviteeId) => inviteeId !== user.id);
+
       const invitationResults = await Promise.allSettled(
         inviteTargets.map((inviteeId) => sendGroupInvitation(inviteeId, groupWithImage))
       );
       const failedInvitations = invitationResults.filter((result) => result.status === 'rejected').length;
-      
+
       await AsyncStorage.setItem('lastSelectedGroup', JSON.stringify(groupWithImage));
       setCreateGroupName('');
       setSelectedInviteeIds([]);
@@ -1268,7 +417,7 @@ const ProfileScreen: React.FC = () => {
       if (failedInvitations > 0) {
         showAlert('Delvis fullført', `Gruppen ble opprettet, men ${failedInvitations} invitasjon(er) feilet`);
       }
-      
+
       router.push({ pathname: '/groups', params: { selectedGroup: JSON.stringify(groupWithImage) } });
     } catch (error) {
       console.error('Error creating group:', error);
@@ -1283,10 +432,10 @@ const ProfileScreen: React.FC = () => {
     setHandlingInvitation(true);
     try {
       await acceptGroupInvitation(invitation);
-      setGroupInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
+      setGroupInvitations((prev) => prev.filter((inv) => inv.id !== invitation.id));
     } catch (error) {
       console.error('Error accepting invitation:', error);
-      showAlert('Feil', `Kunne ikke godta invitasjonen`);
+      showAlert('Feil', 'Kunne ikke godta invitasjonen');
     } finally {
       setHandlingInvitation(false);
     }
@@ -1297,7 +446,7 @@ const ProfileScreen: React.FC = () => {
     setHandlingInvitation(true);
     try {
       await declineGroupInvitation(invitation.id);
-      setGroupInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
+      setGroupInvitations((prev) => prev.filter((inv) => inv.id !== invitation.id));
     } catch (error) {
       console.error('Error declining invitation:', error);
       showAlert('Feil', 'Kunne ikke avslå invitasjonen');
@@ -1305,44 +454,6 @@ const ProfileScreen: React.FC = () => {
       setHandlingInvitation(false);
     }
   };
-
-  const loadGroupInviteCandidates = useCallback(async () => {
-    if (!user) {
-      setGroupInviteCandidates([]);
-      return;
-    }
-
-    setLoadingGroupInviteCandidates(true);
-    try {
-      const userSnap = await getDoc(doc(firestore, 'users', user.id));
-      const friendIds = userSnap.exists() ? ((userSnap.data().friends || []) as string[]) : [];
-      if (!friendIds.length) {
-        setGroupInviteCandidates([]);
-        return;
-      }
-
-      const friendSnaps = await Promise.all(friendIds.map((friendId) => getDoc(doc(firestore, 'users', friendId))));
-      const friends = friendSnaps
-        .filter((snap) => snap.exists())
-        .map((snap) => {
-          const data = snap.data();
-          return {
-            id: snap.id,
-            name: data.name || 'Ukjent',
-            username: data.username || 'ukjent',
-            profilePicture: resolveProfileImageSource(data.profileImage, DefaultProfilePicture),
-          } as Friend;
-        })
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      setGroupInviteCandidates(friends);
-    } catch (error) {
-      console.error(error);
-      setGroupInviteCandidates([]);
-    } finally {
-      setLoadingGroupInviteCandidates(false);
-    }
-  }, [user]);
 
   const toggleInvitee = (friendId: string) => {
     setSelectedInviteeIds((prev) => (
@@ -1369,11 +480,6 @@ const ProfileScreen: React.FC = () => {
   const clearInvitees = () => {
     setSelectedInviteeIds([]);
   };
-
-  useEffect(() => {
-    if (!createGroupModalVisible) return;
-    loadGroupInviteCandidates();
-  }, [createGroupModalVisible, loadGroupInviteCandidates]);
 
   if (isLoading) {
     return (
@@ -1414,10 +520,7 @@ const ProfileScreen: React.FC = () => {
       style={Platform.OS === 'web' ? globalStyles.containerWeb : globalStyles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView
-        contentContainerStyle={globalStyles.fullWidthScrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={globalStyles.fullWidthScrollContent} keyboardShouldPersistTaps="handled">
         <ProfileHeaderSection
           displayName={displayNameLabel}
           username={usernameLabel}
@@ -1427,6 +530,7 @@ const ProfileScreen: React.FC = () => {
           onNavigateToFriends={navigateToFriends}
           onOpenImageModal={() => setProfileImageModalVisible(true)}
         />
+
         <ProfileImageModal
           visible={profileImageModalVisible}
           onClose={() => setProfileImageModalVisible(false)}
@@ -1439,195 +543,18 @@ const ProfileScreen: React.FC = () => {
           displayName={displayName}
           setDisplayName={setDisplayName}
         />
+
         <ProfileOnboardingModal
           visible={onboardingModalVisible}
           onDismiss={dismissOnboarding}
           onGoToSettings={goToSettingsFromOnboarding}
         />
 
-        { /* Blood Alcohol Level */ }
-        <View style={[globalStyles.section, profileStyles.compactSection]}>
-          <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
-            <View style={[globalStyles.sectionHeaderRow, !isBacExpanded && globalStyles.collapsedHeaderRow]}>
-              <Text style={globalStyles.sectionTitleLeft}>Promillekalkulator</Text>
-              <TouchableOpacity
-                style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}
-                onPress={() => setIsBacExpanded((prev) => !prev)}
-                accessibilityRole="button"
-                accessibilityLabel={isBacExpanded ? 'Minimer promillekalkulator' : 'Utvid promillekalkulator'}
-              >
-                <Text style={[globalStyles.outlineButtonGoldText, globalStyles.sectionToggleIconButtonText]}>
-                  {isBacExpanded ? '▾' : '▸'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {isBacExpanded && (
-              <View style={globalStyles.inputGroup}>
-                <View style={profileStyles.bacActionRow}>
-                  <TouchableOpacity
-                    style={[globalStyles.primaryButtonShadow, profileStyles.bacActionButton, !hasBacRequiredInfo && globalStyles.disabledButton]}
-                    onPress={() => {
-                      setShowDrinkValidationHint(false);
-                      setDrinkModalVisible(true);
-                    }}
-                    disabled={!hasBacRequiredInfo}
-                  >
-                    <Text style={[globalStyles.primaryButtonText, profileStyles.bacActionButtonText]}>Legg til drikke</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[globalStyles.dangerButton, profileStyles.bacResetButton, !hasBacRequiredInfo && globalStyles.disabledButton]}
-                    onPress={handleResetDrinks}
-                    disabled={!hasBacRequiredInfo}
-                  >
-                    <Text style={globalStyles.dangerButtonText}>Nullstill drikker</Text>
-                  </TouchableOpacity>
-                </View>
-                <TouchableOpacity
-                  style={[globalStyles.outlineButtonGold, globalStyles.bacQuickAddButton, (!hasBacRequiredInfo || !latestDrinkEntry) && globalStyles.disabledButton]}
-                  onPress={handleAddLatestDrinkAgain}
-                  disabled={!hasBacRequiredInfo || !latestDrinkEntry}
-                >
-                  <Text style={[globalStyles.outlineButtonGoldText, profileStyles.bacQuickAddButtonText]}>
-                    {`+1 av sist drukket: ${latestDrinkLabel}`}
-                  </Text>
-                </TouchableOpacity>
-                {!hasBacRequiredInfo && (
-                  <Text style={globalStyles.secondaryText}>
-                    Sett vekt og kjønn i innstillinger for å bruke promillekalkulatoren.
-                  </Text>
-                )}
-              </View>
-            )}
-            {isBacExpanded && chartProjection && (
-              <View style={[globalStyles.inputGroup, profileStyles.chartCard]}>
-                <Text style={globalStyles.sectionTitle}>Anslått promille de neste 3 timene</Text>
-                <View style={profileStyles.chartSummaryRow}>
-                  <View style={profileStyles.statPill}>
-                    <Text style={profileStyles.statLabel}>Promille nå</Text>
-                    <View style={profileStyles.statMainSlot}>
-                      <Text style={profileStyles.statValue}>{currentBAC}‰</Text>
-                    </View>
-                  </View>
-                  <View style={profileStyles.statPill}>
-                    <Text style={profileStyles.statLabel}>Høyeste {chartProjection.peakTime}</Text>
-                    <View style={profileStyles.statMainSlot}>
-                      <Text style={profileStyles.statValue}>{chartProjection.peak.toFixed(3)}‰</Text>
-                    </View>
-                  </View>
-                  <View style={profileStyles.statPill}>
-                    <Text style={profileStyles.statLabel}>0.2‰ Cirka kl</Text>
-                    <View style={profileStyles.statMainSlot}>
-                      <Text style={profileStyles.statValue}>{chartProjection.soberTime}</Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={[profileStyles.chartInteractiveShell, { width: chartWidth }]}>
-                  <LineChart
-                    data={{
-                      labels: chartProjection.labels,
-                      datasets: [
-                        { data: chartProjection.values, ...profileChartDataset },
-                      ],
-                    }}
-                    width={chartWidth}
-                    height={220}
-                    yAxisLabel=""
-                    yAxisSuffix="‰"
-                    fromZero
-                    chartConfig={profileChartConfig}
-                    bezier
-                    style={profileStyles.chart}
-                  />
-                </View>
-              </View>
-            )}
-            {isBacExpanded && hasBacRequiredInfo && (
-              <View style={[globalStyles.inputGroup, profileStyles.chartCard]}>
-                <View style={[globalStyles.rowSpread, { marginBottom: theme.spacing.sm }]}> 
-                  <Text style={[globalStyles.sectionTitle, { marginBottom: 0 }]}>Promille-highscore</Text>
-                  <TouchableOpacity
-                    style={[
-                      globalStyles.dangerButton,
-                      {
-                        marginBottom: 0,
-                        paddingVertical: theme.spacing.xs,
-                        paddingHorizontal: theme.spacing.sm,
-                        borderColor: theme.colors.errorLight,
-                        backgroundColor: theme.colors.surface,
-                        opacity: 0.82,
-                      },
-                      !canResetBacHighscore && globalStyles.disabledButton,
-                    ]}
-                    onPress={handleResetBacHighscore}
-                    disabled={!canResetBacHighscore}
-                  >
-                    <Text
-                      style={[
-                        globalStyles.dangerButtonText,
-                        { fontSize: theme.fonts.sm },
-                        !canResetBacHighscore && { color: theme.colors.errorLight, opacity: 0.72 },
-                      ]}
-                    >
-                      {resettingBacHighscore ? 'Nullstiller...' : 'Nullstill'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={profileStyles.chartSummaryRow}>
-                  <View style={profileStyles.statPill}>
-                    <Text style={profileStyles.statLabel}>Promille</Text>
-                    <View style={profileStyles.statMainSlot}>
-                      <Text style={profileStyles.statValue}>
-                        {userInfo.bacHighscoreAllTime ? `${userInfo.bacHighscoreAllTime.toFixed(3)}‰` : '0.000‰'}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={profileStyles.statPill}>
-                    <Text style={profileStyles.statLabel}>Tidspunkt</Text>
-                    <View style={profileStyles.statMainSlot}>
-                      <Text style={profileStyles.statValue}>{highscoreUpdatedLabel}</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {userInfo.bacHighscoreAllTime && userInfo.bacHighscoreAllTime > 0 && estimatorDrinkOptions.length > 0 ? (
-                  <>
-                    <View style={[globalStyles.inputGroup, { marginBottom: 0 }]}> 
-                      <Text style={globalStyles.addOptionText}>Se hvor mye du må drikke for å slå din highscore</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
-                        {estimatorDrinkOptions.map((option) => {
-                          const isSelected = selectedEstimatorDrinkKey === option.key;
-                          return (
-                            <TouchableOpacity
-                              key={option.key}
-                              style={[globalStyles.selectionButton, isSelected && globalStyles.selectionButtonSelected]}
-                              onPress={() => setSelectedEstimatorDrinkKey(option.key)}
-                            >
-                              <Text style={[globalStyles.selectionButtonText, isSelected && globalStyles.selectionButtonTextSelected]}>
-                                {option.label}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </ScrollView>
-                    </View>
-                    <Text style={globalStyles.secondaryText}>
-                      {estimatedAdditionalDrinksToBeatHighscore === 0
-                        ? 'Du har allerede slått din highscore med dagens drikking'
-                        : typeof estimatedAdditionalDrinksToBeatHighscore === 'number'
-                          ? `Du trenger omtrent ${estimatedAdditionalDrinksToBeatHighscore} enheter av valgt drikke for å slå highscores.`
-                          : 'Vi klarte ikke å beregne et nøyaktig antall innenfor beregningsvinduet.'}
-                    </Text>
-                  </>
-                ) : (
-                  <Text style={globalStyles.secondaryText}>
-                    Legg til drikkehistorikk for å få forslag til hvor mye du trenger for å slå highscores.
-                  </Text>
-                )}
-              </View>
-            )}
-          </View>
-        </View>
+        <ProfileBacSection
+          userId={user?.id}
+          userInfo={userInfo}
+          setUserInfo={setUserInfo}
+        />
 
         <ProfileGroupInvitationsSection
           invitations={groupInvitations}
@@ -1656,449 +583,6 @@ const ProfileScreen: React.FC = () => {
           onSelectAllInvitees={selectAllInvitees}
           onClearInvitees={clearInvitees}
         />
-
-        <Modal
-          visible={drinkModalVisible}
-          animationType="slide"
-          transparent
-          onRequestClose={() => {
-            setShowDrinkValidationHint(false);
-            setDrinkModalVisible(false);
-          }}
-        >
-          <View style={globalStyles.modalContainer}>
-            <View style={[globalStyles.modalContent, profileStyles.drinkModalContent]}> 
-              <Text style={[globalStyles.modalTitle, globalStyles.friendSpacing]}>Velg drikke</Text>
-              <Text style={[globalStyles.mutedText, { marginBottom: theme.spacing.sm }]}>Dette påvirker ikke drikkestatistikk i grupper</Text>
-
-              <View style={profileStyles.drinkFormScrollBox}>
-                <ScrollView
-                  style={globalStyles.onboardingTextScroll}
-                  contentContainerStyle={globalStyles.leaderboardListWrap}
-                  showsVerticalScrollIndicator
-                  nestedScrollEnabled
-                  keyboardShouldPersistTaps="handled"
-                >
-                    <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
-                      <Text style={globalStyles.label}>Type</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
-                        {[
-                          { label: 'Øl / Cider / Selzer', value: 'øl' as const },
-                          { label: 'Vin', value: 'vin' as const },
-                          { label: 'Sprit', value: 'sprit' as const },
-                          { label: 'Egendefinert', value: 'custom' as const },
-                        ].map((categoryOption) => (
-                          <TouchableOpacity
-                            key={categoryOption.value}
-                            style={[globalStyles.selectionButton, drinkForm.category === categoryOption.value && globalStyles.selectionButtonSelected]}
-                            onPress={() => setDrinkForm({ ...createInitialDrinkForm(), category: categoryOption.value })}
-                          >
-                            <Text style={[globalStyles.selectionButtonText, drinkForm.category === categoryOption.value && globalStyles.selectionButtonTextSelected]}>
-                              {categoryOption.label}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
-
-                    {drinkForm.category && (
-                      <>
-                        {drinkForm.category !== 'custom' && (
-                          <>
-                            <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
-                              <Text style={globalStyles.label}>Størrelse</Text>
-                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
-                                {getSizeOptions(drinkForm.category).map((size) => (
-                                  <TouchableOpacity
-                                    key={String(size)}
-                                    style={[globalStyles.selectionButton, drinkForm.sizeDl === size && globalStyles.selectionButtonSelected]}
-                                    onPress={() => setDrinkForm({ ...drinkForm, sizeDl: size, customSizeValue: '' })}
-                                  >
-                                    <Text style={[globalStyles.selectionButtonText, drinkForm.sizeDl === size && globalStyles.selectionButtonTextSelected]}>
-                                      {getSizeOptionLabel(drinkForm.category, size)}
-                                    </Text>
-                                  </TouchableOpacity>
-                                ))}
-                              </ScrollView>
-                            </View>
-
-                            {drinkForm.sizeDl === 'custom' && (
-                              <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}>
-                                <Text style={globalStyles.label}>Egendefinert størrelse</Text>
-                                <View style={globalStyles.requestActionRow}>
-                                  <View style={[globalStyles.inputShellDark, globalStyles.itemInfo, profileStyles.pickerGlowShell]}>
-                                    <TextInput
-                                      style={[globalStyles.input, profileStyles.compactNumberInput]}
-                                      value={drinkForm.customSizeValue}
-                                      onChangeText={(text) => setDrinkForm({ ...drinkForm, customSizeValue: text })}
-                                      placeholder={DRINK_NUMBER_PLACEHOLDER}
-                                      placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                                      keyboardType="decimal-pad"
-                                    />
-                                  </View>
-                                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRowCompact}>
-                                    {(['cl', 'dl', 'l'] as const).map((unit) => (
-                                      <TouchableOpacity
-                                        key={unit}
-                                        style={[globalStyles.selectionButton, drinkForm.sizeUnit === unit && globalStyles.selectionButtonSelected]}
-                                        onPress={() => setDrinkForm({ ...drinkForm, sizeUnit: unit })}
-                                      >
-                                        <Text style={[globalStyles.selectionButtonText, drinkForm.sizeUnit === unit && globalStyles.selectionButtonTextSelected]}>
-                                          {unit}
-                                        </Text>
-                                      </TouchableOpacity>
-                                    ))}
-                                  </ScrollView>
-                                </View>
-                              </View>
-                            )}
-
-                            <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
-                              <Text style={globalStyles.label}>Alkoholprosent</Text>
-                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
-                                {getAlcoholPercentOptions(drinkForm.category).map((percent) => {
-                                  const alcoholOption = percent as number | 'custom';
-                                  return (
-                                    <TouchableOpacity
-                                      key={String(alcoholOption)}
-                                      style={[globalStyles.selectionButton, drinkForm.alcoholPercent === alcoholOption && globalStyles.selectionButtonSelected]}
-                                      onPress={() => setDrinkForm({ ...drinkForm, alcoholPercent: alcoholOption, customAlcoholPercent: '' })}
-                                    >
-                                      <Text style={[globalStyles.selectionButtonText, drinkForm.alcoholPercent === alcoholOption && globalStyles.selectionButtonTextSelected]}>
-                                        {alcoholOption === 'custom' ? 'Egendefinert' : `${alcoholOption}%`}
-                                      </Text>
-                                    </TouchableOpacity>
-                                  );
-                                })}
-                              </ScrollView>
-                            </View>
-
-                            {drinkForm.alcoholPercent === 'custom' && (
-                              <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
-                                <Text style={globalStyles.label}>Egendefinert alkoholprosent</Text>
-                                <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
-                                  <TextInput
-                                    style={[globalStyles.input, profileStyles.compactNumberInput]}
-                                    value={drinkForm.customAlcoholPercent}
-                                    onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercent: text })}
-                                    placeholder={DRINK_NUMBER_PLACEHOLDER}
-                                    placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                                    keyboardType="decimal-pad"
-                                  />
-                                </View>
-                              </View>
-                            )}
-
-                            <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
-                              <Text style={globalStyles.label}>Antall</Text>
-                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
-                                {[...getRecommendedQuantityOptions(), 'custom' as const].map((quantity) => (
-                                  <TouchableOpacity
-                                    key={String(quantity)}
-                                    style={[globalStyles.selectionButton, drinkForm.quantity === quantity && globalStyles.selectionButtonSelected]}
-                                    onPress={() => setDrinkForm({ ...drinkForm, quantity, customQuantity: '' })}
-                                  >
-                                    <Text style={[globalStyles.selectionButtonText, drinkForm.quantity === quantity && globalStyles.selectionButtonTextSelected]}>
-                                      {quantity === 'custom' ? 'Egendefinert' : quantity}
-                                    </Text>
-                                  </TouchableOpacity>
-                                ))}
-                              </ScrollView>
-                            </View>
-
-                            {drinkForm.quantity === 'custom' && (
-                              <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}>
-                                <Text style={globalStyles.label}>Egendefinert antall</Text>
-                                <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
-                                  <TextInput
-                                    style={[globalStyles.input, profileStyles.compactNumberInput]}
-                                    value={drinkForm.customQuantity}
-                                    onChangeText={(text) => setDrinkForm({ ...drinkForm, customQuantity: text })}
-                                    placeholder={DRINK_NUMBER_PLACEHOLDER}
-                                    placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                                    keyboardType="decimal-pad"
-                                  />
-                                </View>
-                              </View>
-                            )}
-                          </>
-                        )}
-
-                        {drinkForm.category === 'custom' && (
-                          <>
-                            <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
-                              <Text style={globalStyles.label}>Type/navn</Text>
-                              <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
-                                <TextInput
-                                  style={[globalStyles.input, profileStyles.customAlcoholInput]}
-                                  value={drinkForm.customDrinkName}
-                                  onChangeText={(text) => setDrinkForm({ ...drinkForm, customDrinkName: text.slice(0, INPUT_LIMITS.drinkNameMax) })}
-                                  placeholder={DRINK_TEXT_PLACEHOLDER}
-                                  placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                                  maxLength={INPUT_LIMITS.drinkNameMax}
-                                />
-                              </View>
-                            </View>
-
-                            <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
-                              <Text style={globalStyles.label}>Størrelse</Text>
-                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
-                                {getCustomSizeOptions().map((size) => (
-                                  <TouchableOpacity
-                                    key={String(size)}
-                                    style={[globalStyles.selectionButton, drinkForm.sizeDl === size && globalStyles.selectionButtonSelected]}
-                                    onPress={() => setDrinkForm({ ...drinkForm, sizeDl: size, customSizeValue: '' })}
-                                  >
-                                    <Text style={[globalStyles.selectionButtonText, drinkForm.sizeDl === size && globalStyles.selectionButtonTextSelected]}>
-                                      {getCustomSizeOptionLabel(size)}
-                                    </Text>
-                                  </TouchableOpacity>
-                                ))}
-                              </ScrollView>
-                            </View>
-
-                            {drinkForm.sizeDl === 'custom' && (
-                              <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}>
-                                <Text style={globalStyles.label}>Egendefinert størrelse</Text>
-                                <View style={globalStyles.requestActionRow}>
-                                  <View style={[globalStyles.inputShellDark, globalStyles.itemInfo, profileStyles.pickerGlowShell]}>
-                                    <TextInput
-                                      style={[globalStyles.input, profileStyles.compactNumberInput]}
-                                      value={drinkForm.customSizeValue}
-                                      onChangeText={(text) => setDrinkForm({ ...drinkForm, customSizeValue: text })}
-                                      placeholder={DRINK_NUMBER_PLACEHOLDER}
-                                      placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                                      keyboardType="decimal-pad"
-                                    />
-                                  </View>
-                                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRowCompact}>
-                                    {(['cl', 'dl', 'l'] as const).map((unit) => (
-                                      <TouchableOpacity
-                                        key={unit}
-                                        style={[globalStyles.selectionButton, drinkForm.customSizeUnit === unit && globalStyles.selectionButtonSelected]}
-                                        onPress={() => setDrinkForm({ ...drinkForm, customSizeUnit: unit })}
-                                      >
-                                        <Text style={[globalStyles.selectionButtonText, drinkForm.customSizeUnit === unit && globalStyles.selectionButtonTextSelected]}>
-                                          {unit}
-                                        </Text>
-                                      </TouchableOpacity>
-                                    ))}
-                                  </ScrollView>
-                                </View>
-                            </View>
-                            )}
-
-                            <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
-                              <Text style={globalStyles.label}>Alkoholprosent</Text>
-                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
-                                {getCustomAlcoholPercentOptions().map((percent) => (
-                                  <TouchableOpacity
-                                    key={String(percent)}
-                                    style={[globalStyles.selectionButton, drinkForm.alcoholPercent === percent && globalStyles.selectionButtonSelected]}
-                                    onPress={() => setDrinkForm({ ...drinkForm, alcoholPercent: percent, customAlcoholPercentManual: '' })}
-                                  >
-                                    <Text style={[globalStyles.selectionButtonText, drinkForm.alcoholPercent === percent && globalStyles.selectionButtonTextSelected]}>
-                                      {percent === 'custom' ? 'Egendefinert' : `${percent}%`}
-                                    </Text>
-                                  </TouchableOpacity>
-                                ))}
-                              </ScrollView>
-                            </View>
-
-                            {drinkForm.alcoholPercent === 'custom' && (
-                              <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}>
-                                <Text style={globalStyles.label}>Egendefinert alkoholprosent</Text>
-                                <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
-                                  <TextInput
-                                    style={[globalStyles.input, profileStyles.compactNumberInput]}
-                                    value={drinkForm.customAlcoholPercentManual}
-                                    onChangeText={(text) => setDrinkForm({ ...drinkForm, customAlcoholPercentManual: text })}
-                                    placeholder={DRINK_NUMBER_PLACEHOLDER}
-                                    placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                                    keyboardType="decimal-pad"
-                                  />
-                                </View>
-                              </View>
-                            )}
-
-                            <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}> 
-                              <Text style={globalStyles.label}>Antall</Text>
-                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
-                                {[...getRecommendedQuantityOptions(), 'custom' as const].map((quantity) => (
-                                  <TouchableOpacity
-                                    key={String(quantity)}
-                                    style={[globalStyles.selectionButton, drinkForm.quantity === quantity && globalStyles.selectionButtonSelected]}
-                                    onPress={() => setDrinkForm({ ...drinkForm, quantity, customQuantity: '' })}
-                                  >
-                                    <Text style={[globalStyles.selectionButtonText, drinkForm.quantity === quantity && globalStyles.selectionButtonTextSelected]}>
-                                      {quantity === 'custom' ? 'Egendefinert' : quantity}
-                                    </Text>
-                                  </TouchableOpacity>
-                                ))}
-                              </ScrollView>
-                            </View>
-
-                            {drinkForm.quantity === 'custom' && (
-                              <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}>
-                                <Text style={globalStyles.label}>Egendefinert antall</Text>
-                                <View style={[globalStyles.inputShellDark, profileStyles.pickerGlowShell]}>
-                                  <TextInput
-                                    style={[globalStyles.input, profileStyles.compactNumberInput]}
-                                    value={drinkForm.customQuantity}
-                                    onChangeText={(text) => setDrinkForm({ ...drinkForm, customQuantity: text })}
-                                    placeholder={DRINK_NUMBER_PLACEHOLDER}
-                                    placeholderTextColor={profileScreenTokens.customAlcoholPlaceholderTextColor}
-                                    keyboardType="decimal-pad"
-                                  />
-                                </View>
-                              </View>
-                            )}
-                          </>
-                        )}
-
-                        <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}>
-                          <Text style={globalStyles.label}>Tidspunkt drukket (start)</Text>
-                          <View style={profileStyles.timePickerRow}>
-                            <View style={[globalStyles.pickerInput, profileStyles.timePickerShell, profileStyles.pickerGlowShell]}>
-                              <Picker
-                                style={globalStyles.picker}
-                                itemStyle={globalStyles.pickerItem}
-                                selectedValue={getTimeParts(drinkForm.consumedAtTime).hour}
-                                onValueChange={(value: string) =>
-                                  setDrinkForm({
-                                    ...drinkForm,
-                                    consumedAtTime: updateTimeValue(drinkForm.consumedAtTime, 'hour', value),
-                                  })
-                                }
-                              >
-                                {hourOptions.map((hour) => (
-                                  <Picker.Item key={hour} label={hour} value={hour} />
-                                ))}
-                              </Picker>
-                            </View>
-                            <Text style={profileStyles.timeSeparator}>:</Text>
-                            <View style={[globalStyles.pickerInput, profileStyles.timePickerShell, profileStyles.pickerGlowShell]}>
-                              <Picker
-                                style={globalStyles.picker}
-                                itemStyle={globalStyles.pickerItem}
-                                selectedValue={getTimeParts(drinkForm.consumedAtTime).minute}
-                                onValueChange={(value: string) =>
-                                  setDrinkForm({
-                                    ...drinkForm,
-                                    consumedAtTime: updateTimeValue(drinkForm.consumedAtTime, 'minute', value),
-                                  })
-                                }
-                              >
-                                {minuteOptions.map((minute) => (
-                                  <Picker.Item key={minute} label={minute} value={minute} />
-                                ))}
-                              </Picker>
-                            </View>
-                          </View>
-                        </View>
-
-                        {endTimeAllowed && (
-                          <View style={[globalStyles.inputGroup, globalStyles.distributionChoiceBlock]}>
-                            <Text style={globalStyles.label}>Sluttidspunkt</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
-                              <TouchableOpacity
-                                style={[globalStyles.selectionButton, !drinkForm.hasEndTime && globalStyles.selectionButtonSelected]}
-                                onPress={() => setDrinkForm({ ...drinkForm, hasEndTime: false, consumedUntilTime: '' })}
-                              >
-                                <Text style={[globalStyles.selectionButtonText, !drinkForm.hasEndTime && globalStyles.selectionButtonTextSelected]}>
-                                  Ingen sluttid
-                                </Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={[globalStyles.selectionButton, drinkForm.hasEndTime && globalStyles.selectionButtonSelected]}
-                                onPress={() =>
-                                  setDrinkForm({
-                                    ...drinkForm,
-                                    hasEndTime: true,
-                                    consumedUntilTime: drinkForm.consumedUntilTime || drinkForm.consumedAtTime,
-                                  })
-                                }
-                              >
-                                <Text style={[globalStyles.selectionButtonText, drinkForm.hasEndTime && globalStyles.selectionButtonTextSelected]}>
-                                  Velg sluttid
-                                </Text>
-                              </TouchableOpacity>
-                            </ScrollView>
-
-                            {drinkForm.hasEndTime && (
-                              <View style={profileStyles.timePickerRow}>
-                                <View style={[globalStyles.pickerInput, profileStyles.timePickerShell, profileStyles.pickerGlowShell]}>
-                                  <Picker
-                                    style={globalStyles.picker}
-                                    itemStyle={globalStyles.pickerItem}
-                                    selectedValue={getTimeParts(drinkForm.consumedUntilTime || drinkForm.consumedAtTime).hour}
-                                    onValueChange={(value: string) =>
-                                      setDrinkForm({
-                                        ...drinkForm,
-                                        consumedUntilTime: updateTimeValue(
-                                          drinkForm.consumedUntilTime || drinkForm.consumedAtTime,
-                                          'hour',
-                                          value
-                                        ),
-                                      })
-                                    }
-                                  >
-                                    {hourOptions.map((hour) => (
-                                      <Picker.Item key={`end-hour-${hour}`} label={hour} value={hour} />
-                                    ))}
-                                  </Picker>
-                                </View>
-                                <Text style={profileStyles.timeSeparator}>:</Text>
-                                <View style={[globalStyles.pickerInput, profileStyles.timePickerShell, profileStyles.pickerGlowShell]}>
-                                  <Picker
-                                    style={globalStyles.picker}
-                                    itemStyle={globalStyles.pickerItem}
-                                    selectedValue={getTimeParts(drinkForm.consumedUntilTime || drinkForm.consumedAtTime).minute}
-                                    onValueChange={(value: string) =>
-                                      setDrinkForm({
-                                        ...drinkForm,
-                                        consumedUntilTime: updateTimeValue(
-                                          drinkForm.consumedUntilTime || drinkForm.consumedAtTime,
-                                          'minute',
-                                          value
-                                        ),
-                                      })
-                                    }
-                                  >
-                                    {minuteOptions.map((minute) => (
-                                      <Picker.Item key={`end-minute-${minute}`} label={minute} value={minute} />
-                                    ))}
-                                  </Picker>
-                                </View>
-                              </View>
-                            )}
-                          </View>
-                        )}
-                      </>
-                    )}
-                  </ScrollView>
-                </View>
-                <View style={globalStyles.modalFooter}>
-                  {drinkForm.category && showDrinkValidationHint && drinkValidationMessage ? (
-                    <Text style={globalStyles.validationHelperText}>{drinkValidationMessage}</Text>
-                  ) : null}
-                  <View style={globalStyles.editButtonsContainer}>
-                    <TouchableOpacity
-                      onPress={() => {
-                        setShowDrinkValidationHint(false);
-                        setDrinkModalVisible(false);
-                      }}
-                    >
-                      <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={handleAddDrink} disabled={!canSaveDrink}>
-                      <Text style={[globalStyles.saveButtonText, !canSaveDrink && globalStyles.disabledGoldActionText]}>Legg til</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </View>
-          </Modal>
       </ScrollView>
     </KeyboardAvoidingView>
   );
