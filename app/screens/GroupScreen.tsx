@@ -2459,7 +2459,7 @@ const GroupScreen = () => {
           </TouchableOpacity>
           <TouchableOpacity
             onPress={openGroupMembersScreen}
-            style={[groupStyles.heroImageBackButton, { left: undefined, right: theme.spacing.sm }]}
+            style={groupStyles.heroImageTopRightButton}
           >
             <Image source={PeopleIcon} style={globalStyles.primaryIcon} />
           </TouchableOpacity>
@@ -2538,17 +2538,14 @@ const GroupScreen = () => {
 
         <View style={groupStyles.actionCard}>
           <View style={groupStyles.actionGridRow}>
-            <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openLeaderboardModal}>
-              <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Tabell</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={groupStyles.actionGridRow}>
             <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openBetModal}>
               <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Opprett bett</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openDistributeModal}>
               <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Del ut slurker</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openLeaderboardModal}>
+              <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Tabell</Text>
             </TouchableOpacity>
           </View>
 

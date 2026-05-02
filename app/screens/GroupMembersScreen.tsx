@@ -12,11 +12,9 @@ import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 import { Group } from '../types/drinkTypes';
 import { Friend, FriendRequest } from '../types/userTypes';
-import { showAlert } from '../utils/platformAlert';
 import { getDefaultProfilePicture, resolveProfileImageSource } from '../utils/profileImage';
 
 const DefaultProfilePicture = getDefaultProfilePicture();
-const PeopleIcon = require('../../assets/icons/noun-people-2196504.png');
 
 type SentGroupInvitation = {
   id: string;
@@ -166,8 +164,7 @@ const GroupMembersScreen = () => {
         message: `Bli med i gruppen "${group.name}" på BetABeer: ${inviteLink}`,
       });
     } catch (error) {
-      console.error('Error sharing group invite link:', error);
-      showAlert('Feil', 'Kunne ikke dele invitasjonslenken');
+      console.warn('Share group invite link was cancelled or unavailable:', error);
     }
   };
 
@@ -182,7 +179,6 @@ const GroupMembersScreen = () => {
       await refreshMemberData(updatedGroup);
     } catch (error) {
       console.error('Error removing friend from group:', error);
-      showAlert('Feil', 'Kunne ikke fjerne medlem');
     }
   };
 
@@ -200,7 +196,6 @@ const GroupMembersScreen = () => {
       await refreshFriends();
     } catch (error) {
       console.error('Error handling friend request:', error);
-      showAlert('Feil', 'Kunne ikke håndtere venneforespørsel');
     } finally {
       setSendingFriendRequest(false);
     }
@@ -216,7 +211,6 @@ const GroupMembersScreen = () => {
       await refreshRequestsAndInvites(group.id);
     } catch (error) {
       console.error('Error cancelling friend request:', error);
-      showAlert('Feil', 'Kunne ikke angre venneforespørsel');
     } finally {
       setSendingFriendRequest(false);
     }
@@ -230,7 +224,6 @@ const GroupMembersScreen = () => {
       if (group) await refreshRequestsAndInvites(group.id);
     } catch (error) {
       console.error('Error inviting friend to group:', error);
-      showAlert('Feil', (error as Error).message || 'Kunne ikke invitere venn');
     } finally {
       setInviting(false);
     }
@@ -246,7 +239,6 @@ const GroupMembersScreen = () => {
       await refreshRequestsAndInvites(group.id);
     } catch (error) {
       console.error('Error cancelling group invitation:', error);
-      showAlert('Feil', (error as Error).message || 'Kunne ikke angre invitasjon');
     } finally {
       setInviting(false);
     }
@@ -298,11 +290,11 @@ const GroupMembersScreen = () => {
         ) : null}
         {!isFriend && hasOutgoingRequest && !isCurrentUser && !isCurrentUserCreator ? (
           <TouchableOpacity
-            style={[globalStyles.outlineButtonGold, globalStyles.actionButton, globalStyles.groupActionIconButton]}
+            style={[globalStyles.outlineButtonGold, globalStyles.actionButton, globalStyles.groupActionIconButton, globalStyles.actionButtonDanger]}
             onPress={() => handleCancelPendingFriendRequest(member)}
             disabled={sendingFriendRequest}
           >
-            <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionButtonText]}>Angre</Text>
+            <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionButtonText, globalStyles.actionButtonDangerText]}>Angre</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -311,17 +303,13 @@ const GroupMembersScreen = () => {
 
   return (
     <View style={globalStyles.containerWeb}>
-      <View style={globalStyles.headerContainer}>
-        <View style={[globalStyles.overlay, groupStyles.groupHeaderOverlayCompact, { justifyContent: 'center' }]}>
+      <View style={groupStyles.groupMembersHeaderBar}>
           <TouchableOpacity onPress={navigateBackToGroup} style={groupStyles.heroImageBackButton}>
             <Text style={globalStyles.iconBackButtonText}>←</Text>
           </TouchableOpacity>
-          <View style={{ alignItems: 'center' }}>
-            <Image source={PeopleIcon} style={globalStyles.primaryIcon} />
-            <Text style={groupStyles.groupHeaderName}>Gruppeflyt</Text>
-            <Text style={groupStyles.groupHeaderMembers}>{group?.name || 'Velg gruppe'}</Text>
+          <View style={groupStyles.groupMembersHeaderTitleWrap}>
+            <Text style={groupStyles.groupHeaderName}>{group?.name || 'Gruppe'}</Text>
           </View>
-        </View>
       </View>
 
       <ScrollView contentContainerStyle={[globalStyles.fullWidthScrollContent, groupStyles.pageScrollContent]} showsVerticalScrollIndicator={false}>
@@ -358,11 +346,21 @@ const GroupMembersScreen = () => {
                       <Text style={[globalStyles.secondaryText, groupStyles.memberUsername]}>@{friend.username}</Text>
                     </View>
                     <TouchableOpacity
-                      style={[globalStyles.outlineButtonGold, globalStyles.actionButton]}
+                      style={[
+                        globalStyles.outlineButtonGold,
+                        globalStyles.actionButton,
+                        invitationSent && globalStyles.actionButtonDanger,
+                      ]}
                       onPress={() => (invitationSent ? handleCancelSentGroupInvitation(friend) : handleInviteFriend(friend))}
                       disabled={inviting}
                     >
-                      <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionButtonText]}>
+                      <Text
+                        style={[
+                          globalStyles.outlineButtonGoldText,
+                          globalStyles.actionButtonText,
+                          invitationSent && globalStyles.actionButtonDangerText,
+                        ]}
+                      >
                         {invitationSent ? 'Angre' : 'Inviter'}
                       </Text>
                     </TouchableOpacity>
