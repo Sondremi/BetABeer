@@ -1281,6 +1281,14 @@ const GroupScreen = () => {
     setBetOptions([...betOptions, { name: '' }]);
   };
 
+  const removeBetOption = (idx: number) => {
+    if (betOptions.length <= 1) {
+      return;
+    }
+    setBetOptions((prev) => prev.filter((_, optionIdx) => optionIdx !== idx));
+    setFocusedBetOptionIndex((prev) => (prev === idx ? null : prev !== null && prev > idx ? prev - 1 : prev));
+  };
+
   const addAllGroupMembersAsBetOptions = () => {
     const uniqueMemberNames = Array.from(new Set(
       memberData
@@ -1526,6 +1534,14 @@ const GroupScreen = () => {
       return;
     }
     setEditBetOptions([...editBetOptions, { name: '' }]);
+  };
+
+  const removeEditBetOption = (idx: number) => {
+    if (editBetOptions.length <= 1) {
+      return;
+    }
+    setEditBetOptions((prev) => prev.filter((_, optionIdx) => optionIdx !== idx));
+    setFocusedEditBetOptionIndex((prev) => (prev === idx ? null : prev !== null && prev > idx ? prev - 1 : prev));
   };
 
   const handleSaveEditBet = async () => {
@@ -2862,6 +2878,20 @@ const GroupScreen = () => {
                           />
                         </View>
                       </View>
+                      <TouchableOpacity
+                        onPress={() => removeBetOption(idx)}
+                        disabled={betOptions.length <= 1}
+                        style={{ alignSelf: 'flex-end', marginBottom: 10 }}
+                      >
+                        <Text
+                          style={[
+                            globalStyles.secondaryText,
+                            { fontWeight: '700', color: betOptions.length <= 1 ? theme.colors.textSecondary : theme.colors.primary },
+                          ]}
+                        >
+                          Slett
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 ))}
@@ -3074,20 +3104,36 @@ const GroupScreen = () => {
               >
                 {editBetOptions.map((opt, idx) => (
                   <View key={`edit-bet-option-${idx}`} style={globalStyles.inputGroup}>
-                    <View>
-                      <Text style={globalStyles.label}>Alternativ {idx + 1}</Text>
-                      <View style={[globalStyles.inputShellDark, globalStyles.betSelectionHintText, focusedEditBetOptionIndex === idx && globalStyles.inputShellFocusedGold]}>
-                        <TextInput
-                          placeholder={`Alternativ ${idx + 1}`}
-                          placeholderTextColor={theme.colors.textSecondary}
-                          value={opt.name}
-                          onChangeText={text => updateEditBetOption(idx, 'name', text.slice(0, INPUT_LIMITS.betOptionNameMax))}
-                          onFocus={() => setFocusedEditBetOptionIndex(idx)}
-                          onBlur={() => setFocusedEditBetOptionIndex(null)}
-                          style={[globalStyles.input, groupStyles.inputInsideShell]}
-                          maxLength={INPUT_LIMITS.betOptionNameMax}
-                        />
+                    <View style={globalStyles.rowSpread}>
+                      <View style={{ flex: 1, marginRight: theme.spacing.sm }}>
+                        <Text style={globalStyles.label}>Alternativ {idx + 1}</Text>
+                        <View style={[globalStyles.inputShellDark, globalStyles.betSelectionHintText, focusedEditBetOptionIndex === idx && globalStyles.inputShellFocusedGold]}>
+                          <TextInput
+                            placeholder={`Alternativ ${idx + 1}`}
+                            placeholderTextColor={theme.colors.textSecondary}
+                            value={opt.name}
+                            onChangeText={text => updateEditBetOption(idx, 'name', text.slice(0, INPUT_LIMITS.betOptionNameMax))}
+                            onFocus={() => setFocusedEditBetOptionIndex(idx)}
+                            onBlur={() => setFocusedEditBetOptionIndex(null)}
+                            style={[globalStyles.input, groupStyles.inputInsideShell]}
+                            maxLength={INPUT_LIMITS.betOptionNameMax}
+                          />
+                        </View>
                       </View>
+                      <TouchableOpacity
+                        onPress={() => removeEditBetOption(idx)}
+                        disabled={editBetOptions.length <= 1}
+                        style={{ alignSelf: 'flex-end', marginBottom: 10 }}
+                      >
+                        <Text
+                          style={[
+                            globalStyles.secondaryText,
+                            { fontWeight: '700', color: editBetOptions.length <= 1 ? theme.colors.textSecondary : theme.colors.primary },
+                          ]}
+                        >
+                          Slett
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 ))}
