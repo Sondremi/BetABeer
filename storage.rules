@@ -7,9 +7,9 @@ service firebase.storage {
         && request.auth.uid == userId
         && request.auth.token.email_verified == true
         && (
-          request.resource == null
-          || (
-            request.resource.size < 2 * 1024 * 1024
+            request.resource == null
+            || (
+            request.resource.size < 4 * 1024 * 1024
             && request.resource.contentType.matches('image/.*')
           )
         );
@@ -21,9 +21,9 @@ service firebase.storage {
         && firestore.get(/databases/(default)/documents/groups/$(groupId)).data.createdBy == request.auth.uid
         && request.auth.token.email_verified == true
         && (
-          request.resource == null
-          || (
-            request.resource.size < 2 * 1024 * 1024
+            request.resource == null
+            || (
+            request.resource.size < 4 * 1024 * 1024
             && request.resource.contentType.matches('image/.*')
           )
         );

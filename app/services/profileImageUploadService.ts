@@ -4,7 +4,7 @@ import { storage } from './firebase/FirebaseConfig';
 const PROFILE_IMAGES_ROOT = 'profileImages';
 const GROUP_IMAGES_ROOT = 'groupImages';
 const STORAGE_LIMIT_BYTES = 5 * 1024 * 1024 * 1024;
-const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
+const MAX_PROFILE_IMAGE_BYTES = 4 * 1024 * 1024;
 const BLOB_FETCH_TIMEOUT_MS = 12_000;
 const STORAGE_USAGE_TIMEOUT_MS = 8_000;
 const UPLOAD_TIMEOUT_MS = 20_000;
@@ -139,7 +139,7 @@ export const uploadProfileImage = async (userId: string, fileSource: UploadImage
   const imageBlob = await getBlobFromSource(fileSource);
 
   if (imageBlob.size > MAX_PROFILE_IMAGE_BYTES) {
-    throw new Error('Bildet er for stort. Maks størrelse for profilbilde er 2 MB.');
+    throw new Error('Bildet er for stort. Maks størrelse for profilbilde er 4 MB.');
   }
 
   const currentUsage = await withTimeout(
@@ -174,7 +174,7 @@ export const uploadGroupImage = async (groupId: string, fileSource: UploadImageS
   const imageBlob = await getBlobFromSource(fileSource);
 
   if (imageBlob.size > MAX_PROFILE_IMAGE_BYTES) {
-    throw new Error('Bildet er for stort. Maks størrelse for gruppebilde er 2 MB.');
+    throw new Error('Bildet er for stort. Maks størrelse for gruppebilde er 4 MB.');
   }
 
   const currentUsage = await withTimeout(
