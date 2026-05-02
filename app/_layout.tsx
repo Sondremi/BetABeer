@@ -171,6 +171,7 @@ function PersistedRouteStack() {
           headerBackTitle: 'Tilbake',
         }}
       />
+      <Stack.Screen name="group-members" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
     </Stack>
   );

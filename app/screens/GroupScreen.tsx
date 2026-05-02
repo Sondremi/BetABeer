@@ -3,12 +3,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, FieldPath, getDoc, getDocs, getFirestore, increment, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/firebase/authService';
 import { firestore } from '../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, cancelFriendRequest, getIncomingRequest, getOutgoingRequest, sendFriendRequest } from '../services/friendService';
-import { buildGroupInviteLink } from '../services/groupInviteLinkService';
 import { cancelGroupInvitation, deleteGroup, distributeDrinks, exitGroup, registerConsumedDrinks, removeFriendFromGroup, sendGroupInvitation } from '../services/groupService';
 import { removeGroupImage, uploadGroupImage } from '../services/profileImageUploadService';
 import { createGroup, profileService, updateGroupName } from '../services/profileService';
@@ -27,6 +26,7 @@ const DefaultProfilePicture = getDefaultProfilePicture();
 const PencilIcon = require('../../assets/icons/noun-pencil-969012.png');
 const GroupImageIcon = require('../../assets/icons/noun-image-7746215.png');
 const TrashIcon = require('../../assets/icons/noun-delete-7938028.png');
+const PeopleIcon = require('../../assets/icons/noun-people-2196504.png');
 
 type SentGroupInvitation = {
   id: string;
@@ -198,7 +198,7 @@ const GroupScreen = () => {
   const [editBetAnonymous, setEditBetAnonymous] = useState(false);
   const [groupsResolved, setGroupsResolved] = useState(false);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
-  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersLoading] = useState(false);
   const [distributionLoading, setDistributionLoading] = useState(false);
   const [consumingDrinkKey, setConsumingDrinkKey] = useState<string | null>(null);
   const [drinkDetailViewByUser, setDrinkDetailViewByUser] = useState<Record<string, 'consume' | 'consumed' | 'distribute'>>({});
@@ -804,57 +804,6 @@ const GroupScreen = () => {
     };
   }, [distributeModalVisible, user?.id, selectedGroup?.id, getLeaderboardData]);
 
-  const openMembersModal = async () => {
-    if (!user?.id) {
-      setMembersModalVisible(true);
-      return;
-    }
-
-    setMembersModalVisible(true);
-    setMembersLoading(true);
-    try {
-      const requestsPromise = Promise.all([
-        getOutgoingRequest(user.id),
-        getIncomingRequest(user.id),
-      ])
-        .then(([outgoingRequests, incomingRequests]) => {
-          setPendingFriendRequests(outgoingRequests);
-          setIncomingFriendRequests(incomingRequests);
-        })
-        .catch((error) => {
-          console.error('Error fetching pending friend requests:', error);
-        });
-
-      const invitationsPromise = selectedGroup?.id
-        ? (async () => {
-            try {
-              const sentInvitationQuery = query(
-                collection(firestore, 'group_invitations'),
-                where('fromUserId', '==', user.id),
-                where('groupId', '==', selectedGroup.id),
-                where('status', '==', 'pending')
-              );
-              const sentInvitationSnapshot = await getDocs(sentInvitationQuery);
-              const pendingInvitations = sentInvitationSnapshot.docs
-                .map((docSnap) => {
-                  const toUserId = docSnap.data().toUserId;
-                  if (typeof toUserId !== 'string') return null;
-                  return { id: docSnap.id, toUserId } as SentGroupInvitation;
-                })
-                .filter((invitation): invitation is SentGroupInvitation => Boolean(invitation));
-              setSentGroupInvitations(pendingInvitations);
-            } catch (error) {
-              console.error('Error fetching sent group invitations:', error);
-            }
-          })()
-        : Promise.resolve();
-
-      await Promise.all([requestsPromise, invitationsPromise]);
-    } finally {
-      setMembersLoading(false);
-    }
-  };
-
   const openLeaderboardModal = async () => {
     setLeaderboardModalVisible(true);
     setLeaderboardLoading(true);
@@ -1117,22 +1066,12 @@ const GroupScreen = () => {
     }
   };
 
-  const handleShareGroupInviteLink = async () => {
-    if (!selectedGroup) {
-      showAlert('Feil', 'Ingen gruppe valgt');
-      return;
-    }
-
-    try {
-      const inviteLink = buildGroupInviteLink(selectedGroup.id);
-      await Share.share({
-        title: 'Inviter til gruppe',
-        message: `Bli med i gruppen "${selectedGroup.name}" på BetABeer: ${inviteLink}`,
-      });
-    } catch (error) {
-      // Sharing can fail/cancel depending on platform and user action; avoid showing an error toast here.
-      console.warn('Share group invite link was cancelled or unavailable:', error);
-    }
+  const openGroupMembersScreen = () => {
+    if (!selectedGroup) return;
+    router.push({
+      pathname: '/group-members',
+      params: { selectedGroup: JSON.stringify(selectedGroup) },
+    });
   };
 
   const handleSaveGroupName = async () => {
@@ -2518,6 +2457,12 @@ const GroupScreen = () => {
           >
             <Text style={globalStyles.iconBackButtonText}>←</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            onPress={openGroupMembersScreen}
+            style={[groupStyles.heroImageBackButton, { left: undefined, right: theme.spacing.sm }]}
+          >
+            <Image source={PeopleIcon} style={globalStyles.primaryIcon} />
+          </TouchableOpacity>
           <View style={[globalStyles.overlay, groupStyles.groupHeaderOverlayCompact]}>
             <View style={globalStyles.headerInfo}>
               {editingName ? (
@@ -2593,16 +2538,6 @@ const GroupScreen = () => {
 
         <View style={groupStyles.actionCard}>
           <View style={groupStyles.actionGridRow}>
-            <TouchableOpacity
-              style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]}
-              onPress={handleShareGroupInviteLink}
-              disabled={!selectedGroup}
-            >
-              <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Inviter</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openMembersModal}>
-              <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Medlemmer</Text>
-            </TouchableOpacity>
             <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={openLeaderboardModal}>
               <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Tabell</Text>
             </TouchableOpacity>
