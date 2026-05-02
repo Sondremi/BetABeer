@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { authService } from '../services/firebase/authService';
 import { globalStyles } from '../styles/globalStyles';
-import { INPUT_LIMITS, normalizeSingleLineText } from '../utils/inputValidation';
+import { INPUT_LIMITS, isValidEmailFormat, normalizeSingleLineText } from '../utils/inputValidation';
 import { showAlert } from '../utils/platformAlert';
 
 type GuestUpgradePromptProps = {
@@ -56,8 +56,7 @@ export const GuestUpgradePrompt: React.FC<GuestUpgradePromptProps> = ({
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!isValidEmailFormat(email)) {
       showAlert('Feil', 'Ugyldig e-postadresse');
       return;
     }
@@ -76,7 +75,7 @@ export const GuestUpgradePrompt: React.FC<GuestUpgradePromptProps> = ({
         password: '',
         confirmPassword: '',
       });
-    } catch (error) {
+    } catch {
       showAlert('Feil', 'Kunne ikke opprette bruker');
     } finally {
       setSaving(false);

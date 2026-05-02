@@ -14,18 +14,6 @@ const outlineButtonBase = {
   marginBottom: theme.spacing.md,
 };
 
-const tabBarBase = {
-  flexDirection: 'row' as const,
-  height: 78,
-  backgroundColor: theme.colors.backgroundTabBar,
-  borderTopWidth: 1,
-  borderTopColor: theme.colors.borderTabBar,
-  paddingHorizontal: theme.spacing.md,
-  paddingTop: theme.spacing.sm,
-  paddingBottom: theme.spacing.md,
-  gap: theme.spacing.sm,
-};
-
 export const globalStyles = StyleSheet.create({
   // Containers
   container: {
@@ -655,41 +643,6 @@ export const globalStyles = StyleSheet.create({
   },
   destructiveButtonTextModal: {
     color: theme.colors.background,
-  },
-
-  // Bottom bar styles
-  tabBar: {
-    ...tabBarBase,
-  },
-  tabBarWeb: {
-    ...tabBarBase,
-    alignSelf: 'center',
-    width: '100%',
-    maxWidth: 500,
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: theme.borderRadius.round,
-    borderWidth: 1,
-    borderColor: theme.colors.borderTabItem,
-    backgroundColor: theme.colors.backgroundTabItem,
-  },
-  tabItemFocused: {
-    backgroundColor: theme.colors.backgroundTabItemFocused,
-    borderColor: theme.colors.borderTabItemFocused,
-    ...theme.shadows.button,
-  },
-  tabIcon: {
-    width: 30,
-    height: 30,
-    tintColor: theme.colors.iconTabIdle,
-  },
-  tabIconFocused: {
-    width: 36,
-    height: 36,
-    tintColor: theme.colors.primary,
   },
 
   compactSection: {

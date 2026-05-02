@@ -41,3 +41,8 @@ export const hasLengthInRange = (value: string, min: number, max: number): boole
 export const clampDigits = (value: string, maxLen: number): string => {
   return String(value || '').replace(/[^0-9]/g, '').slice(0, maxLen);
 };
+
+export const isValidEmailFormat = (value: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(String(value || '').trim());
+};

@@ -27,6 +27,40 @@ export const groupStyles = StyleSheet.create({
     zIndex: 3,
     ...globalStyles.iconBackButton,
   },
+  heroImageTopRightButton: {
+    position: 'absolute',
+    top: theme.spacing.sm,
+    right: theme.spacing.sm,
+    zIndex: 3,
+    ...globalStyles.iconBackButton,
+  },
+  groupHeaderNavButtonCompact: {
+    width: theme.sizes.iconButton * 0.8,
+    height: theme.sizes.iconButton * 0.8,
+    borderRadius: (theme.sizes.iconButton * 0.8) / 2,
+  },
+  groupHeaderNavBackTextCompact: {
+    fontSize: theme.fonts.xl * 0.7,
+  },
+  groupHeaderNavIconCompact: {
+    width: 13,
+    height: 13,
+  },
+  groupMembersHeaderBar: {
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    backgroundColor: theme.colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderPremium,
+    minHeight: 76,
+    justifyContent: 'center',
+  },
+  groupMembersHeaderTitleWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: theme.spacing.xl,
+  },
   groupHeaderOverlayCompact: {
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
