@@ -1,2 +1,2 @@
-import FriendsScreen from '../screens/FriendsScreen';
+import FriendsScreen from '../screens/friends/FriendsScreen';
 export default FriendsScreen;

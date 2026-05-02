@@ -53,20 +53,6 @@ export const friendsStyles = StyleSheet.create({
     fontSize: theme.fonts.md,
     color: theme.colors.text,
   },
-  searchButton: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
-    borderRadius: theme.borderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: theme.sizes.buttonWide,
-  },
-  searchButtonText: {
-    fontSize: theme.fonts.md,
-    color: theme.colors.background,
-    fontWeight: '700',
-  },
   listScrollBox: {
     maxHeight: theme.sizes.maxListHeightXxl,
   },
