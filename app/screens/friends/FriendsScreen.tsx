@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Share } from 'react-native';
 import { GuestUpgradePrompt } from '../../components/GuestUpgradePrompt';
 import { useAuth } from '../../context/AuthContext';
+import { buildFriendInviteLink } from '../../services/friendInviteLinkService';
 import { firestore } from '../../services/firebase/FirebaseConfig';
 import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, removeFriend, sendFriendRequest } from '../../services/friendService';
 import { globalStyles } from '../../styles/globalStyles';
@@ -73,9 +74,7 @@ const FriendsScreen = () => {
     performSearch,
   } = useFriendSearch({ friends });
 
-  const inviteLink = user?.id
-    ? `http://bet-a-beer.netlify.app/login?inviter=${encodeURIComponent(user.id)}`
-    : 'http://bet-a-beer.netlify.app/login';
+  const inviteLink = buildFriendInviteLink(user?.id);
 
   const handleInviteFriends = async () => {
     try {
