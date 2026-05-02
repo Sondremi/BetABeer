@@ -2,17 +2,18 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
-import { useAuth } from '../context/AuthContext';
-import { firestore } from '../services/firebase/FirebaseConfig';
-import { acceptFriendRequest, cancelFriendRequest, getIncomingRequest, getOutgoingRequest, sendFriendRequest } from '../services/friendService';
-import { buildGroupInviteLink } from '../services/groupInviteLinkService';
-import { cancelGroupInvitation, removeFriendFromGroup, sendGroupInvitation } from '../services/groupService';
-import { groupStyles } from '../styles/components/groupStyles';
-import { globalStyles } from '../styles/globalStyles';
-import { theme } from '../styles/theme';
-import { Group } from '../types/drinkTypes';
-import { Friend, FriendRequest } from '../types/userTypes';
-import { getDefaultProfilePicture, resolveProfileImageSource } from '../utils/profileImage';
+import { useAuth } from '../../../context/AuthContext';
+import { firestore } from '../../../services/firebase/FirebaseConfig';
+import { cancelGroupInvitation, removeFriendFromGroup, sendGroupInvitation } from '../../../services/groupService';
+import { groupStyles } from '../../../styles/components/groupStyles';
+import { globalStyles } from '../../../styles/globalStyles';
+import { theme } from '../../../styles/theme';
+import { Group } from '../../../types/drinkTypes';
+import { Friend } from '../../../types/userTypes';
+import { getDefaultProfilePicture, resolveProfileImageSource } from '../../../utils/profileImage';
+import MemberRow from './MemberRow';
+import { useFriendActions } from '../hooks/useFriendActions';
+import { buildGroupInviteLink } from '../../../services/groupInviteLinkService';
 
 const DefaultProfilePicture = getDefaultProfilePicture();
 
@@ -28,12 +29,18 @@ const GroupMembersScreen = () => {
   const [group, setGroup] = useState<Group | null>(null);
   const [memberData, setMemberData] = useState<Friend[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [pendingFriendRequests, setPendingFriendRequests] = useState<FriendRequest[]>([]);
-  const [incomingFriendRequests, setIncomingFriendRequests] = useState<FriendRequest[]>([]);
   const [sentGroupInvitations, setSentGroupInvitations] = useState<SentGroupInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviting, setInviting] = useState(false);
-  const [sendingFriendRequest, setSendingFriendRequest] = useState(false);
+  const {
+    incomingFriendRequests,
+    pendingFriendRequests,
+    refreshPendingRequests,
+    sendingFriendRequest,
+    handleAcceptIncomingFriendRequest,
+    handleCancelPendingFriendRequest,
+    handleSendFriendRequest,
+  } = useFriendActions({ userId: user?.id });
 
   const availableFriends = useMemo(() => {
     if (!group) return [];
@@ -98,15 +105,8 @@ const GroupMembersScreen = () => {
     setFriends(nextFriends);
   }, [user?.id]);
 
-  const refreshRequestsAndInvites = useCallback(async (groupId: string) => {
+  const refreshSentInvites = useCallback(async (groupId: string) => {
     if (!user?.id) return;
-    const [outgoingRequests, incomingRequests] = await Promise.all([
-      getOutgoingRequest(user.id),
-      getIncomingRequest(user.id),
-    ]);
-    setPendingFriendRequests(outgoingRequests);
-    setIncomingFriendRequests(incomingRequests);
-
     const sentInvitationQuery = query(
       collection(firestore, 'group_invitations'),
       where('fromUserId', '==', user.id),
@@ -136,12 +136,13 @@ const GroupMembersScreen = () => {
       await Promise.all([
         refreshMemberData(parsedGroup),
         refreshFriends(),
-        refreshRequestsAndInvites(parsedGroup.id),
+        refreshPendingRequests(),
+        refreshSentInvites(parsedGroup.id),
       ]);
     } finally {
       setLoading(false);
     }
-  }, [parseGroupParam, refreshMemberData, refreshFriends, refreshRequestsAndInvites]);
+  }, [parseGroupParam, refreshFriends, refreshMemberData, refreshPendingRequests, refreshSentInvites]);
 
   useEffect(() => {
     loadAll();
@@ -182,46 +183,12 @@ const GroupMembersScreen = () => {
     }
   };
 
-  const handleSendFriendRequest = async (member: Friend) => {
-    if (!user?.id) return;
-    setSendingFriendRequest(true);
-    try {
-      const incomingRequest = incomingFriendRequests.find((request) => request.fromUserId === member.id);
-      if (incomingRequest) {
-        await acceptFriendRequest(incomingRequest.id, incomingRequest.fromUserId, incomingRequest.toUserId);
-      } else {
-        await sendFriendRequest(member.id);
-      }
-      if (group) await refreshRequestsAndInvites(group.id);
-      await refreshFriends();
-    } catch (error) {
-      console.error('Error handling friend request:', error);
-    } finally {
-      setSendingFriendRequest(false);
-    }
-  };
-
-  const handleCancelPendingFriendRequest = async (member: Friend) => {
-    if (!user?.id || !group) return;
-    const pendingRequest = pendingFriendRequests.find((request) => request.toUserId === member.id);
-    if (!pendingRequest?.id) return;
-    setSendingFriendRequest(true);
-    try {
-      await cancelFriendRequest(pendingRequest.id);
-      await refreshRequestsAndInvites(group.id);
-    } catch (error) {
-      console.error('Error cancelling friend request:', error);
-    } finally {
-      setSendingFriendRequest(false);
-    }
-  };
-
   const handleInviteFriend = async (friend: Friend) => {
     if (!group) return;
     setInviting(true);
     try {
       await sendGroupInvitation(friend.id, group);
-      if (group) await refreshRequestsAndInvites(group.id);
+      await refreshSentInvites(group.id);
     } catch (error) {
       console.error('Error inviting friend to group:', error);
     } finally {
@@ -236,7 +203,7 @@ const GroupMembersScreen = () => {
     setInviting(true);
     try {
       await cancelGroupInvitation(invitation.id);
-      await refreshRequestsAndInvites(group.id);
+      await refreshSentInvites(group.id);
     } catch (error) {
       console.error('Error cancelling group invitation:', error);
     } finally {
@@ -244,72 +211,15 @@ const GroupMembersScreen = () => {
     }
   };
 
-  const renderMemberRow = (member: Friend) => {
-    if (!group) return null;
-    const isCreator = group.createdBy === member.id;
-    const isCurrentUserCreator = user?.id === group.createdBy;
-    const isCurrentUser = user?.id === member.id;
-    const isFriend = friends.some((friend) => friend.id === member.id);
-    const hasOutgoingRequest = pendingFriendRequests.some((request) => request.toUserId === member.id);
-    const hasIncomingRequest = incomingFriendRequests.some((request) => request.fromUserId === member.id);
-
-    return (
-      <View key={member.id} style={groupStyles.memberRow}>
-        <Image source={member.profilePicture} style={[globalStyles.circularImage, groupStyles.memberAvatar]} />
-        <View style={groupStyles.memberMeta}>
-          <Text style={[groupStyles.wagerUser, groupStyles.memberName]}>
-            {member.name} {isCreator ? '(Eier)' : ''}
-          </Text>
-          <Text style={[globalStyles.secondaryText, groupStyles.memberUsername]}>@{member.username}</Text>
-        </View>
-        {!isCreator && isCurrentUserCreator && !isCurrentUser ? (
-          <TouchableOpacity
-            style={[globalStyles.outlineButtonGold, globalStyles.actionButton, globalStyles.actionButtonDanger]}
-            onPress={() => handleRemoveMember(member)}
-          >
-            <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionButtonText, globalStyles.actionButtonDangerText]}>Fjern</Text>
-          </TouchableOpacity>
-        ) : null}
-        {!isFriend && !hasOutgoingRequest && !hasIncomingRequest && !isCurrentUser && !isCurrentUserCreator ? (
-          <TouchableOpacity
-            style={[globalStyles.outlineButtonGold, globalStyles.actionButton, globalStyles.groupActionIconButton]}
-            onPress={() => handleSendFriendRequest(member)}
-            disabled={sendingFriendRequest}
-          >
-            <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionButtonText]}>Legg til venn</Text>
-          </TouchableOpacity>
-        ) : null}
-        {!isFriend && hasIncomingRequest && !isCurrentUser && !isCurrentUserCreator ? (
-          <TouchableOpacity
-            style={[globalStyles.outlineButtonGold, globalStyles.actionButton, globalStyles.groupActionIconButton]}
-            onPress={() => handleSendFriendRequest(member)}
-            disabled={sendingFriendRequest}
-          >
-            <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionButtonText]}>Godta</Text>
-          </TouchableOpacity>
-        ) : null}
-        {!isFriend && hasOutgoingRequest && !isCurrentUser && !isCurrentUserCreator ? (
-          <TouchableOpacity
-            style={[globalStyles.outlineButtonGold, globalStyles.actionButton, globalStyles.groupActionIconButton, globalStyles.actionButtonDanger]}
-            onPress={() => handleCancelPendingFriendRequest(member)}
-            disabled={sendingFriendRequest}
-          >
-            <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionButtonText, globalStyles.actionButtonDangerText]}>Angre</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
-    );
-  };
-
   return (
     <View style={globalStyles.containerWeb}>
       <View style={groupStyles.groupMembersHeaderBar}>
-          <TouchableOpacity onPress={navigateBackToGroup} style={groupStyles.heroImageBackButton}>
-            <Text style={globalStyles.iconBackButtonText}>←</Text>
-          </TouchableOpacity>
-          <View style={groupStyles.groupMembersHeaderTitleWrap}>
-            <Text style={groupStyles.groupHeaderName}>{group?.name || 'Gruppe'}</Text>
-          </View>
+        <TouchableOpacity onPress={navigateBackToGroup} style={groupStyles.heroImageBackButton}>
+          <Text style={globalStyles.iconBackButtonText}>←</Text>
+        </TouchableOpacity>
+        <View style={groupStyles.groupMembersHeaderTitleWrap}>
+          <Text style={groupStyles.groupHeaderName}>{group?.name || 'Gruppe'}</Text>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={[globalStyles.fullWidthScrollContent, groupStyles.pageScrollContent]} showsVerticalScrollIndicator={false}>
@@ -324,7 +234,35 @@ const GroupMembersScreen = () => {
           {loading ? (
             <Text style={groupStyles.modalLoadingText}>Laster...</Text>
           ) : memberData.length > 0 ? (
-            <View style={globalStyles.listContainer}>{memberData.map((member) => renderMemberRow(member))}</View>
+            <View style={globalStyles.listContainer}>
+              {memberData.map((member) => {
+                const isCreator = group?.createdBy === member.id;
+                const isCurrentUserCreator = user?.id === group?.createdBy;
+                const isCurrentUser = user?.id === member.id;
+                const isFriend = friends.some((friend) => friend.id === member.id);
+                const hasOutgoingRequest = pendingFriendRequests.some((request) => request.toUserId === member.id);
+                const hasIncomingRequest = incomingFriendRequests.some((request) => request.fromUserId === member.id);
+
+                return (
+                  <MemberRow
+                    key={member.id}
+                    item={member}
+                    isCreator={Boolean(isCreator)}
+                    isCurrentUser={Boolean(isCurrentUser)}
+                    isCurrentUserCreator={Boolean(isCurrentUserCreator)}
+                    isFriend={isFriend}
+                    hasOutgoingRequest={hasOutgoingRequest}
+                    hasIncomingRequest={hasIncomingRequest}
+                    sendingFriendRequest={sendingFriendRequest}
+                    inviting={inviting}
+                    onRemoveMember={handleRemoveMember}
+                    onAddFriend={handleSendFriendRequest}
+                    onAcceptFriend={handleAcceptIncomingFriendRequest}
+                    onCancelFriend={handleCancelPendingFriendRequest}
+                  />
+                );
+              })}
+            </View>
           ) : (
             <Text style={[globalStyles.secondaryText, { textAlign: 'center' }]}>Ingen medlemmer i gruppen</Text>
           )}
@@ -378,3 +316,4 @@ const GroupMembersScreen = () => {
 };
 
 export default GroupMembersScreen;
+

@@ -34,6 +34,18 @@ export const groupStyles = StyleSheet.create({
     zIndex: 3,
     ...globalStyles.iconBackButton,
   },
+  groupHeaderNavButtonCompact: {
+    width: theme.sizes.iconButton * 0.8,
+    height: theme.sizes.iconButton * 0.8,
+    borderRadius: (theme.sizes.iconButton * 0.8) / 2,
+  },
+  groupHeaderNavBackTextCompact: {
+    fontSize: theme.fonts.xl * 0.7,
+  },
+  groupHeaderNavIconCompact: {
+    width: 13,
+    height: 13,
+  },
   groupMembersHeaderBar: {
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
