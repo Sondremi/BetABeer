@@ -215,6 +215,8 @@ const GroupScreen = () => {
   const shouldScrollPlannedDistributions = distributions.length > 5;
   const shouldScrollBetOptions = betOptions.length >= 5;
   const shouldScrollEditBetOptions = editBetOptions.length >= 5;
+  const canAddBetOption = betOptions.length < INPUT_LIMITS.betOptionCountMax;
+  const canAddEditBetOption = editBetOptions.length < INPUT_LIMITS.betOptionCountMax;
   const canSaveBet =
     normalizeSingleLineText(betTitle).length > 0 &&
     normalizeSingleLineText(betTitle).length <= INPUT_LIMITS.betTitleMax &&
@@ -1273,8 +1275,7 @@ const GroupScreen = () => {
   };
 
   const addBetOption = () => {
-    if (betOptions.length >= INPUT_LIMITS.betOptionCountMax) {
-      showAlert('Feil', `Maks ${INPUT_LIMITS.betOptionCountMax} alternativer per bet`);
+    if (!canAddBetOption) {
       return;
     }
     setBetOptions([...betOptions, { name: '' }]);
@@ -1521,8 +1522,7 @@ const GroupScreen = () => {
   };
 
   const addEditBetOption = () => {
-    if (editBetOptions.length >= INPUT_LIMITS.betOptionCountMax) {
-      showAlert('Feil', `Maks ${INPUT_LIMITS.betOptionCountMax} alternativer per bet`);
+    if (!canAddEditBetOption) {
       return;
     }
     setEditBetOptions([...editBetOptions, { name: '' }]);
@@ -2866,8 +2866,12 @@ const GroupScreen = () => {
                   </View>
                 ))}
               </ScrollView>
-              <TouchableOpacity onPress={addBetOption} style={{ marginBottom: theme.spacing.md, alignSelf: 'flex-start' }}>
-                <Text style={globalStyles.addOptionText}>+ Legg til alternativ</Text>
+              <TouchableOpacity
+                onPress={addBetOption}
+                disabled={!canAddBetOption}
+                style={{ marginBottom: theme.spacing.md, alignSelf: 'flex-start' }}
+              >
+                <Text style={[globalStyles.addOptionText, !canAddBetOption && globalStyles.disabledGoldActionText]}>+ Legg til alternativ</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={addAllGroupMembersAsBetOptions} style={{ marginBottom: theme.spacing.md, alignSelf: 'flex-start' }}>
                 <Text style={globalStyles.addOptionText}>+ Fyll med alle gruppemedlemmer</Text>
@@ -3088,8 +3092,12 @@ const GroupScreen = () => {
                   </View>
                 ))}
               </ScrollView>
-              <TouchableOpacity onPress={addEditBetOption} style={{ marginBottom: theme.spacing.md, alignSelf: 'flex-start' }}>
-                <Text style={globalStyles.addOptionText}>+ Legg til alternativ</Text>
+              <TouchableOpacity
+                onPress={addEditBetOption}
+                disabled={!canAddEditBetOption}
+                style={{ marginBottom: theme.spacing.md, alignSelf: 'flex-start' }}
+              >
+                <Text style={[globalStyles.addOptionText, !canAddEditBetOption && globalStyles.disabledGoldActionText]}>+ Legg til alternativ</Text>
               </TouchableOpacity>
               <View style={globalStyles.inputGroup}>
                 <Text style={globalStyles.label}>Anonymitet</Text>
