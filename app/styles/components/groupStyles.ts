@@ -34,18 +34,6 @@ export const groupStyles = StyleSheet.create({
     zIndex: 3,
     ...globalStyles.iconBackButton,
   },
-  groupHeaderNavButtonCompact: {
-    width: theme.sizes.iconButton * 0.8,
-    height: theme.sizes.iconButton * 0.8,
-    borderRadius: (theme.sizes.iconButton * 0.8) / 2,
-  },
-  groupHeaderNavBackTextCompact: {
-    fontSize: theme.fonts.xl * 0.7,
-  },
-  groupHeaderNavIconCompact: {
-    width: 13,
-    height: 13,
-  },
   groupMembersHeaderBar: {
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
@@ -155,7 +143,7 @@ export const groupStyles = StyleSheet.create({
   actionGridRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: theme.spacing.xs,
+    gap: theme.spacing.xxxs,
     marginBottom: theme.spacing.xs,
   },
   actionGridRowLast: {
@@ -165,10 +153,14 @@ export const groupStyles = StyleSheet.create({
     flex: 1,
     marginBottom: 0,
     paddingVertical: theme.spacing.sm + theme.spacing.xxxs,
+    paddingHorizontal: theme.spacing.xs,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderRadius: theme.borderRadius.sm,
+  },
+  actionGridButtonTextCompact: {
+    fontSize: theme.fonts.xs,
   },
   betListSection: {
     paddingBottom: theme.spacing.xl,

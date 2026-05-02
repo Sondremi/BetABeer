@@ -57,11 +57,11 @@ const GroupHeader = ({
   return (
     <View style={globalStyles.headerContainer}>
       <Image source={currentGroup.image} style={globalStyles.groupHeaderImage} />
-      <TouchableOpacity onPress={onBackToProfile} style={[groupStyles.heroImageBackButton, groupStyles.groupHeaderNavButtonCompact]}>
-        <Text style={[globalStyles.iconBackButtonText, groupStyles.groupHeaderNavBackTextCompact]}>←</Text>
+      <TouchableOpacity onPress={onBackToProfile} style={groupStyles.heroImageBackButton}>
+        <Text style={globalStyles.iconBackButtonText}>←</Text>
       </TouchableOpacity>
-      <TouchableOpacity onPress={onOpenMembers} style={[groupStyles.heroImageTopRightButton, groupStyles.groupHeaderNavButtonCompact]}>
-        <Image source={peopleIcon} style={[globalStyles.primaryIcon, groupStyles.groupHeaderNavIconCompact]} />
+      <TouchableOpacity onPress={onOpenMembers} style={groupStyles.heroImageTopRightButton}>
+        <Image source={peopleIcon} style={globalStyles.primaryIcon} />
       </TouchableOpacity>
       <View style={[globalStyles.overlay, groupStyles.groupHeaderOverlayCompact]}>
         <View style={globalStyles.headerInfo}>
