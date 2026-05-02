@@ -18,7 +18,7 @@ const GroupActionPanel = ({
     <View style={groupStyles.actionCard}>
       <View style={groupStyles.actionGridRow}>
         <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={onOpenBetModal}>
-          <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Opprett bett</Text>
+          <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Opprett bet</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[globalStyles.outlineButtonGold, groupStyles.actionGridButton]} onPress={onOpenDistributeModal}>
           <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>Del ut slurker</Text>

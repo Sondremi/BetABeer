@@ -8,7 +8,7 @@ import { authService } from '../../services/firebase/authService';
 import { sendFriendRequest } from '../../services/friendService';
 import { joinGroupFromInviteLink } from '../../services/groupService';
 import { globalStyles } from '../../styles/globalStyles';
-import { INPUT_LIMITS, normalizeSingleLineText } from '../../utils/inputValidation';
+import { INPUT_LIMITS, isValidEmailFormat, normalizeSingleLineText } from '../../utils/inputValidation';
 import { showAlert } from '../../utils/platformAlert';
 import LoginAuthCard from './components/LoginAuthCard';
 import LoginBrandSection from './components/LoginBrandSection';
@@ -32,11 +32,6 @@ const INITIAL_FORM_DATA: LoginFormData = {
   name: '',
   email: '',
   confirmPassword: '',
-};
-
-const isValidEmail = (value: string) => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(value);
 };
 
 const LoginScreen: React.FC = () => {
@@ -142,7 +137,7 @@ const LoginScreen: React.FC = () => {
       return false;
     }
 
-    if (!isValidEmail(normalizedEmail)) {
+    if (!isValidEmailFormat(normalizedEmail)) {
       showAlert('Feil', 'Ugyldig e-postadresse');
       return false;
     }
@@ -238,7 +233,7 @@ const LoginScreen: React.FC = () => {
       return;
     }
 
-    if (!isValidEmail(trimmedEmail)) {
+    if (!isValidEmailFormat(trimmedEmail)) {
       showAlert('Feil', 'Ugyldig e-postadresse');
       return;
     }
