@@ -1,6 +1,6 @@
-// This file exists only to avoid a route warning. Can be customized later.
 import { Redirect } from 'expo-router';
 
+// Default route inside the tabs group: open Groups.
 export default function TabIndex() {
   return <Redirect href="/groups" />;
 }
