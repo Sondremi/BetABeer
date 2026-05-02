@@ -2610,7 +2610,8 @@ const GroupScreen = () => {
             <View style={{ marginTop: theme.spacing.md }}>
               {bets.map((item) => {
                 const isHiddenForCurrentUser = item.hiddenFromUserIds?.includes(user?.id || '');
-                if (isHiddenForCurrentUser) {
+                const shouldHideForCurrentUser = isHiddenForCurrentUser && !item.isFinished;
+                if (shouldHideForCurrentUser) {
                   return (
                     <View key={item.id} style={groupStyles.betContainer}>
                       <View style={[globalStyles.contentCard, globalStyles.betSpacing]}>
