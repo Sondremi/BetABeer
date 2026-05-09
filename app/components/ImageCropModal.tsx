@@ -1,3 +1,4 @@
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -10,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 
@@ -230,8 +230,11 @@ const ImageCropModal = ({
                   source={{ uri: imageUri }}
                   onLoad={handleImageLoad}
                   style={{
+                    position: 'absolute',
                     width: resolvedSize ? resolvedSize.width * scale : frameWidth,
                     height: resolvedSize ? resolvedSize.height * scale : frameHeight,
+                    left: resolvedSize ? (frameWidth - resolvedSize.width * scale) / 2 : 0,
+                    top: resolvedSize ? (frameHeight - resolvedSize.height * scale) / 2 : 0,
                     transform: [{ translateX: pan.x }, { translateY: pan.y }],
                   }}
                   resizeMode="cover"
