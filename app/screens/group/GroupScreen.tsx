@@ -577,6 +577,11 @@ const GroupScreen = () => {
       return;
     }
 
+    if (!user?.emailVerified) {
+      showAlert('Verifisering kreves', MEDIA_UPLOAD_VERIFICATION_MESSAGE);
+      return;
+    }
+
     try {
       await authService.ensureVerifiedEmailForMediaUpload();
     } catch (error) {

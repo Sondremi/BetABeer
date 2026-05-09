@@ -42,6 +42,7 @@ const ImageCropModal = ({
   const [resolvedSize, setResolvedSize] = useState<{ width: number; height: number } | null>(
     imageWidth && imageHeight ? { width: imageWidth, height: imageHeight } : null
   );
+  const [zoom, setZoom] = useState(1);
 
   const screenWidth = Dimensions.get('window').width;
   const frameWidth = Math.min(screenWidth - theme.spacing.xxxl * 2, 320);
@@ -65,6 +66,7 @@ const ImageCropModal = ({
     if (!imageUri) return;
     pan.setValue({ x: 0, y: 0 });
     panStart.current = { x: 0, y: 0 };
+    setZoom(1);
     if (imageWidth && imageHeight) {
       setResolvedSize({ width: imageWidth, height: imageHeight });
     } else {
@@ -72,10 +74,12 @@ const ImageCropModal = ({
     }
   }, [imageUri, imageWidth, imageHeight, pan]);
 
-  const scale = useMemo(() => {
+  const baseScale = useMemo(() => {
     if (!resolvedSize) return 1;
     return Math.max(frameWidth / resolvedSize.width, frameHeight / resolvedSize.height);
   }, [frameHeight, frameWidth, resolvedSize]);
+
+  const scale = baseScale * zoom;
 
   const maxOffsetX = useMemo(() => {
     if (!resolvedSize) return 0;
@@ -106,6 +110,15 @@ const ImageCropModal = ({
       },
     })
   ), [maxOffsetX, maxOffsetY, pan]);
+
+  useEffect(() => {
+    const nextX = clamp(panValue.current.x, -maxOffsetX, maxOffsetX);
+    const nextY = clamp(panValue.current.y, -maxOffsetY, maxOffsetY);
+    if (nextX !== panValue.current.x || nextY !== panValue.current.y) {
+      pan.setValue({ x: nextX, y: nextY });
+      panStart.current = { x: nextX, y: nextY };
+    }
+  }, [maxOffsetX, maxOffsetY, pan]);
 
   const handleConfirm = async () => {
     if (!imageUri || !resolvedSize) return;
@@ -157,6 +170,17 @@ const ImageCropModal = ({
     onCancel();
   };
 
+  const canZoomOut = zoom > 1;
+  const canZoomIn = zoom < 3;
+
+  const handleZoomIn = () => {
+    setZoom((prev) => clamp(Number((prev + 0.2).toFixed(2)), 1, 3));
+  };
+
+  const handleZoomOut = () => {
+    setZoom((prev) => clamp(Number((prev - 0.2).toFixed(2)), 1, 3));
+  };
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleCancel}>
       <View style={globalStyles.modalContainer}>
@@ -178,6 +202,26 @@ const ImageCropModal = ({
                   resizeMode="cover"
                 />
               )}
+            </View>
+          </View>
+          <View style={styles.zoomRow}>
+            <Text style={styles.zoomLabel}>Zoom</Text>
+            <View style={styles.zoomControls}>
+              <TouchableOpacity
+                onPress={handleZoomOut}
+                disabled={!canZoomOut}
+                style={[styles.zoomButton, !canZoomOut && styles.zoomButtonDisabled]}
+              >
+                <Text style={[styles.zoomButtonText, !canZoomOut && styles.zoomButtonTextDisabled]}>-</Text>
+              </TouchableOpacity>
+              <Text style={styles.zoomValue}>{Math.round(zoom * 100)}%</Text>
+              <TouchableOpacity
+                onPress={handleZoomIn}
+                disabled={!canZoomIn}
+                style={[styles.zoomButton, !canZoomIn && styles.zoomButtonDisabled]}
+              >
+                <Text style={[styles.zoomButtonText, !canZoomIn && styles.zoomButtonTextDisabled]}>+</Text>
+              </TouchableOpacity>
             </View>
           </View>
           <View style={styles.buttonRow}>
@@ -214,6 +258,50 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: theme.fonts.sm,
     marginBottom: theme.spacing.sm,
+  },
+  zoomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.md,
+  },
+  zoomLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.fonts.sm,
+    fontWeight: '600',
+  },
+  zoomControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  zoomButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surface,
+  },
+  zoomButtonDisabled: {
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.backgroundCard,
+  },
+  zoomButtonText: {
+    color: theme.colors.primary,
+    fontSize: theme.fonts.lg,
+    fontWeight: '700',
+  },
+  zoomButtonTextDisabled: {
+    color: theme.colors.textMuted,
+  },
+  zoomValue: {
+    color: theme.colors.text,
+    fontSize: theme.fonts.sm,
+    minWidth: 52,
+    textAlign: 'center',
   },
   buttonRow: {
     flexDirection: 'row',
