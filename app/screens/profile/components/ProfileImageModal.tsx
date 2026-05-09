@@ -37,7 +37,7 @@ const ProfileImageModal = ({
   setDisplayName,
 }: ProfileImageModalProps) => {
   const [nameFocused, setNameFocused] = useState(false);
-  const previewSource = resolveProfileImageSource(currentProfileImage, DefaultProfilePicture);
+  const previewSource = resolveProfileImageSource(selectedProfileImage ?? currentProfileImage, DefaultProfilePicture);
   const canRemoveImage = Boolean(selectedProfileImage && !isDefaultProfileImageKey(selectedProfileImage));
 
   return (
