@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { authService } from '../../../services/firebase/authService';
@@ -196,8 +197,53 @@ export const useProfileBac = ({ userId, userInfo, setUserInfo, windowWidth }: Us
   const [drinkForm, setDrinkForm] = useState<DrinkFormState>(() => createInitialDrinkForm());
   const [bacCalculationTime, setBacCalculationTime] = useState(() => Date.now());
   const [selectedEstimatorDrinkKey, setSelectedEstimatorDrinkKey] = useState<string>('');
+  const [hasHydratedExpandedState, setHasHydratedExpandedState] = useState(false);
   const twentyFourHoursMs = 24 * 60 * 60 * 1000;
   const soberBacThreshold = 0.2;
+  const bacExpandedStorageKey = userId ? `profileBacExpanded:${userId}` : null;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const hydrateBacExpandedState = async () => {
+      if (!bacExpandedStorageKey) {
+        if (isMounted) setHasHydratedExpandedState(true);
+        return;
+      }
+
+      try {
+        const storedValue = await AsyncStorage.getItem(bacExpandedStorageKey);
+        if (!isMounted) return;
+        if (storedValue != null) {
+          setIsExpanded(storedValue === 'true');
+        }
+      } catch (error) {
+        console.error('Failed to hydrate BAC expanded state:', error);
+      } finally {
+        if (isMounted) setHasHydratedExpandedState(true);
+      }
+    };
+
+    hydrateBacExpandedState();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [bacExpandedStorageKey]);
+
+  useEffect(() => {
+    const persistBacExpandedState = async () => {
+      if (!bacExpandedStorageKey || !hasHydratedExpandedState) return;
+
+      try {
+        await AsyncStorage.setItem(bacExpandedStorageKey, String(isExpanded));
+      } catch (error) {
+        console.error('Failed to persist BAC expanded state:', error);
+      }
+    };
+
+    persistBacExpandedState();
+  }, [bacExpandedStorageKey, hasHydratedExpandedState, isExpanded]);
 
   const currentBACValue = useMemo(() => {
     if (!userInfo.drinks || !userInfo.weight || !userInfo.gender) return 0;
