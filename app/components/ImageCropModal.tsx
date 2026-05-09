@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
+  Image,
   Modal,
   PanResponder,
   StyleSheet,
@@ -45,10 +46,13 @@ const ImageCropModal = ({
     imageWidth && imageHeight ? { width: imageWidth, height: imageHeight } : null
   );
   const [zoom, setZoom] = useState(1);
+  const [frameSize, setFrameSize] = useState<{ width: number; height: number } | null>(null);
 
   const screenWidth = Dimensions.get('window').width;
-  const frameWidth = Math.min(screenWidth - theme.spacing.xxxl * 2, 320);
-  const frameHeight = Math.round(frameWidth / aspectRatio);
+  const fallbackFrameWidth = Math.min(screenWidth - theme.spacing.xxxl * 2, 320);
+  const fallbackFrameHeight = Math.round(fallbackFrameWidth / aspectRatio);
+  const frameWidth = frameSize?.width ?? fallbackFrameWidth;
+  const frameHeight = frameSize?.height ?? fallbackFrameHeight;
 
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const panValue = useRef({ x: 0, y: 0 });
@@ -69,11 +73,29 @@ const ImageCropModal = ({
     pan.setValue({ x: 0, y: 0 });
     panStart.current = { x: 0, y: 0 };
     setZoom(1);
-    if (imageWidth && imageHeight) {
-      setResolvedSize({ width: imageWidth, height: imageHeight });
-    } else {
-      setResolvedSize(null);
-    }
+    let didCancel = false;
+
+    const fallbackSize = imageWidth && imageHeight
+      ? { width: imageWidth, height: imageHeight }
+      : null;
+
+    Image.getSize(
+      imageUri,
+      (width, height) => {
+        if (!didCancel) {
+          setResolvedSize({ width, height });
+        }
+      },
+      () => {
+        if (!didCancel) {
+          setResolvedSize(fallbackSize);
+        }
+      }
+    );
+
+    return () => {
+      didCancel = true;
+    };
   }, [imageUri, imageWidth, imageHeight, pan]);
 
   const baseScale = useMemo(() => {
@@ -163,6 +185,13 @@ const ImageCropModal = ({
     }
   };
 
+  const handleFrameLayout = (event: any) => {
+    const { width, height } = event?.nativeEvent?.layout || {};
+    if (typeof width === 'number' && typeof height === 'number') {
+      setFrameSize({ width, height });
+    }
+  };
+
   const frameStyle = [
     styles.cropFrame,
     { width: frameWidth, height: frameHeight },
@@ -194,7 +223,7 @@ const ImageCropModal = ({
           <Text style={globalStyles.modalTitle}>{title || 'Tilpass bildet'}</Text>
           <Text style={styles.helperText}>Dra bildet for å plassere det i rammen.</Text>
           <View style={styles.cropAreaWrap}>
-            <View style={frameStyle}>
+            <View style={frameStyle} onLayout={handleFrameLayout}>
               {imageUri && (
                 <Animated.Image
                   {...panResponder.panHandlers}
