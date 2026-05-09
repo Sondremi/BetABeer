@@ -28,6 +28,11 @@ export const settingsStyles = StyleSheet.create({
     marginBottom: theme.spacing.md,
     width: '100%',
   },
+  userInfoHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   compactInput: {
     height: theme.sizes.iconButton,
     borderWidth: 0,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { settingsScreenTokens, settingsStyles } from '../../../styles/components/settingsStyles';
 import { globalStyles } from '../../../styles/globalStyles';
 import { INPUT_LIMITS, clampDigits } from '../../../utils/inputValidation';
@@ -38,9 +38,23 @@ const UserInfoSection = ({
   setFocusedField,
   setEditedInfo,
 }: UserInfoSectionProps) => {
+  const PencilIcon = require('../../../../assets/icons/noun-pencil-969012.png');
+
   return (
     <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
-      <Text style={globalStyles.sectionTitle}>Brukerinformasjon</Text>
+      <View style={settingsStyles.userInfoHeaderRow}>
+        <Text style={globalStyles.sectionTitleLeft}>Brukerinformasjon</Text>
+        {!isEditing && (
+          <TouchableOpacity
+            style={globalStyles.iconBackButton}
+            onPress={onStartEdit}
+            accessibilityRole="button"
+            accessibilityLabel="Rediger brukerinformasjon"
+          >
+            <Image source={PencilIcon} style={globalStyles.primaryIcon} />
+          </TouchableOpacity>
+        )}
+      </View>
 
       <View style={globalStyles.inputGroup}>
         <Text style={globalStyles.label}>Brukernavn</Text>
@@ -208,9 +222,7 @@ const UserInfoSection = ({
             </TouchableOpacity>
           </>
         ) : (
-          <TouchableOpacity style={settingsStyles.fullWidthButton} onPress={onStartEdit}>
-            <Text style={globalStyles.outlineButtonGoldText}>Rediger informasjon</Text>
-          </TouchableOpacity>
+          null
         )}
       </View>
     </View>
