@@ -5,7 +5,7 @@ import { collection, doc, FieldPath, getDoc, getDocs, getFirestore, increment, q
 import React, { useCallback, useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { authService } from '../../services/firebase/authService';
+import { MEDIA_UPLOAD_VERIFICATION_MESSAGE, authService } from '../../services/firebase/authService';
 import { firestore } from '../../services/firebase/FirebaseConfig';
 import { cancelGroupInvitation, deleteGroup, distributeDrinks, exitGroup, registerConsumedDrinks, removeFriendFromGroup, sendGroupInvitation } from '../../services/groupService';
 import { removeGroupImage, uploadGroupImage } from '../../services/profileImageUploadService';
@@ -19,6 +19,7 @@ import { Friend } from '../../types/userTypes';
 import { clampDigits, INPUT_LIMITS, isIntInRange, normalizeSingleLineText } from '../../utils/inputValidation';
 import { showAlert } from '../../utils/platformAlert';
 import { getDefaultProfilePicture, resolveProfileImageSource } from '../../utils/profileImage';
+import ImageCropModal from '../../components/ImageCropModal';
 import BetCard from './components/BetCard';
 import DetailedDrinkOverviewCard from './components/DetailedDrinkOverviewCard';
 import DistributionMemberCard from './components/DistributionMemberCard';
@@ -127,6 +128,12 @@ const GroupScreen = () => {
   const [consumingDrinkKey, setConsumingDrinkKey] = useState<string | null>(null);
   const [drinkDetailViewByUser, setDrinkDetailViewByUser] = useState<Record<string, 'consume' | 'consumed' | 'distribute'>>({});
   const [uploadingGroupImage, setUploadingGroupImage] = useState(false);
+  const [groupCropModalVisible, setGroupCropModalVisible] = useState(false);
+  const [pendingGroupCrop, setPendingGroupCrop] = useState<{
+    uri: string;
+    width?: number;
+    height?: number;
+  } | null>(null);
   const {
     averageBacBarProgress,
     bacLeaderboardData,
@@ -571,6 +578,18 @@ const GroupScreen = () => {
     }
 
     try {
+      await authService.ensureVerifiedEmailForMediaUpload();
+    } catch (error) {
+      const errorMessage = (error as Error).message || MEDIA_UPLOAD_VERIFICATION_MESSAGE;
+      if (errorMessage.toLowerCase().includes('verifiser')) {
+        showAlert('Verifisering kreves', MEDIA_UPLOAD_VERIFICATION_MESSAGE);
+      } else {
+        showAlert('Feil', errorMessage);
+      }
+      return;
+    }
+
+    try {
       if (Platform.OS !== 'web') {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permissionResult.granted) {
@@ -581,31 +600,46 @@ const GroupScreen = () => {
 
       const pickerResult = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
+        allowsEditing: false,
         quality: 0.7,
-        aspect: [16, 9],
       });
 
       if (pickerResult.canceled || !pickerResult.assets?.length) {
         return;
       }
-
-      await authService.ensureVerifiedEmailForMediaUpload();
-      setUploadingGroupImage(true);
-
       const selectedAsset = pickerResult.assets[0];
-      const webFile = (selectedAsset as any).file as Blob | undefined;
-      const uploadedImageUrl = await uploadGroupImage(selectedGroup.id, webFile ?? selectedAsset.uri);
+      setPendingGroupCrop({
+        uri: selectedAsset.uri,
+        width: selectedAsset.width,
+        height: selectedAsset.height,
+      });
+      setGroupCropModalVisible(true);
+    } catch (error) {
+      console.error('Error uploading group image:', error);
+      const errorMessage = (error as Error).message || 'Kunne ikke laste opp gruppebilde.';
+      showAlert('Feil', errorMessage);
+    }
+  };
+
+  const handleGroupCropCancel = () => {
+    setGroupCropModalVisible(false);
+    setPendingGroupCrop(null);
+  };
+
+  const handleGroupCropConfirm = async (croppedUri: string) => {
+    if (!selectedGroup?.id) return;
+    setGroupCropModalVisible(false);
+    setPendingGroupCrop(null);
+
+    setUploadingGroupImage(true);
+    try {
+      const uploadedImageUrl = await uploadGroupImage(selectedGroup.id, croppedUri);
       await updateDoc(doc(firestore, 'groups', selectedGroup.id), { image: uploadedImageUrl });
       await applyGroupImageLocally(selectedGroup.id, uploadedImageUrl);
     } catch (error) {
       console.error('Error uploading group image:', error);
       const errorMessage = (error as Error).message || 'Kunne ikke laste opp gruppebilde.';
-      if (errorMessage.toLowerCase().includes('verifiser')) {
-        showAlert('Verifisering kreves', errorMessage);
-      } else {
-        showAlert('Feil', errorMessage);
-      }
+      showAlert('Feil', errorMessage);
     } finally {
       setUploadingGroupImage(false);
     }
@@ -1470,6 +1504,18 @@ const GroupScreen = () => {
         updateBetOption={updateBetOption}
         updateEditBetOption={updateEditBetOption}
         user={user}
+      />
+
+      <ImageCropModal
+        visible={groupCropModalVisible}
+        imageUri={pendingGroupCrop?.uri ?? null}
+        imageWidth={pendingGroupCrop?.width}
+        imageHeight={pendingGroupCrop?.height}
+        aspectRatio={16 / 9}
+        shape="rect"
+        title="Tilpass gruppebilde"
+        onCancel={handleGroupCropCancel}
+        onConfirm={handleGroupCropConfirm}
       />
     </KeyboardAvoidingView>
   );
