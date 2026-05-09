@@ -515,6 +515,11 @@ export const profileStyles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: theme.spacing.sm,
   },
+  profileUploadPreviewImageLarge: {
+    width: theme.sizes.avatarHero,
+    height: theme.sizes.avatarHero,
+    borderRadius: theme.sizes.avatarHero / 2,
+  },
   profileModalActionRow: {
     flexDirection: 'row',
     gap: theme.spacing.xs,
@@ -541,6 +546,24 @@ export const profileStyles = StyleSheet.create({
     fontSize: theme.fonts.sm,
     fontWeight: '600',
     lineHeight: theme.fonts.md,
+  },
+  profileImageContainerModal: {
+    marginBottom: 0,
+  },
+  profileModalMeta: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  profileRemoveImageText: {
+    color: theme.colors.errorLight,
+    fontSize: theme.fonts.xs,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingVertical: theme.spacing.xs,
+  },
+  profileUploadDisabledText: {
+    textAlign: 'center',
+    marginTop: theme.spacing.xs,
   },
   profileUploadHintText: {
     color: theme.colors.textMuted,

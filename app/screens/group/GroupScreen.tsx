@@ -4,8 +4,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, FieldPath, getDoc, getDocs, getFirestore, increment, query, updateDoc, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import ImageCropModal from '../../components/ImageCropModal';
 import { useAuth } from '../../context/AuthContext';
-import { authService } from '../../services/firebase/authService';
+import { authService, MEDIA_UPLOAD_VERIFICATION_MESSAGE } from '../../services/firebase/authService';
 import { firestore } from '../../services/firebase/FirebaseConfig';
 import { cancelGroupInvitation, deleteGroup, distributeDrinks, exitGroup, registerConsumedDrinks, removeFriendFromGroup, sendGroupInvitation } from '../../services/groupService';
 import { removeGroupImage, uploadGroupImage } from '../../services/profileImageUploadService';
@@ -19,6 +20,7 @@ import { Friend } from '../../types/userTypes';
 import { clampDigits, INPUT_LIMITS, isIntInRange, normalizeSingleLineText } from '../../utils/inputValidation';
 import { showAlert } from '../../utils/platformAlert';
 import { getDefaultProfilePicture, resolveProfileImageSource } from '../../utils/profileImage';
+import ActiveBetsSection from './components/ActiveBetsSection';
 import BetCard from './components/BetCard';
 import DetailedDrinkOverviewCard from './components/DetailedDrinkOverviewCard';
 import DistributionMemberCard from './components/DistributionMemberCard';
@@ -26,7 +28,6 @@ import FriendInviteRow from './components/FriendInviteRow';
 import GroupActionPanel from './components/GroupActionPanel';
 import GroupExitSection from './components/GroupExitSection';
 import GroupHeader from './components/GroupHeader';
-import ActiveBetsSection from './components/ActiveBetsSection';
 import LeaderboardPodiumCard from './components/LeaderboardPodiumCard';
 import LeaderboardRow from './components/LeaderboardRow';
 import MemberRow from './components/MemberRow';
@@ -127,6 +128,12 @@ const GroupScreen = () => {
   const [consumingDrinkKey, setConsumingDrinkKey] = useState<string | null>(null);
   const [drinkDetailViewByUser, setDrinkDetailViewByUser] = useState<Record<string, 'consume' | 'consumed' | 'distribute'>>({});
   const [uploadingGroupImage, setUploadingGroupImage] = useState(false);
+  const [groupCropModalVisible, setGroupCropModalVisible] = useState(false);
+  const [pendingGroupCrop, setPendingGroupCrop] = useState<{
+    uri: string;
+    width?: number;
+    height?: number;
+  } | null>(null);
   const {
     averageBacBarProgress,
     bacLeaderboardData,
@@ -221,7 +228,7 @@ const GroupScreen = () => {
   const canPlaceBet = Boolean(selectedBetOption && user && selectedGroup) && placeBetValidationMessage === null;
   const canEditGroupName = Boolean(selectedGroup && user?.id && selectedGroup.members?.includes(user.id));
   const canManageGroupImage = Boolean(selectedGroup && user?.id && selectedGroup.createdBy === user.id);
-  const hasCustomGroupImage = Boolean(selectedGroup?.imageUrl);
+  const hasCustomGroupImage = Boolean(selectedGroup?.imageUrl && /^https?:\/\//i.test(selectedGroup.imageUrl));
   const availableDistributionEntries = Object.entries(userDrinksToDistribute).flatMap(([drinkType, measures]) =>
     Object.entries(measures || {})
       .filter(([, amount]) => Number(amount) > 0)
@@ -570,6 +577,11 @@ const GroupScreen = () => {
       return;
     }
 
+    if (!user?.emailVerified) {
+      showAlert('Verifisering kreves', MEDIA_UPLOAD_VERIFICATION_MESSAGE);
+      return;
+    }
+
     try {
       if (Platform.OS !== 'web') {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -581,37 +593,54 @@ const GroupScreen = () => {
 
       const pickerResult = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
+        allowsEditing: false,
         quality: 0.7,
-        aspect: [16, 9],
       });
 
       if (pickerResult.canceled || !pickerResult.assets?.length) {
         return;
       }
-
-      await authService.ensureVerifiedEmailForMediaUpload();
-      setUploadingGroupImage(true);
-
       const selectedAsset = pickerResult.assets[0];
-      const webFile = (selectedAsset as any).file as Blob | undefined;
-      const uploadedImageUrl = await uploadGroupImage(selectedGroup.id, webFile ?? selectedAsset.uri);
-      await updateDoc(doc(firestore, 'groups', selectedGroup.id), { image: uploadedImageUrl });
-      await applyGroupImageLocally(selectedGroup.id, uploadedImageUrl);
+      setPendingGroupCrop({
+        uri: selectedAsset.uri,
+        width: selectedAsset.width,
+        height: selectedAsset.height,
+      });
+      setGroupCropModalVisible(true);
     } catch (error) {
       console.error('Error uploading group image:', error);
       const errorMessage = (error as Error).message || 'Kunne ikke laste opp gruppebilde.';
-      if (errorMessage.toLowerCase().includes('verifiser')) {
-        showAlert('Verifisering kreves', errorMessage);
-      } else {
-        showAlert('Feil', errorMessage);
-      }
+      showAlert('Feil', errorMessage);
+    }
+  };
+
+  const handleGroupCropCancel = () => {
+    setGroupCropModalVisible(false);
+    setPendingGroupCrop(null);
+  };
+
+  const handleGroupCropConfirm = async (croppedUri: string) => {
+    if (!selectedGroup?.id) return;
+    setGroupCropModalVisible(false);
+    setPendingGroupCrop(null);
+
+    setUploadingGroupImage(true);
+    try {
+      await authService.ensureVerifiedEmailForMediaUpload();
+      const uploadedImageUrl = await uploadGroupImage(selectedGroup.id, croppedUri);
+      const cacheBustedUrl = `${uploadedImageUrl}${uploadedImageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+      await updateDoc(doc(firestore, 'groups', selectedGroup.id), { image: cacheBustedUrl });
+      await applyGroupImageLocally(selectedGroup.id, cacheBustedUrl);
+    } catch (error) {
+      console.error('Error uploading group image:', error);
+      const errorMessage = (error as Error).message || 'Kunne ikke laste opp gruppebilde.';
+      showAlert('Feil', errorMessage);
     } finally {
       setUploadingGroupImage(false);
     }
   };
 
-  const handleRemoveGroupImage = async () => {
+  const handleRemoveGroupImage = () => {
     if (!selectedGroup?.id || !canManageGroupImage) {
       showAlert('Ikke tilgang', 'Kun gruppeeier kan fjerne gruppebildet');
       return;
@@ -620,19 +649,32 @@ const GroupScreen = () => {
       return;
     }
 
-    setUploadingGroupImage(true);
-    try {
-      await Promise.all([
-        updateDoc(doc(firestore, 'groups', selectedGroup.id), { image: null }),
-        removeGroupImage(selectedGroup.id),
-      ]);
-      await applyGroupImageLocally(selectedGroup.id, null);
-    } catch (error) {
-      console.error('Error removing group image:', error);
-      showAlert('Feil', 'Kunne ikke fjerne gruppebilde');
-    } finally {
-      setUploadingGroupImage(false);
-    }
+    showAlert(
+      'Fjern gruppebilde',
+      'Er du sikker på at du vil fjerne gruppebildet?',
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: 'Bekreft',
+          style: 'destructive',
+          onPress: async () => {
+            setUploadingGroupImage(true);
+            try {
+              await Promise.all([
+                updateDoc(doc(firestore, 'groups', selectedGroup.id), { image: null }),
+                removeGroupImage(selectedGroup.id),
+              ]);
+              await applyGroupImageLocally(selectedGroup.id, null);
+            } catch (error) {
+              console.error('Error removing group image:', error);
+              showAlert('Feil', 'Kunne ikke fjerne gruppebilde');
+            } finally {
+              setUploadingGroupImage(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const openBetModal = () => {
@@ -1470,6 +1512,18 @@ const GroupScreen = () => {
         updateBetOption={updateBetOption}
         updateEditBetOption={updateEditBetOption}
         user={user}
+      />
+
+      <ImageCropModal
+        visible={groupCropModalVisible}
+        imageUri={pendingGroupCrop?.uri ?? null}
+        imageWidth={pendingGroupCrop?.width}
+        imageHeight={pendingGroupCrop?.height}
+        aspectRatio={16 / 9}
+        shape="rect"
+        title="Tilpass gruppebilde"
+        onCancel={handleGroupCropCancel}
+        onConfirm={handleGroupCropConfirm}
       />
     </KeyboardAvoidingView>
   );

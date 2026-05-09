@@ -1,10 +1,13 @@
-import { EmailAuthProvider, GoogleAuthProvider, createUserWithEmailAndPassword, linkWithCredential, onAuthStateChanged as firebaseOnAuthStateChanged, reload, sendEmailVerification, sendPasswordResetEmail, signInAnonymously, signInWithCredential, signInWithEmailAndPassword, signOut, updateProfile, verifyBeforeUpdateEmail } from 'firebase/auth';
+import { EmailAuthProvider, GoogleAuthProvider, createUserWithEmailAndPassword, onAuthStateChanged as firebaseOnAuthStateChanged, linkWithCredential, reload, sendEmailVerification, sendPasswordResetEmail, signInAnonymously, signInWithCredential, signInWithEmailAndPassword, signOut, updateProfile, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { auth } from './FirebaseConfig';
 
 const firestore = getFirestore();
 const normalizeValue = (value) => String(value || '').trim().toLowerCase();
 const toDisplayValue = (value) => String(value || '').trim();
+
+export const MEDIA_UPLOAD_VERIFICATION_MESSAGE =
+  'Du må verifisere e-postadressen din før du kan laste opp bilder. Gå til innstillinger for å sende verifisering på nytt.';
 
 const buildFallbackUsername = (email, uid) => {
   const emailPrefix = String(email || '')
@@ -218,7 +221,7 @@ export const authService = {
       throw new Error('Kontoen mangler e-postadresse.');
     }
     if (!currentUser.emailVerified) {
-      throw new Error('Du må verifisere e-postadressen din før du kan laste opp bilder. Gå til innstillinger for å sende verifisering på nytt.');
+      throw new Error(MEDIA_UPLOAD_VERIFICATION_MESSAGE);
     }
     return true;
   },
