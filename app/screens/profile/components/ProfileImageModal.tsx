@@ -5,7 +5,7 @@ import { globalStyles } from '../../../styles/globalStyles';
 import { INPUT_LIMITS } from '../../../utils/inputValidation';
 import { defaultProfileImageMap, defaultProfileImages } from '../../../utils/defaultProfileImages';
 import { isDefaultProfileImageKey, resolveProfileImageSource } from '../../../utils/profileImage';
-import { DefaultProfilePicture } from '../profileAssets';
+import { DefaultProfilePicture, ImageMissing } from '../profileAssets';
 
 type ProfileImageModalProps = {
   visible: boolean;
@@ -37,8 +37,17 @@ const ProfileImageModal = ({
   setDisplayName,
 }: ProfileImageModalProps) => {
   const [nameFocused, setNameFocused] = useState(false);
-  const previewSource = resolveProfileImageSource(selectedProfileImage ?? currentProfileImage, DefaultProfilePicture);
+  const [hasClearedImage, setHasClearedImage] = useState(false);
+  const previewSource = hasClearedImage
+    ? ImageMissing
+    : resolveProfileImageSource(selectedProfileImage ?? currentProfileImage, DefaultProfilePicture);
   const canRemoveImage = Boolean(selectedProfileImage && !isDefaultProfileImageKey(selectedProfileImage));
+
+  React.useEffect(() => {
+    if (visible) {
+      setHasClearedImage(false);
+    }
+  }, [visible, currentProfileImage]);
 
   return (
     <Modal
@@ -82,7 +91,10 @@ const ProfileImageModal = ({
                   globalStyles.actionButtonDanger,
                   uploading && globalStyles.disabledButton,
                 ]}
-                onPress={() => setSelectedProfileImage(null)}
+                  onPress={() => {
+                    setSelectedProfileImage(null);
+                    setHasClearedImage(true);
+                  }}
                 disabled={uploading}
               >
                 <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText, globalStyles.actionButtonDangerText]}>
@@ -105,7 +117,10 @@ const ProfileImageModal = ({
                   profileStyles.profileImageChoice,
                   selectedProfileImage === img && profileStyles.profileImageChoiceSelected,
                 ]}
-                onPress={() => setSelectedProfileImage(img)}
+                onPress={() => {
+                  setSelectedProfileImage(img);
+                  setHasClearedImage(false);
+                }}
               >
                 <Image
                   source={defaultProfileImageMap[img]}
