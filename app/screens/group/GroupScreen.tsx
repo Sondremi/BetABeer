@@ -228,7 +228,7 @@ const GroupScreen = () => {
   const canPlaceBet = Boolean(selectedBetOption && user && selectedGroup) && placeBetValidationMessage === null;
   const canEditGroupName = Boolean(selectedGroup && user?.id && selectedGroup.members?.includes(user.id));
   const canManageGroupImage = Boolean(selectedGroup && user?.id && selectedGroup.createdBy === user.id);
-  const hasCustomGroupImage = Boolean(selectedGroup?.imageUrl);
+  const hasCustomGroupImage = Boolean(selectedGroup?.imageUrl && /^https?:\/\//i.test(selectedGroup.imageUrl));
   const availableDistributionEntries = Object.entries(userDrinksToDistribute).flatMap(([drinkType, measures]) =>
     Object.entries(measures || {})
       .filter(([, amount]) => Number(amount) > 0)
@@ -640,7 +640,7 @@ const GroupScreen = () => {
     }
   };
 
-  const handleRemoveGroupImage = async () => {
+  const handleRemoveGroupImage = () => {
     if (!selectedGroup?.id || !canManageGroupImage) {
       showAlert('Ikke tilgang', 'Kun gruppeeier kan fjerne gruppebildet');
       return;
@@ -649,19 +649,32 @@ const GroupScreen = () => {
       return;
     }
 
-    setUploadingGroupImage(true);
-    try {
-      await Promise.all([
-        updateDoc(doc(firestore, 'groups', selectedGroup.id), { image: null }),
-        removeGroupImage(selectedGroup.id),
-      ]);
-      await applyGroupImageLocally(selectedGroup.id, null);
-    } catch (error) {
-      console.error('Error removing group image:', error);
-      showAlert('Feil', 'Kunne ikke fjerne gruppebilde');
-    } finally {
-      setUploadingGroupImage(false);
-    }
+    showAlert(
+      'Fjern gruppebilde',
+      'Er du sikker på at du vil fjerne gruppebildet?',
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: 'Bekreft',
+          style: 'destructive',
+          onPress: async () => {
+            setUploadingGroupImage(true);
+            try {
+              await Promise.all([
+                updateDoc(doc(firestore, 'groups', selectedGroup.id), { image: null }),
+                removeGroupImage(selectedGroup.id),
+              ]);
+              await applyGroupImageLocally(selectedGroup.id, null);
+            } catch (error) {
+              console.error('Error removing group image:', error);
+              showAlert('Feil', 'Kunne ikke fjerne gruppebilde');
+            } finally {
+              setUploadingGroupImage(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const openBetModal = () => {
