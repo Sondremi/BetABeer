@@ -160,7 +160,7 @@ const UserInfoSection = ({
         )}
       </View>
 
-      <View style={globalStyles.inputGroup}>
+      <View style={[globalStyles.inputGroup, settingsStyles.lastInputGroup]}>
         <Text style={globalStyles.label}>Kjønn</Text>
         {isEditing ? (
           <View style={settingsStyles.genderSelectRow}>

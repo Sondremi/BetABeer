@@ -25,6 +25,7 @@ const ProfileBacSection = ({ userId, userInfo, setUserInfo }: ProfileBacSectionP
   const [showHighscoreDetails, setShowHighscoreDetails] = React.useState(false);
   const {
     isExpanded,
+    hasHydratedExpandedState,
     toggleExpanded,
     hasBacRequiredInfo,
     currentBAC,
@@ -64,7 +65,9 @@ const ProfileBacSection = ({ userId, userInfo, setUserInfo }: ProfileBacSectionP
     resetDrinkFormForCategory,
   } = useProfileBac({ userId, userInfo, setUserInfo, windowWidth });
 
-  const showCompactStats = !isExpanded && chartProjection;
+  const isBacReady = hasHydratedExpandedState;
+  const isExpandedVisible = isBacReady && isExpanded;
+  const showCompactStats = isBacReady && !isExpanded && chartProjection;
 
   return (
     <>
@@ -75,6 +78,8 @@ const ProfileBacSection = ({ userId, userInfo, setUserInfo }: ProfileBacSectionP
             <TouchableOpacity
               style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}
               onPress={toggleExpanded}
+              disabled={!isBacReady}
+              accessibilityState={{ disabled: !isBacReady }}
               accessibilityRole="button"
               accessibilityLabel={isExpanded ? 'Minimer promillekalkulator' : 'Utvid promillekalkulator'}
             >
@@ -136,7 +141,7 @@ const ProfileBacSection = ({ userId, userInfo, setUserInfo }: ProfileBacSectionP
             </View>
           )}
 
-          {isExpanded && (
+          {isExpandedVisible && (
             <View style={globalStyles.inputGroup}>
               <TouchableOpacity
                 style={[globalStyles.primaryButtonShadow, profileStyles.bacPrimaryButton, !hasBacRequiredInfo && globalStyles.disabledButton]}
@@ -181,7 +186,7 @@ const ProfileBacSection = ({ userId, userInfo, setUserInfo }: ProfileBacSectionP
               )}
             </View>
           )}
-          {isExpanded && chartProjection && (
+          {isExpandedVisible && chartProjection && (
             <View style={[globalStyles.inputGroup, profileStyles.chartCard]}>
               <Text style={globalStyles.sectionTitle}>Anslått promille de neste 3 timene</Text>
               <View style={profileStyles.chartSummaryRow}>
@@ -225,7 +230,7 @@ const ProfileBacSection = ({ userId, userInfo, setUserInfo }: ProfileBacSectionP
               </View>
             </View>
           )}
-          {isExpanded && hasBacRequiredInfo && (
+          {isExpandedVisible && hasBacRequiredInfo && (
             <View style={[globalStyles.inputGroup, profileStyles.highscoreCard]}>
               <View style={[globalStyles.rowSpread, profileStyles.highscoreHeaderRow]}>
                 <Text style={[globalStyles.sectionTitle, { marginBottom: 0 }]}>Promille-highscore</Text>

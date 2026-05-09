@@ -50,6 +50,9 @@ export const settingsStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  lastInputGroup: {
+    marginBottom: 0,
+  },
   dangerHelperText: {
     color: theme.colors.errorLight,
     lineHeight: 20,

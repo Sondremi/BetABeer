@@ -974,6 +974,7 @@ export const useProfileBac = ({ userId, userInfo, setUserInfo, windowWidth }: Us
 
   return {
     isExpanded,
+    hasHydratedExpandedState,
     toggleExpanded: () => setIsExpanded((prev) => !prev),
     hasBacRequiredInfo,
     currentBAC,
