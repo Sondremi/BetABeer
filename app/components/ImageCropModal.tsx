@@ -14,6 +14,8 @@ import { globalStyles } from '../styles/globalStyles';
 import { theme } from '../styles/theme';
 
 const clamp = (value: number, minValue: number, maxValue: number) => Math.max(minValue, Math.min(maxValue, value));
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 4;
 
 type ImageCropModalProps = {
   visible: boolean;
@@ -174,15 +176,15 @@ const ImageCropModal = ({
     onCancel();
   };
 
-  const canZoomOut = zoom > 1;
-  const canZoomIn = zoom < 3;
+  const canZoomOut = zoom > MIN_ZOOM;
+  const canZoomIn = zoom < MAX_ZOOM;
 
   const handleZoomIn = () => {
-    setZoom((prev) => clamp(Number((prev + 0.2).toFixed(2)), 1, 3));
+    setZoom((prev) => clamp(Number((prev + 0.2).toFixed(2)), MIN_ZOOM, MAX_ZOOM));
   };
 
   const handleZoomOut = () => {
-    setZoom((prev) => clamp(Number((prev - 0.2).toFixed(2)), 1, 3));
+    setZoom((prev) => clamp(Number((prev - 0.2).toFixed(2)), MIN_ZOOM, MAX_ZOOM));
   };
 
   return (

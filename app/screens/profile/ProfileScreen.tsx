@@ -3,7 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { GuestUpgradePrompt } from '../../components/GuestUpgradePrompt';
 import { useAuth } from '../../context/AuthContext';
@@ -62,9 +62,17 @@ const ProfileScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isInvitationsExpanded, setIsInvitationsExpanded] = useState(true);
 
+  const lastProfileImageRef = useRef<string | null>(null);
+
   useEffect(() => {
-    setSelectedProfileImage((user as any)?.profileImage || null);
-  }, [user]);
+    const userProfileImage = (user as any)?.profileImage || null;
+    if (userProfileImage !== lastProfileImageRef.current) {
+      if (selectedProfileImage === null || selectedProfileImage === lastProfileImageRef.current) {
+        setSelectedProfileImage(userProfileImage);
+      }
+      lastProfileImageRef.current = userProfileImage;
+    }
+  }, [selectedProfileImage, user]);
 
   useEffect(() => {
     if (user?.name) {

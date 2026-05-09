@@ -583,18 +583,6 @@ const GroupScreen = () => {
     }
 
     try {
-      await authService.ensureVerifiedEmailForMediaUpload();
-    } catch (error) {
-      const errorMessage = (error as Error).message || MEDIA_UPLOAD_VERIFICATION_MESSAGE;
-      if (errorMessage.toLowerCase().includes('verifiser')) {
-        showAlert('Verifisering kreves', MEDIA_UPLOAD_VERIFICATION_MESSAGE);
-      } else {
-        showAlert('Feil', errorMessage);
-      }
-      return;
-    }
-
-    try {
       if (Platform.OS !== 'web') {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permissionResult.granted) {
@@ -638,6 +626,7 @@ const GroupScreen = () => {
 
     setUploadingGroupImage(true);
     try {
+      await authService.ensureVerifiedEmailForMediaUpload();
       const uploadedImageUrl = await uploadGroupImage(selectedGroup.id, croppedUri);
       const cacheBustedUrl = `${uploadedImageUrl}${uploadedImageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
       await updateDoc(doc(firestore, 'groups', selectedGroup.id), { image: cacheBustedUrl });
