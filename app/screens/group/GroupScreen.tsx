@@ -639,8 +639,9 @@ const GroupScreen = () => {
     setUploadingGroupImage(true);
     try {
       const uploadedImageUrl = await uploadGroupImage(selectedGroup.id, croppedUri);
-      await updateDoc(doc(firestore, 'groups', selectedGroup.id), { image: uploadedImageUrl });
-      await applyGroupImageLocally(selectedGroup.id, uploadedImageUrl);
+      const cacheBustedUrl = `${uploadedImageUrl}${uploadedImageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+      await updateDoc(doc(firestore, 'groups', selectedGroup.id), { image: cacheBustedUrl });
+      await applyGroupImageLocally(selectedGroup.id, cacheBustedUrl);
     } catch (error) {
       console.error('Error uploading group image:', error);
       const errorMessage = (error as Error).message || 'Kunne ikke laste opp gruppebilde.';

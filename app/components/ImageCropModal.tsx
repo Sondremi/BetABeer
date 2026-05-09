@@ -138,10 +138,14 @@ const ImageCropModal = ({
       const result = await manipulateAsync(
         imageUri,
         [{ crop: { originX, originY, width: cropWidth, height: cropHeight } }],
-        { compress: 0.9, format: SaveFormat.JPEG }
+        { compress: 0.9, format: SaveFormat.JPEG, base64: true }
       );
 
-      onConfirm(result.uri);
+      const croppedSource = result.base64
+        ? `data:image/jpeg;base64,${result.base64}`
+        : result.uri;
+
+      onConfirm(croppedSource);
     } catch (error) {
       console.error('Failed to crop image:', error);
     } finally {

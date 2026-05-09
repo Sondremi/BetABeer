@@ -369,7 +369,8 @@ const ProfileScreen: React.FC = () => {
       await authService.ensureVerifiedEmailForMediaUpload();
       setUploadingProfileImage(true);
       const uploadedImageUrl = await uploadProfileImage(user.id, croppedUri);
-      setSelectedProfileImage(uploadedImageUrl);
+      const cacheBustedUrl = `${uploadedImageUrl}${uploadedImageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+      setSelectedProfileImage(cacheBustedUrl);
     } catch (error) {
       console.error(error);
       showProfileUploadAlert('Feil', (error as Error).message || 'Kunne ikke laste opp profilbildet.');
