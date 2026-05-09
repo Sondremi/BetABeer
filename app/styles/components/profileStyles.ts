@@ -547,6 +547,24 @@ export const profileStyles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: theme.fonts.md,
   },
+  profileImageContainerModal: {
+    marginBottom: 0,
+  },
+  profileModalMeta: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  profileRemoveImageText: {
+    color: theme.colors.errorLight,
+    fontSize: theme.fonts.xs,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingVertical: theme.spacing.xs,
+  },
+  profileUploadDisabledText: {
+    textAlign: 'center',
+    marginTop: theme.spacing.xs,
+  },
   profileUploadHintText: {
     color: theme.colors.textMuted,
     fontSize: theme.fonts.xs,

@@ -1,4 +1,4 @@
-import { EmailAuthProvider, GoogleAuthProvider, createUserWithEmailAndPassword, linkWithCredential, onAuthStateChanged as firebaseOnAuthStateChanged, reload, sendEmailVerification, sendPasswordResetEmail, signInAnonymously, signInWithCredential, signInWithEmailAndPassword, signOut, updateProfile, verifyBeforeUpdateEmail } from 'firebase/auth';
+import { EmailAuthProvider, GoogleAuthProvider, createUserWithEmailAndPassword, onAuthStateChanged as firebaseOnAuthStateChanged, linkWithCredential, reload, sendEmailVerification, sendPasswordResetEmail, signInAnonymously, signInWithCredential, signInWithEmailAndPassword, signOut, updateProfile, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { auth } from './FirebaseConfig';
 

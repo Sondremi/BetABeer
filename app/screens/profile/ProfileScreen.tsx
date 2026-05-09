@@ -6,6 +6,7 @@ import { collection, doc, getDoc, onSnapshot, query, updateDoc, where } from 'fi
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { GuestUpgradePrompt } from '../../components/GuestUpgradePrompt';
+import ImageCropModal from '../../components/ImageCropModal';
 import { useAuth } from '../../context/AuthContext';
 import { MEDIA_UPLOAD_VERIFICATION_MESSAGE, authService } from '../../services/firebase/authService';
 import { firestore } from '../../services/firebase/FirebaseConfig';
@@ -18,7 +19,6 @@ import type { Friend } from '../../types/userTypes';
 import { INPUT_LIMITS, normalizeSingleLineText } from '../../utils/inputValidation';
 import { showAlert } from '../../utils/platformAlert';
 import { resolveProfileImageSource } from '../../utils/profileImage';
-import ImageCropModal from '../../components/ImageCropModal';
 import ProfileBacSection from './bac/ProfileBacSection';
 import ProfileGroupInvitationsSection from './components/ProfileGroupInvitationsSection';
 import ProfileGroupsSection from './components/ProfileGroupsSection';
@@ -562,7 +562,9 @@ const ProfileScreen: React.FC = () => {
 
   const displayNameLabel = user?.name || userInfo.name || 'Navn';
   const usernameLabel = user?.username || userInfo.username || 'Brukernavn';
-  const currentProfileImage = selectedProfileImage || (user as any)?.profileImage || null;
+  const currentProfileImage = (profileImageModalVisible && profileModalSnapshot !== null
+    ? profileModalSnapshot.image
+    : selectedProfileImage) || (user as any)?.profileImage || null;
   const profileImageSource = resolveProfileImageSource(currentProfileImage, DefaultProfilePicture);
   const isEmailVerified = Boolean(user?.emailVerified);
 

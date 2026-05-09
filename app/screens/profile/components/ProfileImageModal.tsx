@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { Image, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { profileScreenTokens, profileStyles } from '../../../styles/components/profileStyles';
 import { globalStyles } from '../../../styles/globalStyles';
-import { INPUT_LIMITS } from '../../../utils/inputValidation';
 import { defaultProfileImageMap, defaultProfileImages } from '../../../utils/defaultProfileImages';
+import { INPUT_LIMITS } from '../../../utils/inputValidation';
 import { isDefaultProfileImageKey, resolveProfileImageSource } from '../../../utils/profileImage';
 import { DefaultProfilePicture, ImageMissing } from '../profileAssets';
+
+const PencilIcon = require('../../../../assets/icons/noun-pencil-969012.png');
 
 type ProfileImageModalProps = {
   visible: boolean;
@@ -60,55 +62,43 @@ const ProfileImageModal = ({
         <View style={[globalStyles.modalContent, profileStyles.profileModalContent]}>
           <Text style={globalStyles.modalTitle}>Velg profilbilde</Text>
           <View style={profileStyles.profileUploadPreviewWrap}>
-            <Image
-              source={previewSource}
-              style={profileStyles.profileUploadPreviewImageLarge}
-            />
-          </View>
-          <View style={profileStyles.profileModalActionRow}>
             <TouchableOpacity
-              style={[
-                globalStyles.outlineButtonGold,
-                profileStyles.profileModalActionButtonGroupLike,
-                (uploading || uploadDisabled) && globalStyles.disabledButton,
-              ]}
               onPress={onUpload}
               disabled={uploading || uploadDisabled}
+              style={[profileStyles.profileImageContainer, profileStyles.profileImageContainerModal]}
             >
-              <Text style={[
-                globalStyles.outlineButtonGoldText,
-                globalStyles.actionGridButtonText,
-                uploadDisabled && globalStyles.disabledGoldActionText,
+              <Image
+                source={previewSource}
+                style={profileStyles.profileUploadPreviewImageLarge}
+              />
+              <View style={[
+                profileStyles.editProfileImageButton,
+                (uploading || uploadDisabled) && globalStyles.disabledButton,
               ]}>
-                {uploading ? 'Laster opp...' : 'Last opp'}
-              </Text>
+                <Image source={PencilIcon} style={globalStyles.primaryIcon} />
+              </View>
             </TouchableOpacity>
-            {canRemoveImage && (
+          </View>
+          <View style={profileStyles.profileModalMeta}>
+            {uploading && (
+              <Text style={profileStyles.profileUploadHintText}>Laster opp...</Text>
+            )}
+            {canRemoveImage && !uploading && (
               <TouchableOpacity
-                style={[
-                  globalStyles.outlineButtonGold,
-                  profileStyles.profileModalActionButtonGroupLike,
-                  globalStyles.actionButtonDanger,
-                  uploading && globalStyles.disabledButton,
-                ]}
-                  onPress={() => {
-                    setSelectedProfileImage(null);
-                    setHasClearedImage(true);
-                  }}
-                disabled={uploading}
+                onPress={() => {
+                  setSelectedProfileImage(null);
+                  setHasClearedImage(true);
+                }}
               >
-                <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText, globalStyles.actionButtonDangerText]}>
-                  Fjern bilde
-                </Text>
+                <Text style={profileStyles.profileRemoveImageText}>Fjern bilde</Text>
               </TouchableOpacity>
             )}
+            {uploadDisabled && (
+              <Text style={[globalStyles.validationHelperText, profileStyles.profileUploadDisabledText]}>
+                {uploadDisabledMessage}
+              </Text>
+            )}
           </View>
-          {canRemoveImage && (
-            <Text style={profileStyles.profileUploadHintText}>Eget bilde valgt</Text>
-          )}
-          {uploadDisabled && (
-            <Text style={globalStyles.validationHelperText}>{uploadDisabledMessage}</Text>
-          )}
           <ScrollView contentContainerStyle={profileStyles.profileModalGrid}>
             {defaultProfileImages.map((img) => (
               <TouchableOpacity
@@ -146,16 +136,10 @@ const ProfileImageModal = ({
             </View>
           </View>
           <View style={globalStyles.editButtonsContainer}>
-            <TouchableOpacity
-              disabled={uploading}
-              onPress={onClose}
-            >
+            <TouchableOpacity disabled={uploading} onPress={onClose}>
               <Text style={globalStyles.cancelButtonText}>Avbryt</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              disabled={uploading}
-              onPress={onSave}
-            >
+            <TouchableOpacity disabled={uploading} onPress={onSave}>
               <Text style={globalStyles.saveButtonText}>Lagre</Text>
             </TouchableOpacity>
           </View>
