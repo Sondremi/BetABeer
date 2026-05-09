@@ -53,7 +53,7 @@ const ProfileImageModal = ({
           <View style={profileStyles.profileUploadPreviewWrap}>
             <Image
               source={previewSource}
-              style={globalStyles.profileUploadPreviewImage}
+              style={profileStyles.profileUploadPreviewImageLarge}
             />
           </View>
           <View style={profileStyles.profileModalActionRow}>

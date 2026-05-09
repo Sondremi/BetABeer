@@ -39,6 +39,7 @@ const ProfileScreen: React.FC = () => {
   const [selectedProfileImage, setSelectedProfileImage] = useState<string | null>(null);
   const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
   const [displayName, setDisplayName] = useState('');
+  const [profileModalSnapshot, setProfileModalSnapshot] = useState<{ image: string | null; name: string } | null>(null);
   const [pendingProfileCrop, setPendingProfileCrop] = useState<{
     uri: string;
     width?: number;
@@ -290,6 +291,7 @@ const ProfileScreen: React.FC = () => {
 
     try {
       await updateDoc(doc(firestore, 'users', user.id), payload);
+      setProfileModalSnapshot({ image: payload.profileImage ?? null, name: trimmedName });
       setProfileImageModalVisible(false);
     } catch (error) {
       console.error(error);
@@ -317,6 +319,19 @@ const ProfileScreen: React.FC = () => {
       ]);
     }, shouldReopenModal ? 80 : 0);
   }, [profileImageModalVisible]);
+
+  const openProfileImageModal = () => {
+    setProfileModalSnapshot({ image: selectedProfileImage ?? null, name: displayName });
+    setProfileImageModalVisible(true);
+  };
+
+  const closeProfileImageModal = () => {
+    if (profileModalSnapshot) {
+      setSelectedProfileImage(profileModalSnapshot.image);
+      setDisplayName(profileModalSnapshot.name);
+    }
+    setProfileImageModalVisible(false);
+  };
 
   const handleUploadProfileImage = async () => {
     if (!user?.emailVerified) {
@@ -564,12 +579,12 @@ const ProfileScreen: React.FC = () => {
           incomingFriendRequestCount={incomingFriendRequestCount}
           onNavigateToSettings={navigateToSettings}
           onNavigateToFriends={navigateToFriends}
-          onOpenImageModal={() => setProfileImageModalVisible(true)}
+          onOpenImageModal={openProfileImageModal}
         />
 
         <ProfileImageModal
           visible={profileImageModalVisible}
-          onClose={() => setProfileImageModalVisible(false)}
+          onClose={closeProfileImageModal}
           onSave={handleProfileSave}
           onUpload={handleUploadProfileImage}
           uploading={uploadingProfileImage}
