@@ -13,6 +13,8 @@ type ProfileImageModalProps = {
   onSave: () => void;
   onUpload: () => void;
   uploading: boolean;
+  uploadDisabled: boolean;
+  uploadDisabledMessage: string;
   selectedProfileImage: string | null;
   setSelectedProfileImage: (value: string | null) => void;
   currentProfileImage: string | null;
@@ -26,6 +28,8 @@ const ProfileImageModal = ({
   onSave,
   onUpload,
   uploading,
+  uploadDisabled,
+  uploadDisabledMessage,
   selectedProfileImage,
   setSelectedProfileImage,
   currentProfileImage,
@@ -57,12 +61,16 @@ const ProfileImageModal = ({
               style={[
                 globalStyles.outlineButtonGold,
                 profileStyles.profileModalActionButtonGroupLike,
-                uploading && globalStyles.disabledButton,
+                (uploading || uploadDisabled) && globalStyles.disabledButton,
               ]}
               onPress={onUpload}
-              disabled={uploading}
+              disabled={uploading || uploadDisabled}
             >
-              <Text style={[globalStyles.outlineButtonGoldText, globalStyles.actionGridButtonText]}>
+              <Text style={[
+                globalStyles.outlineButtonGoldText,
+                globalStyles.actionGridButtonText,
+                uploadDisabled && globalStyles.disabledGoldActionText,
+              ]}>
                 {uploading ? 'Laster opp...' : 'Last opp'}
               </Text>
             </TouchableOpacity>
@@ -85,6 +93,9 @@ const ProfileImageModal = ({
           </View>
           {canRemoveImage && (
             <Text style={profileStyles.profileUploadHintText}>Eget bilde valgt</Text>
+          )}
+          {uploadDisabled && (
+            <Text style={globalStyles.validationHelperText}>{uploadDisabledMessage}</Text>
           )}
           <ScrollView contentContainerStyle={profileStyles.profileModalGrid}>
             {defaultProfileImages.map((img) => (

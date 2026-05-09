@@ -6,6 +6,9 @@ const firestore = getFirestore();
 const normalizeValue = (value) => String(value || '').trim().toLowerCase();
 const toDisplayValue = (value) => String(value || '').trim();
 
+export const MEDIA_UPLOAD_VERIFICATION_MESSAGE =
+  'Du må verifisere e-postadressen din før du kan laste opp bilder. Gå til innstillinger for å sende verifisering på nytt.';
+
 const buildFallbackUsername = (email, uid) => {
   const emailPrefix = String(email || '')
     .split('@')[0]
@@ -218,7 +221,7 @@ export const authService = {
       throw new Error('Kontoen mangler e-postadresse.');
     }
     if (!currentUser.emailVerified) {
-      throw new Error('Du må verifisere e-postadressen din før du kan laste opp bilder. Gå til innstillinger for å sende verifisering på nytt.');
+      throw new Error(MEDIA_UPLOAD_VERIFICATION_MESSAGE);
     }
     return true;
   },

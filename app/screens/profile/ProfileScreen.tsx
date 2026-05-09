@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { GuestUpgradePrompt } from '../../components/GuestUpgradePrompt';
 import { useAuth } from '../../context/AuthContext';
-import { authService } from '../../services/firebase/authService';
+import { MEDIA_UPLOAD_VERIFICATION_MESSAGE, authService } from '../../services/firebase/authService';
 import { firestore } from '../../services/firebase/FirebaseConfig';
 import { sendGroupInvitation } from '../../services/groupService';
 import { uploadProfileImage } from '../../services/profileImageUploadService';
@@ -18,6 +18,7 @@ import type { Friend } from '../../types/userTypes';
 import { INPUT_LIMITS, normalizeSingleLineText } from '../../utils/inputValidation';
 import { showAlert } from '../../utils/platformAlert';
 import { resolveProfileImageSource } from '../../utils/profileImage';
+import ImageCropModal from '../../components/ImageCropModal';
 import ProfileBacSection from './bac/ProfileBacSection';
 import ProfileGroupInvitationsSection from './components/ProfileGroupInvitationsSection';
 import ProfileGroupsSection from './components/ProfileGroupsSection';
@@ -32,11 +33,17 @@ const ProfileScreen: React.FC = () => {
   const { user, loading } = useAuth();
 
   const [profileImageModalVisible, setProfileImageModalVisible] = useState(false);
+  const [profileCropModalVisible, setProfileCropModalVisible] = useState(false);
   const [onboardingModalVisible, setOnboardingModalVisible] = useState(false);
   const [onboardingStorageKey, setOnboardingStorageKey] = useState<string | null>(null);
   const [selectedProfileImage, setSelectedProfileImage] = useState<string | null>(null);
   const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
   const [displayName, setDisplayName] = useState('');
+  const [pendingProfileCrop, setPendingProfileCrop] = useState<{
+    uri: string;
+    width?: number;
+    height?: number;
+  } | null>(null);
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [createGroupModalVisible, setCreateGroupModalVisible] = useState(false);
@@ -282,30 +289,34 @@ const ProfileScreen: React.FC = () => {
     }
   };
 
-  const handleUploadProfileImage = async () => {
-    const showUploadAlert = (title: string, message: string) => {
-      const shouldReopenModal = profileImageModalVisible;
+  const showProfileUploadAlert = useCallback((title: string, message: string) => {
+    const shouldReopenModal = profileImageModalVisible;
 
-      if (shouldReopenModal) {
-        setProfileImageModalVisible(false);
-      }
+    if (shouldReopenModal) {
+      setProfileImageModalVisible(false);
+    }
 
-      setTimeout(() => {
-        showAlert(title, message, [
-          {
-            text: 'OK',
-            onPress: () => {
-              if (shouldReopenModal) {
-                setProfileImageModalVisible(true);
-              }
-            },
+    setTimeout(() => {
+      showAlert(title, message, [
+        {
+          text: 'OK',
+          onPress: () => {
+            if (shouldReopenModal) {
+              setProfileImageModalVisible(true);
+            }
           },
-        ]);
-      }, shouldReopenModal ? 80 : 0);
-    };
+        },
+      ]);
+    }, shouldReopenModal ? 80 : 0);
+  }, [profileImageModalVisible]);
+
+  const handleUploadProfileImage = async () => {
+    if (!user?.emailVerified) {
+      return;
+    }
 
     if (!user?.id) {
-      showUploadAlert('Feil', 'Du må være logget inn for å laste opp bilde');
+      showProfileUploadAlert('Feil', 'Du må være logget inn for å laste opp bilde');
       return;
     }
 
@@ -313,40 +324,55 @@ const ProfileScreen: React.FC = () => {
       if (Platform.OS !== 'web') {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permissionResult.granted) {
-          showUploadAlert('Tilgang mangler', 'Gi tilgang til bilder for å laste opp profilbilde.');
+          showProfileUploadAlert('Tilgang mangler', 'Gi tilgang til bilder for å laste opp profilbilde.');
           return;
         }
       }
 
       const pickerResult = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
+        allowsEditing: false,
         quality: 0.7,
-        aspect: [1, 1],
-        base64: Platform.OS === 'web',
       });
 
       if (pickerResult.canceled || !pickerResult.assets?.length) {
         return;
       }
 
+      const selectedAsset = pickerResult.assets[0];
+      setPendingProfileCrop({
+        uri: selectedAsset.uri,
+        width: selectedAsset.width,
+        height: selectedAsset.height,
+      });
+      setProfileImageModalVisible(false);
+      setProfileCropModalVisible(true);
+    } catch (error) {
+      console.error(error);
+      showProfileUploadAlert('Feil', (error as Error).message || 'Kunne ikke laste opp profilbildet.');
+    }
+  };
+
+  const handleProfileCropCancel = () => {
+    setProfileCropModalVisible(false);
+    setPendingProfileCrop(null);
+    setProfileImageModalVisible(true);
+  };
+
+  const handleProfileCropConfirm = async (croppedUri: string) => {
+    if (!user?.id) return;
+    setProfileCropModalVisible(false);
+    setPendingProfileCrop(null);
+    setProfileImageModalVisible(true);
+
+    try {
       await authService.ensureVerifiedEmailForMediaUpload();
       setUploadingProfileImage(true);
-
-      const selectedAsset = pickerResult.assets[0];
-      const webFile = (selectedAsset as any).file as Blob | undefined;
-      const webBase64 = (selectedAsset as any).base64 as string | undefined;
-      const uploadSource = webFile instanceof Blob
-        ? webFile
-        : webBase64
-          ? `data:${selectedAsset.mimeType || 'image/jpeg'};base64,${webBase64}`
-          : selectedAsset.uri;
-
-      const uploadedImageUrl = await uploadProfileImage(user.id, uploadSource);
+      const uploadedImageUrl = await uploadProfileImage(user.id, croppedUri);
       setSelectedProfileImage(uploadedImageUrl);
     } catch (error) {
       console.error(error);
-      showUploadAlert('Feil', (error as Error).message || 'Kunne ikke laste opp profilbildet.');
+      showProfileUploadAlert('Feil', (error as Error).message || 'Kunne ikke laste opp profilbildet.');
     } finally {
       setUploadingProfileImage(false);
     }
@@ -514,6 +540,7 @@ const ProfileScreen: React.FC = () => {
   const usernameLabel = user?.username || userInfo.username || 'Brukernavn';
   const currentProfileImage = selectedProfileImage || (user as any)?.profileImage || null;
   const profileImageSource = resolveProfileImageSource(currentProfileImage, DefaultProfilePicture);
+  const isEmailVerified = Boolean(user?.emailVerified);
 
   return (
     <KeyboardAvoidingView
@@ -537,11 +564,25 @@ const ProfileScreen: React.FC = () => {
           onSave={handleProfileSave}
           onUpload={handleUploadProfileImage}
           uploading={uploadingProfileImage}
+          uploadDisabled={!isEmailVerified}
+          uploadDisabledMessage={MEDIA_UPLOAD_VERIFICATION_MESSAGE}
           selectedProfileImage={selectedProfileImage}
           setSelectedProfileImage={setSelectedProfileImage}
           currentProfileImage={currentProfileImage}
           displayName={displayName}
           setDisplayName={setDisplayName}
+        />
+
+        <ImageCropModal
+          visible={profileCropModalVisible}
+          imageUri={pendingProfileCrop?.uri ?? null}
+          imageWidth={pendingProfileCrop?.width}
+          imageHeight={pendingProfileCrop?.height}
+          aspectRatio={1}
+          shape="circle"
+          title="Tilpass profilbilde"
+          onCancel={handleProfileCropCancel}
+          onConfirm={handleProfileCropConfirm}
         />
 
         <ProfileOnboardingModal
