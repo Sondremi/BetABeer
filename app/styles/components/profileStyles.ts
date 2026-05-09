@@ -111,9 +111,11 @@ export const profileStyles = StyleSheet.create({
     flexDirection: 'row',
     gap: theme.spacing.sm,
     alignItems: 'center',
+    flexWrap: 'wrap',
   },
   bacActionButton: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: 150,
     minHeight: theme.sizes.buttonMinHeight,
     marginTop: 0,
     marginBottom: 0,
@@ -127,9 +129,14 @@ export const profileStyles = StyleSheet.create({
     lineHeight: theme.fonts.lg,
   },
   bacResetButton: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: 150,
     minHeight: theme.sizes.buttonMinHeight,
     paddingVertical: theme.spacing.sm,
+  },
+  bacQuickRepeatButton: {
+    marginTop: theme.spacing.sm,
+    marginBottom: 0,
   },
   bacQuickAddButtonText: {
     textAlign: 'center',

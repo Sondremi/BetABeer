@@ -89,23 +89,28 @@ const ProfileBacSection = ({ userId, userInfo, setUserInfo }: ProfileBacSectionP
                   onPress={openDrinkModal}
                   disabled={!hasBacRequiredInfo}
                 >
-                  <Text style={[globalStyles.primaryButtonText, profileStyles.bacActionButtonText]}>Legg til drikke</Text>
+                  <Text style={[globalStyles.primaryButtonText, profileStyles.bacActionButtonText]}>+ Legg til drikke</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[globalStyles.dangerButton, profileStyles.bacResetButton, !hasBacRequiredInfo && globalStyles.disabledButton]}
                   onPress={handleResetDrinks}
                   disabled={!hasBacRequiredInfo}
                 >
-                  <Text style={globalStyles.dangerButtonText}>Nullstill drikker</Text>
+                  <Text style={globalStyles.dangerButtonText}>Nullstill historikk</Text>
                 </TouchableOpacity>
               </View>
               <TouchableOpacity
-                style={[globalStyles.outlineButtonGold, globalStyles.bacQuickAddButton, (!hasBacRequiredInfo || !latestDrinkEntry) && globalStyles.disabledButton]}
+                style={[
+                  globalStyles.outlineButtonGold,
+                  globalStyles.bacQuickAddButton,
+                  profileStyles.bacQuickRepeatButton,
+                  (!hasBacRequiredInfo || !latestDrinkEntry) && globalStyles.disabledButton,
+                ]}
                 onPress={handleAddLatestDrinkAgain}
                 disabled={!hasBacRequiredInfo || !latestDrinkEntry}
               >
                 <Text style={[globalStyles.outlineButtonGoldText, profileStyles.bacQuickAddButtonText]}>
-                  {`+1 av sist drukket: ${latestDrinkLabel}`}
+                  {`Gjenta sist (${latestDrinkLabel})`}
                 </Text>
               </TouchableOpacity>
               {!hasBacRequiredInfo && (
