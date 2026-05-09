@@ -22,6 +22,7 @@ const minuteOptions = Array.from({ length: 60 }, (_, index) => index.toString().
 
 const ProfileBacSection = ({ userId, userInfo, setUserInfo }: ProfileBacSectionProps) => {
   const { width: windowWidth } = useWindowDimensions();
+  const [showHighscoreDetails, setShowHighscoreDetails] = React.useState(false);
   const {
     isExpanded,
     toggleExpanded,
@@ -63,6 +64,8 @@ const ProfileBacSection = ({ userId, userInfo, setUserInfo }: ProfileBacSectionP
     resetDrinkFormForCategory,
   } = useProfileBac({ userId, userInfo, setUserInfo, windowWidth });
 
+  const showCompactStats = !isExpanded && chartProjection;
+
   return (
     <>
       <View style={[globalStyles.section, profileStyles.compactSection]}>
@@ -81,38 +84,96 @@ const ProfileBacSection = ({ userId, userInfo, setUserInfo }: ProfileBacSectionP
             </TouchableOpacity>
           </View>
 
+          {showCompactStats && (
+            <View style={profileStyles.compactStatsBlock}>
+              <View style={profileStyles.chartSummaryRow}>
+                <View style={[profileStyles.statPill, profileStyles.compactStatPill]}>
+                  <Text style={[profileStyles.statLabel, profileStyles.compactStatLabel]}>Promille nå</Text>
+                  <View style={profileStyles.statMainSlot}>
+                    <Text style={[profileStyles.statValue, profileStyles.compactStatValue]}>{currentBAC}‰</Text>
+                  </View>
+                </View>
+                <View style={[profileStyles.statPill, profileStyles.compactStatPill]}>
+                  <Text style={[profileStyles.statLabel, profileStyles.compactStatLabel]}>
+                    Høyeste {chartProjection.peakTime}
+                  </Text>
+                  <View style={profileStyles.statMainSlot}>
+                    <Text style={[profileStyles.statValue, profileStyles.compactStatValue]}>
+                      {chartProjection.peak.toFixed(3)}‰
+                    </Text>
+                  </View>
+                </View>
+                <View style={[profileStyles.statPill, profileStyles.compactStatPill]}>
+                  <Text style={[profileStyles.statLabel, profileStyles.compactStatLabel]}>0.2‰ Cirka kl</Text>
+                  <View style={profileStyles.statMainSlot}>
+                    <Text style={[profileStyles.statValue, profileStyles.compactStatValue]}>
+                      {chartProjection.soberTime}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              <View style={[profileStyles.chartInteractiveShell, { width: chartWidth }]}>
+                <LineChart
+                  data={{
+                    labels: chartProjection.labels,
+                    datasets: [{ data: chartProjection.values, ...profileChartDataset }],
+                  }}
+                  width={chartWidth}
+                  height={100}
+                  yAxisLabel=""
+                  yAxisSuffix="‰"
+                  fromZero
+                  withInnerLines={false}
+                  withOuterLines={false}
+                  withVerticalLabels={false}
+                  withHorizontalLabels={false}
+                  withDots={false}
+                  chartConfig={profileChartConfig}
+                  bezier
+                  style={profileStyles.sparkline}
+                />
+              </View>
+            </View>
+          )}
+
           {isExpanded && (
             <View style={globalStyles.inputGroup}>
-              <View style={profileStyles.bacActionRow}>
+              <TouchableOpacity
+                style={[globalStyles.primaryButtonShadow, profileStyles.bacPrimaryButton, !hasBacRequiredInfo && globalStyles.disabledButton]}
+                onPress={openDrinkModal}
+                disabled={!hasBacRequiredInfo}
+              >
+                <Text style={[globalStyles.primaryButtonText, profileStyles.bacPrimaryButtonText]}>Legg til drikke</Text>
+              </TouchableOpacity>
+              <View style={profileStyles.bacSecondaryRow}>
                 <TouchableOpacity
-                  style={[globalStyles.primaryButtonShadow, profileStyles.bacActionButton, !hasBacRequiredInfo && globalStyles.disabledButton]}
-                  onPress={openDrinkModal}
-                  disabled={!hasBacRequiredInfo}
+                  style={[
+                    globalStyles.outlineButtonGold,
+                    profileStyles.bacRepeatPill,
+                    (!hasBacRequiredInfo || !latestDrinkEntry) && globalStyles.disabledButton,
+                  ]}
+                  onPress={handleAddLatestDrinkAgain}
+                  disabled={!hasBacRequiredInfo || !latestDrinkEntry}
                 >
-                  <Text style={[globalStyles.primaryButtonText, profileStyles.bacActionButtonText]}>+ Legg til drikke</Text>
+                  <Text style={[globalStyles.outlineButtonGoldText, profileStyles.bacRepeatPillText]}>
+                    {`Gjenta sist (${latestDrinkLabel})`}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[globalStyles.dangerButton, profileStyles.bacResetButton, !hasBacRequiredInfo && globalStyles.disabledButton]}
+                  style={profileStyles.bacResetTextButton}
                   onPress={handleResetDrinks}
                   disabled={!hasBacRequiredInfo}
                 >
-                  <Text style={globalStyles.dangerButtonText}>Nullstill historikk</Text>
+                  <Text
+                    style={[
+                      profileStyles.bacResetText,
+                      !hasBacRequiredInfo && profileStyles.bacResetTextDisabled,
+                    ]}
+                  >
+                    Nullstill historikk
+                  </Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={[
-                  globalStyles.outlineButtonGold,
-                  globalStyles.bacQuickAddButton,
-                  profileStyles.bacQuickRepeatButton,
-                  (!hasBacRequiredInfo || !latestDrinkEntry) && globalStyles.disabledButton,
-                ]}
-                onPress={handleAddLatestDrinkAgain}
-                disabled={!hasBacRequiredInfo || !latestDrinkEntry}
-              >
-                <Text style={[globalStyles.outlineButtonGoldText, profileStyles.bacQuickAddButtonText]}>
-                  {`Gjenta sist (${latestDrinkLabel})`}
-                </Text>
-              </TouchableOpacity>
               {!hasBacRequiredInfo && (
                 <Text style={globalStyles.secondaryText}>
                   Sett vekt og kjønn i innstillinger for å bruke promillekalkulatoren.
@@ -165,33 +226,17 @@ const ProfileBacSection = ({ userId, userInfo, setUserInfo }: ProfileBacSectionP
             </View>
           )}
           {isExpanded && hasBacRequiredInfo && (
-            <View style={[globalStyles.inputGroup, profileStyles.chartCard]}>
-              <View style={[globalStyles.rowSpread, { marginBottom: theme.spacing.sm }]}> 
+            <View style={[globalStyles.inputGroup, profileStyles.highscoreCard]}>
+              <View style={[globalStyles.rowSpread, profileStyles.highscoreHeaderRow]}>
                 <Text style={[globalStyles.sectionTitle, { marginBottom: 0 }]}>Promille-highscore</Text>
                 <TouchableOpacity
-                  style={[
-                    globalStyles.dangerButton,
-                    {
-                      marginBottom: 0,
-                      paddingVertical: theme.spacing.xs,
-                      paddingHorizontal: theme.spacing.sm,
-                      borderColor: theme.colors.errorLight,
-                      backgroundColor: theme.colors.surface,
-                      opacity: 0.82,
-                    },
-                    !canResetBacHighscore && globalStyles.disabledButton,
-                  ]}
-                  onPress={handleResetBacHighscore}
-                  disabled={!canResetBacHighscore}
+                  style={profileStyles.highscoreToggleButton}
+                  onPress={() => setShowHighscoreDetails((prev) => !prev)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showHighscoreDetails ? 'Skjul highscore-detaljer' : 'Vis highscore-detaljer'}
                 >
-                  <Text
-                    style={[
-                      globalStyles.dangerButtonText,
-                      { fontSize: theme.fonts.sm },
-                      !canResetBacHighscore && { color: theme.colors.errorLight, opacity: 0.72 },
-                    ]}
-                  >
-                    {resettingBacHighscore ? 'Nullstiller...' : 'Nullstill'}
+                  <Text style={profileStyles.highscoreToggleText}>
+                    {showHighscoreDetails ? 'Skjul' : 'Vis detaljer'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -211,40 +256,60 @@ const ProfileBacSection = ({ userId, userInfo, setUserInfo }: ProfileBacSectionP
                   </View>
                 </View>
               </View>
-
-              {userInfo.bacHighscoreAllTime && userInfo.bacHighscoreAllTime > 0 && estimatorDrinkOptions.length > 0 ? (
-                <>
-                  <View style={[globalStyles.inputGroup, { marginBottom: 0 }]}> 
-                    <Text style={globalStyles.addOptionText}>Se hvor mye du må drikke for å slå din highscore</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
-                      {estimatorDrinkOptions.map((option) => {
-                        const isSelected = selectedEstimatorDrinkKey === option.key;
-                        return (
-                          <TouchableOpacity
-                            key={option.key}
-                            style={[globalStyles.selectionButton, isSelected && globalStyles.selectionButtonSelected]}
-                            onPress={() => setSelectedEstimatorDrinkKey(option.key)}
-                          >
-                            <Text style={[globalStyles.selectionButtonText, isSelected && globalStyles.selectionButtonTextSelected]}>
-                              {option.label}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
-                  </View>
-                  <Text style={globalStyles.secondaryText}>
-                    {estimatedAdditionalDrinksToBeatHighscore === 0
-                      ? 'Du har allerede slått din highscore med dagens drikking'
-                      : typeof estimatedAdditionalDrinksToBeatHighscore === 'number'
-                        ? `Du trenger omtrent ${estimatedAdditionalDrinksToBeatHighscore} enheter av valgt drikke for å slå highscores.`
-                        : 'Vi klarte ikke å beregne et nøyaktig antall innenfor beregningsvinduet.'}
+              <View style={profileStyles.highscoreFooterRow}>
+                <TouchableOpacity
+                  style={profileStyles.highscoreResetButton}
+                  onPress={handleResetBacHighscore}
+                  disabled={!canResetBacHighscore}
+                >
+                  <Text
+                    style={[
+                      profileStyles.highscoreResetText,
+                      !canResetBacHighscore && profileStyles.highscoreResetTextDisabled,
+                    ]}
+                  >
+                    {resettingBacHighscore ? 'Nullstiller...' : 'Nullstill highscore'}
                   </Text>
+                </TouchableOpacity>
+              </View>
+
+              {showHighscoreDetails && (
+                <>
+                  {userInfo.bacHighscoreAllTime && userInfo.bacHighscoreAllTime > 0 && estimatorDrinkOptions.length > 0 ? (
+                    <>
+                      <View style={[globalStyles.inputGroup, { marginBottom: 0 }]}> 
+                        <Text style={globalStyles.addOptionText}>Se hvor mye du må drikke for å slå din highscore</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={profileStyles.buttonPickerRow}>
+                          {estimatorDrinkOptions.map((option) => {
+                            const isSelected = selectedEstimatorDrinkKey === option.key;
+                            return (
+                              <TouchableOpacity
+                                key={option.key}
+                                style={[globalStyles.selectionButton, isSelected && globalStyles.selectionButtonSelected]}
+                                onPress={() => setSelectedEstimatorDrinkKey(option.key)}
+                              >
+                                <Text style={[globalStyles.selectionButtonText, isSelected && globalStyles.selectionButtonTextSelected]}>
+                                  {option.label}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </ScrollView>
+                      </View>
+                      <Text style={globalStyles.secondaryText}>
+                        {estimatedAdditionalDrinksToBeatHighscore === 0
+                          ? 'Du har allerede slått din highscore med dagens drikking'
+                          : typeof estimatedAdditionalDrinksToBeatHighscore === 'number'
+                            ? `Du trenger omtrent ${estimatedAdditionalDrinksToBeatHighscore} enheter av valgt drikke for å slå highscores.`
+                            : 'Vi klarte ikke å beregne et nøyaktig antall innenfor beregningsvinduet.'}
+                      </Text>
+                    </>
+                  ) : (
+                    <Text style={globalStyles.secondaryText}>
+                      Legg til drikkehistorikk for å få forslag til hvor mye du trenger for å slå highscores.
+                    </Text>
+                  )}
                 </>
-              ) : (
-                <Text style={globalStyles.secondaryText}>
-                  Legg til drikkehistorikk for å få forslag til hvor mye du trenger for å slå highscores.
-                </Text>
               )}
             </View>
           )}

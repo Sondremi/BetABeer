@@ -128,6 +128,52 @@ export const profileStyles = StyleSheet.create({
     width: '100%',
     lineHeight: theme.fonts.lg,
   },
+  bacPrimaryButton: {
+    width: '100%',
+    minHeight: theme.sizes.buttonMinHeight,
+    marginTop: 0,
+    marginBottom: 0,
+    paddingVertical: theme.spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bacPrimaryButtonText: {
+    textAlign: 'center',
+    width: '100%',
+    lineHeight: theme.fonts.lg,
+  },
+  bacSecondaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
+    flexWrap: 'wrap',
+    marginTop: theme.spacing.sm,
+  },
+  bacRepeatPill: {
+    marginTop: 0,
+    marginBottom: 0,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.borderRadius.pill,
+  },
+  bacRepeatPillText: {
+    textAlign: 'center',
+    fontSize: theme.fonts.sm,
+  },
+  bacResetTextButton: {
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.xs,
+    alignSelf: 'flex-end',
+  },
+  bacResetText: {
+    color: theme.colors.errorLight,
+    fontSize: theme.fonts.sm,
+    fontWeight: '600',
+  },
+  bacResetTextDisabled: {
+    color: theme.colors.textMuted,
+  },
   bacResetButton: {
     flexGrow: 1,
     flexBasis: 150,
@@ -229,15 +275,64 @@ export const profileStyles = StyleSheet.create({
   chartCard: {
     marginBottom: 0,
     marginTop: theme.spacing.md,
-    borderRadius: theme.fonts.md,
+    borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
-    borderColor: theme.colors.borderChartCard,
-    backgroundColor: theme.colors.backgroundChartCard,
+    borderColor: theme.colors.borderWarm,
+    backgroundColor: theme.colors.backgroundCardAlt,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.md,
   },
+  highscoreCard: {
+    marginBottom: 0,
+    marginTop: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderWarm,
+    backgroundColor: theme.colors.backgroundCardAlt,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+  },
+  highscoreHeaderRow: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  highscoreToggleButton: {
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  highscoreToggleText: {
+    color: theme.colors.primary,
+    fontSize: theme.fonts.sm,
+    fontWeight: '600',
+  },
+  highscoreFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: theme.spacing.xs,
+  },
+  highscoreResetButton: {
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.xs,
+  },
+  highscoreResetText: {
+    color: theme.colors.errorLight,
+    fontSize: theme.fonts.sm,
+    fontWeight: '600',
+  },
+  highscoreResetTextDisabled: {
+    color: theme.colors.textMuted,
+  },
+  compactStatsBlock: {
+    marginTop: theme.spacing.sm,
+  },
   chart: {
     paddingVertical: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
+    borderRadius: theme.borderRadius.md,
+    alignSelf: 'center',
+  },
+  sparkline: {
+    paddingVertical: 0,
     marginTop: theme.spacing.xs,
     borderRadius: theme.borderRadius.md,
     alignSelf: 'center',
@@ -265,6 +360,10 @@ export const profileStyles = StyleSheet.create({
     paddingHorizontal: theme.spacing.sm,
     justifyContent: 'flex-start',
   },
+  compactStatPill: {
+    minHeight: theme.spacing.huge + theme.spacing.xs,
+    paddingTop: theme.spacing.lg + theme.spacing.xs,
+  },
   statLabel: {
     position: 'absolute',
     top: theme.spacing.sm,
@@ -273,11 +372,17 @@ export const profileStyles = StyleSheet.create({
     color: theme.colors.textMuted,
     fontSize: theme.fonts.xs,
   },
+  compactStatLabel: {
+    fontSize: theme.fonts.xxs,
+  },
   statValue: {
     color: theme.colors.primary,
     fontSize: theme.fonts.md,
     fontWeight: '700',
     lineHeight: theme.spacing.xl,
+  },
+  compactStatValue: {
+    fontSize: theme.fonts.sm,
   },
   statMainSlot: {
     minHeight: theme.spacing.xxl,
