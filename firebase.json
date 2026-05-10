@@ -1,4 +1,8 @@
 {
+  "functions": {
+    "source": "functions",
+    "predeploy": ["npm --prefix functions install", "npm --prefix functions run build"]
+  },
   "firestore": {
     "database": "(default)",
     "location": "eur3",

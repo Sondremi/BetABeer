@@ -20,6 +20,14 @@ export default function RootLayout() {
 function PersistedRouteStack() {
   const router = useRouter();
   const pathname = usePathname();
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .register('/firebase-messaging-sw.js')
+        .catch((err) => console.error('SW registration failed:', err));
+    }
+  }, []);
   const params = useGlobalSearchParams<{ groupInvite?: string | string[] }>();
   const handledGroupInviteRef = useRef<string | null>(null);
   const lastRedirectRef = useRef<{ from: string; to: string } | null>(null);

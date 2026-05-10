@@ -184,6 +184,26 @@ service cloud.firestore {
         );
     }
 
+    // Notifications Collection
+    match /notifications/{notificationId} {
+      // Any authenticated user can write a notification (group members notify each other)
+      allow create: if request.auth != null
+        && request.resource.data.toUserId is string
+        && request.resource.data.type is string
+        && request.resource.data.message is string;
+
+      // Only the recipient can read or list their notifications
+      allow read, list: if request.auth != null
+        && resource.data.toUserId == request.auth.uid;
+
+      // Only the recipient can mark as read
+      allow update: if request.auth != null
+        && resource.data.toUserId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+
+      allow delete: if false;
+    }
+
     // Group Invitations Collection (singular compatibility)
     match /group_invitation/{invitationId} {
       allow create: if request.auth != null

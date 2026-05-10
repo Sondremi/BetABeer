@@ -11,6 +11,8 @@ import { useAuth } from '../../context/AuthContext';
 import { MEDIA_UPLOAD_VERIFICATION_MESSAGE, authService } from '../../services/firebase/authService';
 import { firestore } from '../../services/firebase/FirebaseConfig';
 import { sendGroupInvitation } from '../../services/groupService';
+import { markAllAsRead, markAsRead, subscribeToNotifications, type AppNotification } from '../../services/notificationService';
+import { requestPermissionAndSaveToken } from '../../services/pushNotificationService';
 import { uploadProfileImage } from '../../services/profileImageUploadService';
 import { acceptGroupInvitation, createGroup, declineGroupInvitation, profileService } from '../../services/profileService';
 import { globalStyles } from '../../styles/globalStyles';
@@ -23,6 +25,7 @@ import ProfileBacSection from './bac/ProfileBacSection';
 import ProfileGroupInvitationsSection from './components/ProfileGroupInvitationsSection';
 import ProfileGroupsSection from './components/ProfileGroupsSection';
 import ProfileHeaderSection from './components/ProfileHeaderSection';
+import NotificationsModal from './components/NotificationsModal';
 import ProfileImageModal from './components/ProfileImageModal';
 import ProfileOnboardingModal from './components/ProfileOnboardingModal';
 import { DefaultProfilePicture, ImageMissing } from './profileAssets';
@@ -62,6 +65,9 @@ const ProfileScreen: React.FC = () => {
   const [userInfo, setUserInfo] = useState<ProfileUserInfo>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isInvitationsExpanded, setIsInvitationsExpanded] = useState(true);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [notificationsModalVisible, setNotificationsModalVisible] = useState(false);
 
   const lastProfileImageRef = useRef<string | null>(null);
 
@@ -199,6 +205,23 @@ const ProfileScreen: React.FC = () => {
     return () => {
       unsubscribeIncomingFriendRequests();
     };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      requestPermissionAndSaveToken(user.id).catch(console.error);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setUnreadNotificationCount(0);
+      return;
+    }
+    return subscribeToNotifications(user.id, (fetched) => {
+      setNotifications(fetched);
+      setUnreadNotificationCount(fetched.filter((n) => !n.read).length);
+    });
   }, [user?.id]);
 
   useEffect(() => {
@@ -511,6 +534,14 @@ const ProfileScreen: React.FC = () => {
     ));
   };
 
+  const openOnboardingModal = () => {
+    setOnboardingModalVisible(true);
+  };
+
+  const openNotificationsModal = () => {
+    setNotificationsModalVisible(true);
+  };
+
   const openCreateGroupModal = () => {
     setCreateGroupName('');
     setSelectedInviteeIds([]);
@@ -582,6 +613,9 @@ const ProfileScreen: React.FC = () => {
           onNavigateToSettings={navigateToSettings}
           onNavigateToFriends={navigateToFriends}
           onOpenImageModal={openProfileImageModal}
+          onOpenOnboarding={openOnboardingModal}
+          unreadNotificationCount={unreadNotificationCount}
+          onOpenNotifications={openNotificationsModal}
         />
 
         <ProfileImageModal
@@ -615,6 +649,14 @@ const ProfileScreen: React.FC = () => {
           visible={onboardingModalVisible}
           onDismiss={dismissOnboarding}
           onGoToSettings={goToSettingsFromOnboarding}
+        />
+
+        <NotificationsModal
+          visible={notificationsModalVisible}
+          notifications={notifications}
+          onClose={() => setNotificationsModalVisible(false)}
+          onMarkAsRead={(id) => markAsRead(id).catch(console.error)}
+          onMarkAllAsRead={() => user?.id ? markAllAsRead(user.id).catch(console.error) : undefined}
         />
 
         <ProfileBacSection
