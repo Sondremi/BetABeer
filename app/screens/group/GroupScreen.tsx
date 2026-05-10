@@ -22,6 +22,7 @@ import { clampDigits, INPUT_LIMITS, isIntInRange, normalizeSingleLineText } from
 import { showAlert } from '../../utils/platformAlert';
 import { getDefaultProfilePicture, resolveProfileImageSource } from '../../utils/profileImage';
 import ActiveBetsSection from './components/ActiveBetsSection';
+import SkalModal from './modals/SkalModal';
 import BetCard from './components/BetCard';
 import DetailedDrinkOverviewCard from './components/DetailedDrinkOverviewCard';
 import DistributionMemberCard from './components/DistributionMemberCard';
@@ -106,6 +107,8 @@ const GroupScreen = () => {
   const [membersModalVisible, setMembersModalVisible] = useState(false);
   const [userDrinksToDistribute, setUserDrinksToDistribute] = useState<MemberDrinkStats['drinksToDistribute']>({});
   const [distributingDrinks, setDistributingDrinks] = useState(false);
+  const [skalVisible, setSkalVisible] = useState(false);
+  const [skalDistributions, setSkalDistributions] = useState<{ name: string; drinkType: DrinkType; measureType: MeasureType; amount: number }[]>([]);
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
   const [selectedDistribution, setSelectedDistribution] = useState<{ drinkType: DrinkType; measureType: MeasureType; amount: number } | null>(null);
   const [distributionAmountMode, setDistributionAmountMode] = useState<'preset' | 'custom'>('preset');
@@ -368,18 +371,29 @@ const GroupScreen = () => {
         )
       ).catch(console.error);
 
+      const resolved = distributions.map((d) => {
+        const member = memberData.find((m) => m.id === d.userId);
+        return {
+          name: member?.name || member?.username || 'Ukjent',
+          drinkType: d.drinkType,
+          measureType: d.measureType,
+          amount: d.amount,
+        };
+      });
+
       // Refresh all data
       const updatedLeaderboard = await getLeaderboardData();
       setLeaderboardData(updatedLeaderboard);
-      
+
       // Update user's available drinks
       const userStats = updatedLeaderboard.find(stat => stat.userId === user.id);
       setUserDrinksToDistribute(userStats?.drinksToDistribute || {});
-      
-      // Clear state
-      setDistributions([]);
 
+      // Clear state and show celebration
+      setDistributions([]);
       setDistributeModalVisible(false);
+      setSkalDistributions(resolved);
+      setSkalVisible(true);
     } catch (error) {
       console.error('Error distributing drinks:', error);
     } finally {
@@ -1126,6 +1140,18 @@ const GroupScreen = () => {
     setSelectedDistribution(prev => prev ? { ...prev, amount: Math.max(1, amount) } : null);
   };
 
+  const handleRemoveDistribution = (index: number) => {
+    const dist = distributions[index];
+    setUserDrinksToDistribute((prev) => ({
+      ...prev,
+      [dist.drinkType]: {
+        ...(prev[dist.drinkType] || {}),
+        [dist.measureType]: (prev[dist.drinkType]?.[dist.measureType] || 0) + dist.amount,
+      },
+    }));
+    setDistributions((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleCancelDistributionFlow = () => {
     setSelectedMember(null);
     setSelectedDistribution(null);
@@ -1497,6 +1523,7 @@ const GroupScreen = () => {
         groupAverageBacTone={groupAverageBacTone}
         groupStyles={groupStyles}
         handleCancelDistributionFlow={handleCancelDistributionFlow}
+        handleRemoveDistribution={handleRemoveDistribution}
         handleCreateGroup={handleCreateGroup}
         handleDeleteBet={handleDeleteBet}
         handleDistributeDrinks={handleDistributeDrinks}
@@ -1576,6 +1603,12 @@ const GroupScreen = () => {
         updateBetOption={updateBetOption}
         updateEditBetOption={updateEditBetOption}
         user={user}
+      />
+
+      <SkalModal
+        visible={skalVisible}
+        distributions={skalDistributions}
+        onClose={() => setSkalVisible(false)}
       />
 
       <ImageCropModal

@@ -64,17 +64,17 @@ const DistributionMemberCard = ({
   const isSelected = selectedMember === item.id;
   const selectedEntry = selectedDistribution
     ? availableDistributionEntries.find(
-        (entry) => entry.drinkType === selectedDistribution.drinkType && entry.measureType === selectedDistribution.measureType
+        (e) => e.drinkType === selectedDistribution.drinkType && e.measureType === selectedDistribution.measureType
       )
     : null;
 
-  const maxAvailable = selectedEntry?.amount || 0;
+  const maxAvailable = selectedEntry?.amount ?? 0;
   const customAmountRaw = distributionCustomAmount.trim();
   const hasCustomAmountValue = customAmountRaw.length > 0;
   const customAmount = parseInt(distributionCustomAmount, 10);
-  const resolvedAmount = distributionAmountMode === 'custom' ? customAmount : selectedDistribution?.amount || 0;
+  const resolvedAmount = distributionAmountMode === 'custom' ? customAmount : (selectedDistribution?.amount ?? 0);
 
-  const distributionValidationMessage = (() => {
+  const validationMessage = (() => {
     if (!selectedDistribution) return null;
     if (distributionAmountMode === 'custom' && !hasCustomAmountValue) return null;
     if (!Number.isInteger(resolvedAmount) || resolvedAmount <= 0) return 'Antall må være et heltall større enn 0.';
@@ -82,80 +82,79 @@ const DistributionMemberCard = ({
     return null;
   })();
 
-  const canConfirmDistribution = Boolean(selectedDistribution)
-    && (distributionAmountMode !== 'custom' || hasCustomAmountValue)
-    && distributionValidationMessage === null;
+  const canConfirm =
+    Boolean(selectedDistribution) &&
+    (distributionAmountMode !== 'custom' || hasCustomAmountValue) &&
+    validationMessage === null;
 
   const amountOptions = selectedEntry
-    ? Array.from(new Set([1, 2, 3, 4, 5, 10, maxAvailable].filter((num) => num > 0 && num <= maxAvailable))).sort((a, b) => a - b)
+    ? Array.from(new Set([1, 2, 3, 5, 10, maxAvailable].filter((n) => n > 0 && n <= maxAvailable))).sort((a, b) => a - b)
     : [];
 
+  const disabled = distributingDrinks || !hasAvailableDrinks;
+
   return (
-    <View
-      style={[
-        groupStyles.modalSectionCard,
-        isSelected && groupStyles.memberSelectCardActive,
-        (distributingDrinks || !hasAvailableDrinks) && globalStyles.disabledButton,
-      ]}
-    >
-      <TouchableOpacity style={groupStyles.memberRow} onPress={() => onMemberTap(item.id)} disabled={distributingDrinks || !hasAvailableDrinks}>
+    <View style={[groupStyles.modalSectionCard, { marginBottom: theme.spacing.sm }, isSelected && groupStyles.memberSelectCardActive]}>
+      <TouchableOpacity
+        style={groupStyles.memberRow}
+        onPress={() => onMemberTap(item.id)}
+        disabled={disabled}
+        activeOpacity={0.7}
+      >
         <Image
           source={item.profilePicture}
           style={[globalStyles.circularImage, groupStyles.memberAvatar, isSelected && groupStyles.memberSelectAvatarActive]}
         />
         <View style={groupStyles.memberMeta}>
-          <Text style={[groupStyles.wagerUser, isSelected && groupStyles.memberSelectNameActive]} numberOfLines={1}>
+          <Text style={[groupStyles.memberName, isSelected && groupStyles.memberSelectNameActive]} numberOfLines={1}>
             {item.name}
           </Text>
           <Text style={groupStyles.memberUsername}>@{item.username}</Text>
         </View>
         <Text style={[globalStyles.actionButtonText, isSelected ? groupStyles.memberSelectLabel : globalStyles.secondaryText]}>
-          {isSelected ? 'Valgt' : 'Velg'}
+          {isSelected ? 'Valgt ✓' : 'Velg'}
         </Text>
       </TouchableOpacity>
 
       {isSelected && hasAvailableDrinks && (
         <View style={groupStyles.memberDistributionPanel}>
           <Text style={groupStyles.modalSectionTitle}>Velg drikke</Text>
-          {availableDistributionEntries.map((entry) => (
-            <TouchableOpacity
-              key={`${entry.drinkType}-${entry.measureType}`}
-              onPress={() => onDistributionSelect(entry.drinkType, entry.measureType)}
-              style={[
-                groupStyles.distributionChoiceButton,
-                selectedDistribution?.drinkType === entry.drinkType
-                && selectedDistribution?.measureType === entry.measureType
-                && globalStyles.distributionChoiceButtonActive,
-              ]}
-            >
-              <Text
-                style={[
-                  globalStyles.selectionButtonText,
-                  selectedDistribution?.drinkType === entry.drinkType
-                  && selectedDistribution?.measureType === entry.measureType
-                  && globalStyles.primaryColorText,
-                ]}
+          {availableDistributionEntries.map((entry) => {
+            const active =
+              selectedDistribution?.drinkType === entry.drinkType &&
+              selectedDistribution?.measureType === entry.measureType;
+            return (
+              <TouchableOpacity
+                key={`${entry.drinkType}-${entry.measureType}`}
+                onPress={() => onDistributionSelect(entry.drinkType, entry.measureType)}
+                style={[groupStyles.distributionChoiceButton, active && globalStyles.distributionChoiceButtonActive]}
               >
-                {entry.measureType} {entry.drinkType}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text style={[globalStyles.selectionButtonText, active && globalStyles.primaryColorText]}>
+                  {entry.measureType} {entry.drinkType}
+                </Text>
+                <Text style={groupStyles.distributionAmountPlainText}>{entry.amount} igjen</Text>
+              </TouchableOpacity>
+            );
+          })}
 
           {selectedDistribution && (
             <>
               <Text style={groupStyles.memberDistributionHelperText}>Velg antall</Text>
               <View style={groupStyles.amountChipRow}>
-                {amountOptions.map((num) => (
-                  <TouchableOpacity
-                    key={num}
-                    onPress={() => onDistributionAmountChange(num)}
-                    style={[groupStyles.amountChip, selectedDistribution.amount === num && globalStyles.distributionChoiceButtonActive]}
-                  >
-                    <Text style={[globalStyles.amountChipText, selectedDistribution.amount === num && globalStyles.amountChipTextSelected]}>
-                      {num}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {amountOptions.map((num) => {
+                  const active = distributionAmountMode === 'preset' && selectedDistribution.amount === num;
+                  return (
+                    <TouchableOpacity
+                      key={num}
+                      onPress={() => onDistributionAmountChange(num)}
+                      style={[groupStyles.amountChip, active && globalStyles.distributionChoiceButtonActive]}
+                    >
+                      <Text style={[globalStyles.amountChipText, active && globalStyles.amountChipTextSelected]}>
+                        {num === maxAvailable ? `${num} (maks)` : num}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
                 <TouchableOpacity
                   onPress={() => {
                     onSetDistributionAmountMode('custom');
@@ -164,13 +163,13 @@ const DistributionMemberCard = ({
                   style={[groupStyles.amountChip, distributionAmountMode === 'custom' && globalStyles.distributionChoiceButtonActive]}
                 >
                   <Text style={[globalStyles.amountChipText, distributionAmountMode === 'custom' && globalStyles.amountChipTextSelected]}>
-                    Egendefinert
+                    Annet
                   </Text>
                 </TouchableOpacity>
               </View>
 
               {distributionAmountMode === 'custom' && (
-                <View style={[globalStyles.inputShellDark, globalStyles.betSelectionHintText, distributionAmountFocused && globalStyles.inputShellFocusedGold]}>
+                <View style={[globalStyles.inputShellDark, { marginBottom: theme.spacing.sm }, distributionAmountFocused && globalStyles.inputShellFocusedGold]}>
                   <TextInput
                     placeholder="Antall"
                     placeholderTextColor={theme.colors.textSecondary}
@@ -191,16 +190,16 @@ const DistributionMemberCard = ({
                 </View>
               )}
 
-              {distributionValidationMessage && (distributionAmountMode !== 'custom' || hasInteractedDistributionCustomAmount || hasCustomAmountValue) ? (
-                <Text style={globalStyles.validationHelperText}>{distributionValidationMessage}</Text>
-              ) : null}
+              {validationMessage && (distributionAmountMode !== 'custom' || hasInteractedDistributionCustomAmount || hasCustomAmountValue) && (
+                <Text style={globalStyles.validationHelperText}>{validationMessage}</Text>
+              )}
 
               <TouchableOpacity
-                style={[globalStyles.outlineButtonGold, groupStyles.memberDistributionAddButton, !canConfirmDistribution && globalStyles.disabledButton]}
+                style={[globalStyles.outlineButtonGold, groupStyles.memberDistributionAddButton, !canConfirm && globalStyles.disabledButton]}
                 onPress={onConfirmDistribution}
-                disabled={!canConfirmDistribution}
+                disabled={!canConfirm}
               >
-                <Text style={globalStyles.outlineButtonGoldText}>Legg til</Text>
+                <Text style={globalStyles.outlineButtonGoldText}>Legg til →</Text>
               </TouchableOpacity>
             </>
           )}
