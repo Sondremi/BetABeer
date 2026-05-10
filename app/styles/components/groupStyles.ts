@@ -279,6 +279,7 @@ export const groupStyles = StyleSheet.create({
     marginBottom: 0,
     textAlign: 'left',
     lineHeight: 20,
+    color: theme.colors.text,
   },
   memberUsername: {
     marginTop: 0,
