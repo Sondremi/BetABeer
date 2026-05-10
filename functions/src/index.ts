@@ -9,10 +9,9 @@ export const sendPushOnNotification = onDocumentCreated(
     const data = event.data?.data();
     if (!data) return;
 
-    const { toUserId, message, groupName } = data as {
+    const { toUserId, message } = data as {
       toUserId: string;
       message: string;
-      groupName: string;
     };
 
     const userSnap = await admin.firestore().doc(`users/${toUserId}`).get();
@@ -23,7 +22,7 @@ export const sendPushOnNotification = onDocumentCreated(
       fcmTokens.map((token) =>
         admin.messaging().send({
           token,
-          data: { title: 'BetABeer', body: `${groupName}: ${message}` },
+          data: { title: 'BetABeer', body: message },
           webpush: { headers: { Urgency: 'high' } },
         }).catch((err) => console.error(`Failed to send to token ${token}:`, err))
       )
