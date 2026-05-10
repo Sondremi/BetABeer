@@ -4,7 +4,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 admin.initializeApp();
 
 export const sendPushOnNotification = onDocumentCreated(
-  { document: 'notifications/{notificationId}', region: 'europe-west1' },
+  { document: 'notifications/{notificationId}', region: 'us-central1' },
   async (event) => {
     const data = event.data?.data();
     if (!data) return;

@@ -4,7 +4,7 @@ exports.sendPushOnNotification = void 0;
 const admin = require("firebase-admin");
 const firestore_1 = require("firebase-functions/v2/firestore");
 admin.initializeApp();
-exports.sendPushOnNotification = (0, firestore_1.onDocumentCreated)({ document: 'notifications/{notificationId}', region: 'europe-west1' }, async (event) => {
+exports.sendPushOnNotification = (0, firestore_1.onDocumentCreated)({ document: 'notifications/{notificationId}', region: 'us-central1' }, async (event) => {
     var _a, _b, _c;
     const data = (_a = event.data) === null || _a === void 0 ? void 0 : _a.data();
     if (!data)
