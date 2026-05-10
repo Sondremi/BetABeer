@@ -511,6 +511,10 @@ const ProfileScreen: React.FC = () => {
     ));
   };
 
+  const openOnboardingModal = () => {
+    setOnboardingModalVisible(true);
+  };
+
   const openCreateGroupModal = () => {
     setCreateGroupName('');
     setSelectedInviteeIds([]);
@@ -582,6 +586,7 @@ const ProfileScreen: React.FC = () => {
           onNavigateToSettings={navigateToSettings}
           onNavigateToFriends={navigateToFriends}
           onOpenImageModal={openProfileImageModal}
+          onOpenOnboarding={openOnboardingModal}
         />
 
         <ProfileImageModal
