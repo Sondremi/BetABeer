@@ -24,6 +24,7 @@ type DetailedDrinkOverviewCardProps = {
   consumingDrinkKey: string | null;
   onRegisterConsumedDrink: (drinkType: DrinkType, measureType: MeasureType) => void;
   memberDistributedTransactions: DrinkTransaction[];
+  memberReceivedTransactions: DrinkTransaction[];
   defaultProfilePicture: any;
   getMemberName: (member: Pick<MemberDrinkStats, 'name' | 'username'>) => string;
   getMemberUsernameLabel: (member: Pick<MemberDrinkStats, 'username'>) => string;
@@ -37,6 +38,7 @@ const DetailedDrinkOverviewCard = ({
   consumingDrinkKey,
   onRegisterConsumedDrink,
   memberDistributedTransactions,
+  memberReceivedTransactions,
   defaultProfilePicture,
   getMemberName,
   getMemberUsernameLabel,
@@ -125,6 +127,8 @@ const DetailedDrinkOverviewCard = ({
 
   const showDistributeTransferSection = selectedDetailView === 'distribute' && memberDistributedTransactions.length > 0;
   const shouldScrollDistributedTransfers = memberDistributedTransactions.length > 5;
+  const showReceivedTransferSection = selectedDetailView === 'consume' && memberReceivedTransactions.length > 0;
+  const shouldScrollReceivedTransfers = memberReceivedTransactions.length > 5;
 
   return (
     <View style={groupStyles.detailedMemberCard}>
@@ -163,7 +167,7 @@ const DetailedDrinkOverviewCard = ({
         </TouchableOpacity>
       </View>
 
-      {selectedRows.length > 0 || showDistributeTransferSection ? (
+      {selectedRows.length > 0 || showDistributeTransferSection || showReceivedTransferSection ? (
         <View style={groupStyles.modalSectionCard}>
           <Text style={groupStyles.modalSectionTitle}>{selectedSectionTitle}</Text>
           {selectedDetailView === 'consume' && isOwnUser && (
@@ -220,6 +224,25 @@ const DetailedDrinkOverviewCard = ({
               >
                 <View style={[globalStyles.listContainer, globalStyles.leaderboardListWrap]}>
                   {memberDistributedTransactions.map((transaction, idx) => (
+                    <View key={`${transaction.fromUserId}-${transaction.toUserId}-${transaction.timestamp}-${idx}`}>
+                      <TransactionRow item={transaction} />
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          )}
+
+          {showReceivedTransferSection && (
+            <View>
+              <Text style={[groupStyles.modalSectionTitle, { marginTop: theme.spacing.sm }]}>Siste overføringer</Text>
+              <ScrollView
+                style={shouldScrollReceivedTransfers ? globalStyles.betOptionsScrollWrap : undefined}
+                nestedScrollEnabled={shouldScrollReceivedTransfers}
+                showsVerticalScrollIndicator={shouldScrollReceivedTransfers}
+              >
+                <View style={[globalStyles.listContainer, globalStyles.leaderboardListWrap]}>
+                  {memberReceivedTransactions.map((transaction, idx) => (
                     <View key={`${transaction.fromUserId}-${transaction.toUserId}-${transaction.timestamp}-${idx}`}>
                       <TransactionRow item={transaction} />
                     </View>

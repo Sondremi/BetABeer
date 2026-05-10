@@ -1265,20 +1265,32 @@ const GroupScreen = () => {
 
   const renderDetailedDrinkOverview = ({ item }: { item: MemberDrinkStats }) => {
     const selectedDetailView = drinkDetailViewByUser[item.userId] || 'consume';
-    const memberDistributedTransactions = leaderboardData
-      .flatMap((member) => member.transactions)
+    const allTransactions = leaderboardData.flatMap((member) => member.transactions);
+    const memberDistributedTransactions = allTransactions
       .filter((transaction) => transaction.fromUserId === item.userId)
       .sort((a, b) => b.timestamp - a.timestamp);
+    const memberReceivedTransactions = allTransactions
+      .filter((transaction) => transaction.toUserId === item.userId)
+      .sort((a, b) => b.timestamp - a.timestamp);
+
+    const handleSelectDetailView = (view: typeof selectedDetailView) => {
+      if (view === 'distribute' && selectedDetailView === 'distribute' && item.userId === user?.id) {
+        setDistributeModalVisible(true);
+      } else {
+        setDrinkDetailViewByUser((prev) => ({ ...prev, [item.userId]: view }));
+      }
+    };
 
     return (
       <DetailedDrinkOverviewCard
         item={item}
         isOwnUser={item.userId === user?.id}
         selectedDetailView={selectedDetailView}
-        onSelectDetailView={(view) => setDrinkDetailViewByUser((prev) => ({ ...prev, [item.userId]: view }))}
+        onSelectDetailView={handleSelectDetailView}
         consumingDrinkKey={consumingDrinkKey}
         onRegisterConsumedDrink={handleRegisterConsumedDrink}
         memberDistributedTransactions={memberDistributedTransactions}
+        memberReceivedTransactions={memberReceivedTransactions}
         defaultProfilePicture={DefaultProfilePicture}
         getMemberName={getMemberName}
         getMemberUsernameLabel={getMemberUsernameLabel}
