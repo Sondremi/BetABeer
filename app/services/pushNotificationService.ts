@@ -7,11 +7,15 @@ const VAPID_KEY = process.env.EXPO_PUBLIC_FIREBASE_VAPID_KEY;
 export const requestPermissionAndSaveToken = async (userId: string): Promise<void> => {
   if (Platform.OS !== 'web') return;
   if (typeof Notification === 'undefined') return;
-  if (!VAPID_KEY) return;
 
   try {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return;
+
+    if (!VAPID_KEY) {
+      console.error('Push: EXPO_PUBLIC_FIREBASE_VAPID_KEY is not set — token not registered');
+      return;
+    }
 
     const { getMessaging, getToken } = await import('firebase/messaging');
     const { app } = await import('./firebase/FirebaseConfig');

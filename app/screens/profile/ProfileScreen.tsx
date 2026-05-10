@@ -208,10 +208,10 @@ const ProfileScreen: React.FC = () => {
   }, [user?.id]);
 
   useEffect(() => {
-    if (user?.id && user?.emailVerified) {
+    if (user?.id) {
       requestPermissionAndSaveToken(user.id).catch(console.error);
     }
-  }, [user?.id, user?.emailVerified]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) {
