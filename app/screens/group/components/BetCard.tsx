@@ -16,6 +16,7 @@ type BetCardProps = {
   onOpenPlaceBet: (bet: Bet, option: BettingOption) => void;
   onOpenEditBet: (bet: Bet, index: number) => void;
   onMarkFinished: (bet: Bet, index: number) => void;
+  onReactivate?: (index: number) => void;
   pencilIcon: any;
 };
 
@@ -30,6 +31,7 @@ const BetCard = ({
   onOpenPlaceBet,
   onOpenEditBet,
   onMarkFinished,
+  onReactivate,
   pencilIcon,
 }: BetCardProps) => {
   const creatorName = item.createdByUsername?.trim() || '';
@@ -157,6 +159,15 @@ const BetCard = ({
             onPress={() => onMarkFinished(item, index)}
           >
             <Text style={groupStyles.betMarkFinishedText}>Marker som ferdig →</Text>
+          </TouchableOpacity>
+        )}
+
+        {item.isFinished && canManageBet(item) && onReactivate && (
+          <TouchableOpacity
+            style={groupStyles.betMarkFinishedRow}
+            onPress={() => onReactivate(index)}
+          >
+            <Text style={groupStyles.betReactivateText}>Gjenåpne bet ↩</Text>
           </TouchableOpacity>
         )}
       </View>

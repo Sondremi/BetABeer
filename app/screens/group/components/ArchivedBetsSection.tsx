@@ -8,13 +8,10 @@ import type { Bet } from '../../../types/drinkTypes';
 
 type ArchivedBetsSectionProps = {
   bets: Bet[];
-  userId?: string;
-  canManageBet: (bet: Bet) => boolean;
   renderBet: (args: { item: Bet; index: number }) => React.ReactNode;
-  onReactivate: (betIndex: number) => void;
 };
 
-const ArchivedBetsSection = ({ bets, userId: _userId, canManageBet, renderBet, onReactivate }: ArchivedBetsSectionProps) => {
+const ArchivedBetsSection = ({ bets, renderBet }: ArchivedBetsSectionProps) => {
   const [expanded, setExpanded] = useState(false);
 
   const archivedBets = bets.filter((bet) => bet.isFinished);
@@ -45,14 +42,6 @@ const ArchivedBetsSection = ({ bets, userId: _userId, canManageBet, renderBet, o
               return (
                 <View key={item.id}>
                   {renderBet({ item, index: originalIndex })}
-                  {canManageBet(item) && (
-                    <TouchableOpacity
-                      style={groupStyles.betReactivateRow}
-                      onPress={() => onReactivate(originalIndex)}
-                    >
-                      <Text style={groupStyles.betReactivateText}>Gjenåpne bet ↩</Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
               );
             })}

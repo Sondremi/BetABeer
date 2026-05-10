@@ -1379,6 +1379,7 @@ const GroupScreen = () => {
           setSelectCorrectBetIdx(idx);
           setSelectCorrectModalVisible(true);
         }}
+        onReactivate={handleReactivateBet}
         pencilIcon={PencilIcon}
       />
     );
@@ -1528,10 +1529,7 @@ const GroupScreen = () => {
 
           <ArchivedBetsSection
             bets={bets}
-            userId={user?.id}
-            canManageBet={canManageBet}
             renderBet={renderBet}
-            onReactivate={handleReactivateBet}
           />
 
           {selectedGroup && user && (
