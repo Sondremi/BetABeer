@@ -802,7 +802,7 @@ const GroupScreen = () => {
             type: 'newBet',
             groupId: selectedGroup.id,
             groupName: selectedGroup.name,
-            message: `${user.username || user.name} opprettet bettet ${trimmedBetTitle} i ${selectedGroup.name}`,
+            message: `${user.username || user.name} opprettet bettet "${trimmedBetTitle}" i ${selectedGroup.name}`,
           })
         )
       ).catch(console.error);
@@ -977,7 +977,7 @@ const GroupScreen = () => {
                 type: 'betFinished',
                 groupId: selectedGroup.id,
                 groupName: selectedGroup.name,
-                message: `Bettet ${finishedBet.title} ble avgjort i ${selectedGroup.name} ${correctOptionName ? ` – Riktig svar: ${correctOptionName}` : ''}`,
+                message: `Bettet "${finishedBet.title}" ble avgjort i ${selectedGroup.name} ${correctOptionName ? ` – Riktig svar: ${correctOptionName}` : ''}`,
               })
             )
           ).catch(console.error);
