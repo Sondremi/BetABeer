@@ -896,4 +896,23 @@ export const groupStyles = StyleSheet.create({
     fontSize: theme.fonts.sm,
     fontWeight: '600',
   },
+  archivedSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  betReactivateRow: {
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    alignItems: 'flex-start',
+    marginHorizontal: theme.spacing.md,
+  },
+  betReactivateText: {
+    color: theme.colors.primary,
+    fontSize: theme.fonts.sm,
+    fontWeight: '600',
+  },
 });
