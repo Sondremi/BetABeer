@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { MEDIA_UPLOAD_VERIFICATION_MESSAGE, authService } from '../../services/firebase/authService';
 import { firestore } from '../../services/firebase/FirebaseConfig';
 import { sendGroupInvitation } from '../../services/groupService';
+import { subscribeToNotifications } from '../../services/notificationService';
 import { uploadProfileImage } from '../../services/profileImageUploadService';
 import { acceptGroupInvitation, createGroup, declineGroupInvitation, profileService } from '../../services/profileService';
 import { globalStyles } from '../../styles/globalStyles';
@@ -62,6 +63,8 @@ const ProfileScreen: React.FC = () => {
   const [userInfo, setUserInfo] = useState<ProfileUserInfo>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isInvitationsExpanded, setIsInvitationsExpanded] = useState(true);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [notificationsModalVisible, setNotificationsModalVisible] = useState(false);
 
   const lastProfileImageRef = useRef<string | null>(null);
 
@@ -199,6 +202,16 @@ const ProfileScreen: React.FC = () => {
     return () => {
       unsubscribeIncomingFriendRequests();
     };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setUnreadNotificationCount(0);
+      return;
+    }
+    return subscribeToNotifications(user.id, (notifications) => {
+      setUnreadNotificationCount(notifications.filter((n) => !n.read).length);
+    });
   }, [user?.id]);
 
   useEffect(() => {
@@ -515,6 +528,10 @@ const ProfileScreen: React.FC = () => {
     setOnboardingModalVisible(true);
   };
 
+  const openNotificationsModal = () => {
+    setNotificationsModalVisible(true);
+  };
+
   const openCreateGroupModal = () => {
     setCreateGroupName('');
     setSelectedInviteeIds([]);
@@ -587,6 +604,8 @@ const ProfileScreen: React.FC = () => {
           onNavigateToFriends={navigateToFriends}
           onOpenImageModal={openProfileImageModal}
           onOpenOnboarding={openOnboardingModal}
+          unreadNotificationCount={unreadNotificationCount}
+          onOpenNotifications={openNotificationsModal}
         />
 
         <ProfileImageModal

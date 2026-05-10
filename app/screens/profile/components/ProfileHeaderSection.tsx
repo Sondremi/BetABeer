@@ -1,5 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { theme } from '../../../styles/theme';
 import { profileStyles } from '../../../styles/components/profileStyles';
 import { globalStyles } from '../../../styles/globalStyles';
 
@@ -12,9 +14,12 @@ type ProfileHeaderSectionProps = {
   username: string;
   profileImageSource: any;
   incomingFriendRequestCount: number;
+  unreadNotificationCount: number;
   onNavigateToSettings: () => void;
   onNavigateToFriends: () => void;
   onOpenImageModal: () => void;
+  onOpenOnboarding: () => void;
+  onOpenNotifications: () => void;
 };
 
 const ProfileHeaderSection = ({
@@ -22,14 +27,30 @@ const ProfileHeaderSection = ({
   username,
   profileImageSource,
   incomingFriendRequestCount,
+  unreadNotificationCount,
   onNavigateToSettings,
   onNavigateToFriends,
   onOpenImageModal,
+  onOpenOnboarding,
+  onOpenNotifications,
 }: ProfileHeaderSectionProps) => (
   <View style={[globalStyles.centeredSection, profileStyles.compactCenteredSection, profileStyles.heroSection]}>
     <View style={[globalStyles.premiumCard, profileStyles.profileHeroCard]}>
       <TouchableOpacity style={profileStyles.heroButton} onPress={onNavigateToSettings}>
         <Image source={SettingsIcon} style={globalStyles.primaryIcon} />
+      </TouchableOpacity>
+      <TouchableOpacity style={profileStyles.heroHelpButton} onPress={onOpenOnboarding}>
+        <Text style={profileStyles.heroHelpButtonText}>?</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={profileStyles.heroNotificationButton} onPress={onOpenNotifications}>
+        <Ionicons name="notifications-outline" size={18} color={theme.colors.primary} />
+        {unreadNotificationCount > 0 && (
+          <View style={profileStyles.heroFriendsBadge}>
+            <Text style={profileStyles.heroFriendsBadgeText}>
+              {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+            </Text>
+          </View>
+        )}
       </TouchableOpacity>
       <TouchableOpacity style={profileStyles.heroButtonRight} onPress={onNavigateToFriends}>
         <Image source={FriendsIcon} style={profileStyles.heroFriendsIcon} />
