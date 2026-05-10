@@ -524,6 +524,9 @@ export const profileStyles = StyleSheet.create({
     marginTop: theme.spacing.sm,
     marginBottom: theme.spacing.md,
   },
+  onboardingHomeScreenSection: {
+    marginTop: theme.spacing.md,
+  },
   profileModalGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
