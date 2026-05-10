@@ -46,6 +46,9 @@ pglite-debug.log
 # Firebase local state/cache
 .firebase/
 
+# Cloud Functions build output
+functions/lib/
+
 # Local agent artifacts
 .agents/
 skills-lock.json
