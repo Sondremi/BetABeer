@@ -676,6 +676,52 @@ export const profileStyles = StyleSheet.create({
     fontSize: theme.fonts.lg,
     fontWeight: '700',
   },
+  notificationsModalContent: {
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    maxHeight: theme.sizes.sheetMaxHeight,
+    width: '100%',
+  },
+  notificationsScroll: {
+    maxHeight: 340,
+  },
+  notificationsMarkAllText: {
+    color: theme.colors.primary,
+    fontSize: theme.fonts.xs,
+    fontWeight: '600',
+  },
+  notificationRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.xs,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+    backgroundColor: theme.colors.backgroundCard,
+  },
+  notificationRowUnread: {
+    backgroundColor: theme.colors.backgroundTabItemFocused,
+    borderWidth: 1,
+    borderColor: theme.colors.borderHero,
+  },
+  notificationUnreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.colors.primary,
+    marginTop: 4,
+  },
+  notificationMessage: {
+    color: theme.colors.text,
+    fontSize: theme.fonts.sm,
+    fontWeight: '500',
+    marginBottom: theme.spacing.xxxs,
+  },
+  notificationMeta: {
+    color: theme.colors.textMuted,
+    fontSize: theme.fonts.xs,
+  },
   listContainerCard: {
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
