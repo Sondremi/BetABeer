@@ -1238,6 +1238,10 @@ const GroupScreen = () => {
         getOptionName={getOptionName}
         onOpenPlaceBet={openPlaceBetModal}
         onOpenEditBet={openEditBetModal}
+        onMarkFinished={(_, idx) => {
+          setSelectCorrectBetIdx(idx);
+          setSelectCorrectModalVisible(true);
+        }}
         pencilIcon={PencilIcon}
       />
     );

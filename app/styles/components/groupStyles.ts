@@ -884,4 +884,16 @@ export const groupStyles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: theme.spacing.xs,
   },
+  betMarkFinishedRow: {
+    marginTop: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    alignItems: 'flex-start',
+  },
+  betMarkFinishedText: {
+    color: theme.colors.primary,
+    fontSize: theme.fonts.sm,
+    fontWeight: '600',
+  },
 });

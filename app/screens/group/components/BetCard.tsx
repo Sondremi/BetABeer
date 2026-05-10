@@ -15,6 +15,7 @@ type BetCardProps = {
   getOptionName: (bet: Bet, optionId: string) => string;
   onOpenPlaceBet: (bet: Bet, option: BettingOption) => void;
   onOpenEditBet: (bet: Bet, index: number) => void;
+  onMarkFinished: (bet: Bet, index: number) => void;
   pencilIcon: any;
 };
 
@@ -28,6 +29,7 @@ const BetCard = ({
   getOptionName,
   onOpenPlaceBet,
   onOpenEditBet,
+  onMarkFinished,
   pencilIcon,
 }: BetCardProps) => {
   const creatorName = item.createdByUsername?.trim() || '';
@@ -147,6 +149,15 @@ const BetCard = ({
               ))}
             </ScrollView>
           </View>
+        )}
+
+        {!item.isFinished && canManageBet(item) && (
+          <TouchableOpacity
+            style={groupStyles.betMarkFinishedRow}
+            onPress={() => onMarkFinished(item, index)}
+          >
+            <Text style={groupStyles.betMarkFinishedText}>Marker som ferdig →</Text>
+          </TouchableOpacity>
         )}
       </View>
     </View>
