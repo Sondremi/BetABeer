@@ -1,5 +1,6 @@
 import React from 'react';
 import { Image, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { groupStyles } from '../../../styles/components/groupStyles';
 import { globalStyles } from '../../../styles/globalStyles';
 import { theme } from '../../../styles/theme';
@@ -54,13 +55,16 @@ const GroupHeader = ({
   onUploadOrChangeGroupImage,
   onRemoveGroupImage,
 }: GroupHeaderProps) => {
+  const { top } = useSafeAreaInsets();
+  const buttonTop = top + theme.spacing.sm;
+
   return (
     <View style={globalStyles.headerContainer}>
       <Image source={currentGroup.image} style={globalStyles.groupHeaderImage} />
-      <TouchableOpacity onPress={onBackToProfile} style={groupStyles.heroImageBackButton}>
+      <TouchableOpacity onPress={onBackToProfile} style={[groupStyles.heroImageBackButton, { top: buttonTop }]}>
         <Text style={globalStyles.iconBackButtonText}>←</Text>
       </TouchableOpacity>
-      <TouchableOpacity onPress={onOpenMembers} style={groupStyles.heroImageTopRightButton}>
+      <TouchableOpacity onPress={onOpenMembers} style={[groupStyles.heroImageTopRightButton, { top: buttonTop }]}>
         <Image source={peopleIcon} style={globalStyles.primaryIcon} />
       </TouchableOpacity>
       <View style={[globalStyles.overlay, groupStyles.groupHeaderOverlayCompact]}>
