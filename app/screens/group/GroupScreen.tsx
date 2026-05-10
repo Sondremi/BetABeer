@@ -1275,7 +1275,8 @@ const GroupScreen = () => {
 
     const handleSelectDetailView = (view: typeof selectedDetailView) => {
       if (view === 'distribute' && selectedDetailView === 'distribute' && item.userId === user?.id) {
-        setDistributeModalVisible(true);
+        setLeaderboardModalVisible(false);
+        setTimeout(() => setDistributeModalVisible(true), 350);
       } else {
         setDrinkDetailViewByUser((prev) => ({ ...prev, [item.userId]: view }));
       }
