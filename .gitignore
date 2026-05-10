@@ -50,5 +50,6 @@ pglite-debug.log
 .agents/
 skills-lock.json
 docs/
+CLAUDE.md
 
 app-example
