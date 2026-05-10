@@ -12,6 +12,7 @@ import { MEDIA_UPLOAD_VERIFICATION_MESSAGE, authService } from '../../services/f
 import { firestore } from '../../services/firebase/FirebaseConfig';
 import { sendGroupInvitation } from '../../services/groupService';
 import { markAllAsRead, markAsRead, subscribeToNotifications, type AppNotification } from '../../services/notificationService';
+import { requestPermissionAndSaveToken } from '../../services/pushNotificationService';
 import { uploadProfileImage } from '../../services/profileImageUploadService';
 import { acceptGroupInvitation, createGroup, declineGroupInvitation, profileService } from '../../services/profileService';
 import { globalStyles } from '../../styles/globalStyles';
@@ -205,6 +206,12 @@ const ProfileScreen: React.FC = () => {
       unsubscribeIncomingFriendRequests();
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id && user?.emailVerified) {
+      requestPermissionAndSaveToken(user.id).catch(console.error);
+    }
+  }, [user?.id, user?.emailVerified]);
 
   useEffect(() => {
     if (!user?.id) {
