@@ -22,6 +22,7 @@ import { clampDigits, INPUT_LIMITS, isIntInRange, normalizeSingleLineText } from
 import { showAlert } from '../../utils/platformAlert';
 import { getDefaultProfilePicture, resolveProfileImageSource } from '../../utils/profileImage';
 import ActiveBetsSection from './components/ActiveBetsSection';
+import ArchivedBetsSection from './components/ArchivedBetsSection';
 import BetCard from './components/BetCard';
 import DetailedDrinkOverviewCard from './components/DetailedDrinkOverviewCard';
 import DistributionMemberCard from './components/DistributionMemberCard';
@@ -995,6 +996,69 @@ const GroupScreen = () => {
     }
   };
 
+  const handleReactivateBet = async (betIndex: number) => {
+    if (!selectedGroup) return;
+    showAlert(
+      'Gjenåpne bet',
+      'Bettet flyttes tilbake til aktive bets og drinkene som ble tildelt fjernes. Allerede drukne/utdelte drikker reverseres ikke.',
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: 'Gjenåpne',
+          onPress: async () => {
+            try {
+              const db = getFirestore();
+              const groupRef = doc(db, 'groups', selectedGroup.id);
+              const groupSnap = await getDoc(groupRef);
+              if (!groupSnap.exists()) return;
+
+              const groupBets: Bet[] = groupSnap.data().bets || [];
+              const targetBet = groupBets[betIndex];
+              if (!targetBet || !canManageBet(targetBet)) {
+                showAlert('Feil', 'Du har ikke tilgang til å gjenåpne dette bettet.');
+                return;
+              }
+
+              const correctOptionId = targetBet.correctOptionId;
+              const wagers = targetBet.wagers || [];
+
+              await Promise.all(
+                wagers.map(async (wager: BetWager) => {
+                  const userRef = doc(db, 'users', wager.userId);
+                  if (wager.optionId === correctOptionId) {
+                    await updateDoc(
+                      userRef,
+                      new FieldPath('groupDrinkStats', selectedGroup.id, 'drinksToDistribute', wager.drinkType, wager.measureType),
+                      increment(-wager.amount)
+                    );
+                  } else {
+                    await updateDoc(
+                      userRef,
+                      new FieldPath('groupDrinkStats', selectedGroup.id, 'drinksToConsume', wager.drinkType, wager.measureType),
+                      increment(-wager.amount)
+                    );
+                  }
+                })
+              );
+
+              const newBets = [...groupBets];
+              delete newBets[betIndex].correctOptionId;
+              newBets[betIndex].isFinished = false;
+              await updateDoc(groupRef, { bets: newBets });
+              setBets(newBets);
+
+              const updatedLeaderboard = await getLeaderboardData();
+              setLeaderboardData(updatedLeaderboard);
+            } catch (error) {
+              console.error('Error reactivating bet:', error);
+              showAlert('Feil', 'Kunne ikke gjenåpne bet');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const updateEditBetOption = (idx: number, field: 'name' | 'odds', value: string) => {
     setEditBetOptions(prev => prev.map((opt, i) => (i === idx ? { ...opt, [field]: value } : opt)));
   };
@@ -1434,6 +1498,14 @@ const GroupScreen = () => {
             bets={bets}
             userId={user?.id}
             renderBet={renderBet}
+          />
+
+          <ArchivedBetsSection
+            bets={bets}
+            userId={user?.id}
+            canManageBet={canManageBet}
+            renderBet={renderBet}
+            onReactivate={handleReactivateBet}
           />
 
           {selectedGroup && user && (

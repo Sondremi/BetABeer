@@ -12,13 +12,15 @@ type ActiveBetsSectionProps = {
 };
 
 const ActiveBetsSection = ({ bets, userId, renderBet }: ActiveBetsSectionProps) => {
+  const activeBets = bets.filter((bet) => !bet.isFinished);
+
   return (
     <View style={groupStyles.betListSection}>
       <View style={[groupStyles.actionCard, groupStyles.betListCard]}>
         <Text style={globalStyles.sectionTitleLeft}>Aktive bets</Text>
         <Text style={[globalStyles.secondaryText, { marginTop: theme.spacing.xs }]}>Plasser bet, følg status og se resultater samlet her.</Text>
         <View style={{ marginTop: theme.spacing.md }}>
-          {bets.map((item) => {
+          {activeBets.map((item) => {
             const isHiddenForCurrentUser = item.hiddenFromUserIds?.includes(userId || '');
             const shouldHideForCurrentUser = isHiddenForCurrentUser && !item.isFinished;
             if (shouldHideForCurrentUser) {
@@ -34,6 +36,7 @@ const ActiveBetsSection = ({ bets, userId, renderBet }: ActiveBetsSectionProps) 
 
             const originalIndex = bets.findIndex((bet) => bet.id === item.id);
             return <View key={item.id}>{renderBet({ item, index: originalIndex })}</View>;
+
           })}
         </View>
       </View>
