@@ -23,7 +23,7 @@ export const sendPushOnNotification = onDocumentCreated(
       fcmTokens.map((token) =>
         admin.messaging().send({
           token,
-          data: { title: 'BetABeer', body: message, groupName },
+          data: { title: 'BetABeer', body: `${groupName}: ${message}` },
           webpush: { headers: { Urgency: 'high' } },
         }).catch((err) => console.error(`Failed to send to token ${token}:`, err))
       )

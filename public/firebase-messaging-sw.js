@@ -16,7 +16,8 @@ messaging.onBackgroundMessage((payload) => {
   const title = payload.data?.title ?? 'BetABeer';
   const body = payload.data?.body ?? '';
   self.registration.showNotification(title, {
-    body,
+    body: body,
     icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
   });
 });
