@@ -56,15 +56,14 @@ const GroupHeader = ({
   onRemoveGroupImage,
 }: GroupHeaderProps) => {
   const { top } = useSafeAreaInsets();
-  const buttonTop = top + theme.spacing.sm;
 
   return (
-    <View style={globalStyles.headerContainer}>
+    <View style={[globalStyles.headerContainer, { marginTop: top }]}>
       <Image source={currentGroup.image} style={globalStyles.groupHeaderImage} />
-      <TouchableOpacity onPress={onBackToProfile} style={[groupStyles.heroImageBackButton, { top: buttonTop }]}>
+      <TouchableOpacity onPress={onBackToProfile} style={groupStyles.heroImageBackButton}>
         <Text style={globalStyles.iconBackButtonText}>←</Text>
       </TouchableOpacity>
-      <TouchableOpacity onPress={onOpenMembers} style={[groupStyles.heroImageTopRightButton, { top: buttonTop }]}>
+      <TouchableOpacity onPress={onOpenMembers} style={groupStyles.heroImageTopRightButton}>
         <Image source={peopleIcon} style={globalStyles.primaryIcon} />
       </TouchableOpacity>
       <View style={[globalStyles.overlay, groupStyles.groupHeaderOverlayCompact]}>
