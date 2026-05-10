@@ -49,13 +49,17 @@ export const subscribeToNotifications = (
     orderBy('createdAt', 'desc')
   );
 
-  return onSnapshot(q, (snapshot) => {
-    const notifications = snapshot.docs.map((docSnap) => ({
-      id: docSnap.id,
-      ...docSnap.data(),
-    })) as AppNotification[];
-    callback(notifications);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const notifications = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      })) as AppNotification[];
+      callback(notifications);
+    },
+    (error) => console.error('subscribeToNotifications error:', error)
+  );
 };
 
 export const markAsRead = async (notificationId: string): Promise<void> => {
