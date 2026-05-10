@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { authService, MEDIA_UPLOAD_VERIFICATION_MESSAGE } from '../../services/firebase/authService';
 import { firestore } from '../../services/firebase/FirebaseConfig';
 import { cancelGroupInvitation, deleteGroup, distributeDrinks, exitGroup, registerConsumedDrinks, removeFriendFromGroup, sendGroupInvitation } from '../../services/groupService';
+import { writeNotification } from '../../services/notificationService';
 import { removeGroupImage, uploadGroupImage } from '../../services/profileImageUploadService';
 import { createGroup, updateGroupName } from '../../services/profileService';
 import { groupStyles } from '../../styles/components/groupStyles';
@@ -353,7 +354,20 @@ const GroupScreen = () => {
     setDistributingDrinks(true);
     try {
       await distributeDrinks(user.id, selectedGroup.id, distributions);
-      
+
+      const recipientIds = [...new Set<string>(distributions.map((d) => d.userId))];
+      Promise.all(
+        recipientIds.map((toUserId) =>
+          writeNotification({
+            toUserId,
+            type: 'drinksReceived',
+            groupId: selectedGroup.id,
+            groupName: selectedGroup.name,
+            message: `${user.username || user.name} delte ut drikke til deg i ${selectedGroup.name}`,
+          })
+        )
+      ).catch(console.error);
+
       // Refresh all data
       const updatedLeaderboard = await getLeaderboardData();
       setLeaderboardData(updatedLeaderboard);
@@ -777,6 +791,21 @@ const GroupScreen = () => {
       };
       await updateDoc(groupRef, { bets: [newBet, ...groupBets] });
       setBetModalVisible(false);
+
+      const notifyMemberIds = memberData
+        .map((m) => m.id)
+        .filter((id) => id !== user.id && !hiddenBetMemberIds.includes(id));
+      Promise.all(
+        notifyMemberIds.map((toUserId) =>
+          writeNotification({
+            toUserId,
+            type: 'newBet',
+            groupId: selectedGroup.id,
+            groupName: selectedGroup.name,
+            message: `${user.username || user.name} opprettet et nytt bet: ${trimmedBetTitle}`,
+          })
+        )
+      ).catch(console.error);
     } catch (error) {
       console.error('Error saving bet:', error);
       showAlert('Feil', 'Kunne ikke lagre bet');
@@ -935,7 +964,25 @@ const GroupScreen = () => {
 
         await updateDoc(groupRef, { bets: newBets });
         setBets(newBets);
-        
+
+        if (optionId !== null) {
+          const finishedBet = newBets[selectCorrectBetIdx];
+          const wagererIds = (finishedBet.wagers || []).map((w: BetWager) => w.userId);
+          const uniqueWagererIds = [...new Set<string>(wagererIds)];
+          const correctOptionName = finishedBet.options.find((o: { id: string; name: string }) => o.id === optionId)?.name ?? '';
+          Promise.all(
+            uniqueWagererIds.map((toUserId) =>
+              writeNotification({
+                toUserId,
+                type: 'betFinished',
+                groupId: selectedGroup.id,
+                groupName: selectedGroup.name,
+                message: `Bet avgjort i ${selectedGroup.name}: ${finishedBet.title}${correctOptionName ? ` – Riktig svar: ${correctOptionName}` : ''}`,
+              })
+            )
+          ).catch(console.error);
+        }
+
         // Refresh leaderboard data to show updated drink distributions
         const updatedLeaderboard = await getLeaderboardData();
         setLeaderboardData(updatedLeaderboard);
