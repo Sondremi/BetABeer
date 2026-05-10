@@ -23,13 +23,8 @@ export const sendPushOnNotification = onDocumentCreated(
       fcmTokens.map((token) =>
         admin.messaging().send({
           token,
-          notification: { title: 'BetABeer', body: message },
-          data: { groupName },
-          webpush: {
-            notification: {
-              icon: 'https://bet-a-beer.netlify.app/icons/icon-192.png',
-            },
-          },
+          data: { title: 'BetABeer', body: message, groupName },
+          webpush: { headers: { Urgency: 'high' } },
         }).catch((err) => console.error(`Failed to send to token ${token}:`, err))
       )
     );
