@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { theme } from '../../../styles/theme';
 import { profileStyles } from '../../../styles/components/profileStyles';
 import { globalStyles } from '../../../styles/globalStyles';
@@ -33,8 +33,10 @@ const ProfileHeaderSection = ({
   onOpenImageModal,
   onOpenOnboarding,
   onOpenNotifications,
-}: ProfileHeaderSectionProps) => (
-  <View style={[globalStyles.centeredSection, profileStyles.compactCenteredSection, profileStyles.heroSection]}>
+}: ProfileHeaderSectionProps) => {
+  const safeTop = Platform.OS === 'web' ? ('max(env(safe-area-inset-top), 30px)' as unknown as number) : undefined;
+  return (
+  <View style={[globalStyles.centeredSection, profileStyles.compactCenteredSection, profileStyles.heroSection, safeTop !== undefined && { paddingTop: safeTop }]}>
     <View style={[globalStyles.premiumCard, profileStyles.profileHeroCard]}>
       <TouchableOpacity style={profileStyles.heroButton} onPress={onNavigateToSettings}>
         <Image source={SettingsIcon} style={globalStyles.primaryIcon} />
@@ -73,6 +75,7 @@ const ProfileHeaderSection = ({
       <Text style={[globalStyles.secondaryText, globalStyles.betSelectionHintText]}>{username}</Text>
     </View>
   </View>
-);
+  );
+};
 
 export default ProfileHeaderSection;

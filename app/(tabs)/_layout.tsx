@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router';
 export default function TabLayout() {
   return (
     <Tabs
+      safeAreaInsets={{ top: 0, bottom: 0 }}
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,

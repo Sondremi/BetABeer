@@ -185,7 +185,7 @@ export const globalStyles = StyleSheet.create({
 
   // Headers
   header: {
-    paddingTop: theme.spacing.massive,
+    paddingTop: theme.spacing.xxxl,
     paddingHorizontal: theme.spacing.xl,
     paddingBottom: theme.spacing.xl,
   },
