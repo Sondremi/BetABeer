@@ -215,11 +215,11 @@ const GroupMembersScreen = () => {
 
   return (
     <View style={globalStyles.containerWeb}>
-      <View style={[groupStyles.groupMembersHeaderBar, safeTop !== undefined && { paddingTop: safeTop }]}>
-        <TouchableOpacity onPress={navigateBackToGroup} style={[groupStyles.heroImageBackButton, safeTop !== undefined && { top: safeTop }]}>
+      <View style={[groupStyles.groupMembersHeaderBar, { flexDirection: 'row', alignItems: 'center' }, safeTop !== undefined && { paddingTop: safeTop }]}>
+        <TouchableOpacity onPress={navigateBackToGroup} style={globalStyles.iconBackButton}>
           <Text style={globalStyles.iconBackButtonText}>←</Text>
         </TouchableOpacity>
-        <View style={groupStyles.groupMembersHeaderTitleWrap}>
+        <View style={[groupStyles.groupMembersHeaderTitleWrap, { flex: 1 }]}>
           <Text style={groupStyles.groupHeaderName}>{group?.name || 'Gruppe'}</Text>
         </View>
       </View>
