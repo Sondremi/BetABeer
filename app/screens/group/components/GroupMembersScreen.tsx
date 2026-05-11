@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Platform, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../../context/AuthContext';
 import { firestore } from '../../../services/firebase/FirebaseConfig';
 import { cancelGroupInvitation, removeFriendFromGroup, sendGroupInvitation } from '../../../services/groupService';
@@ -211,9 +211,11 @@ const GroupMembersScreen = () => {
     }
   };
 
+  const safeTop = Platform.OS === 'web' ? ('max(env(safe-area-inset-top), 8px)' as unknown as number) : undefined;
+
   return (
     <View style={globalStyles.containerWeb}>
-      <View style={groupStyles.groupMembersHeaderBar}>
+      <View style={[groupStyles.groupMembersHeaderBar, safeTop !== undefined && { paddingTop: safeTop }]}>
         <TouchableOpacity onPress={navigateBackToGroup} style={groupStyles.heroImageBackButton}>
           <Text style={globalStyles.iconBackButtonText}>←</Text>
         </TouchableOpacity>
