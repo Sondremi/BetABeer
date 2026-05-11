@@ -55,7 +55,7 @@ const GroupHeader = ({
   onRemoveGroupImage,
 }: GroupHeaderProps) => {
   const buttonTopStyle = Platform.OS === 'web'
-    ? { top: 'calc(env(safe-area-inset-top) + 8px)' as unknown as number }
+    ? { top: 'env(safe-area-inset-top)' as unknown as number }
     : {};
 
   return (

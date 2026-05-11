@@ -88,7 +88,7 @@ export const globalStyles = StyleSheet.create({
     gap: theme.spacing.lg,
   },
   headerContainer: {
-    height: 200,
+    height: 240,
     position: 'relative',
     width: '100%',
   },

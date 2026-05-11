@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Platform, Text, TouchableOpacity, View } from 'react-native';
 import { friendsStyles } from '../../../styles/components/friendsStyles';
 import { globalStyles } from '../../../styles/globalStyles';
 
@@ -8,8 +8,9 @@ type FriendsHeaderProps = {
 };
 
 const FriendsHeader = ({ onBack }: FriendsHeaderProps) => {
+  const safeTop = Platform.OS === 'web' ? ('max(env(safe-area-inset-top), 30px)' as unknown as number) : undefined;
   return (
-    <View style={[globalStyles.header, friendsStyles.headerRow]}>
+    <View style={[globalStyles.header, friendsStyles.headerRow, safeTop !== undefined && { paddingTop: safeTop }]}>
       <TouchableOpacity style={globalStyles.iconBackButton} onPress={onBack}>
         <Text style={globalStyles.iconBackButtonText}>←</Text>
       </TouchableOpacity>
