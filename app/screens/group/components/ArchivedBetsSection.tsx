@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { groupStyles } from '../../../styles/components/groupStyles';
@@ -20,20 +19,19 @@ const ArchivedBetsSection = ({ bets, renderBet }: ArchivedBetsSectionProps) => {
   return (
     <View style={groupStyles.betListSection}>
       <View style={[groupStyles.actionCard, groupStyles.betListCard]}>
-        <TouchableOpacity
-          style={groupStyles.archivedSectionHeader}
-          onPress={() => setExpanded((prev) => !prev)}
-          activeOpacity={0.7}
-        >
+        <View style={groupStyles.archivedSectionHeader}>
           <Text style={globalStyles.sectionTitleLeft}>
             Avsluttede bets ({archivedBets.length})
           </Text>
-          <Ionicons
-            name={expanded ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color={theme.colors.textSecondary}
-          />
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}
+            onPress={() => setExpanded((prev) => !prev)}
+          >
+            <Text style={[globalStyles.outlineButtonGoldText, globalStyles.sectionToggleIconButtonText]}>
+              {expanded ? '▾' : '▸'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {expanded && (
           <View style={{ marginTop: theme.spacing.md }}>

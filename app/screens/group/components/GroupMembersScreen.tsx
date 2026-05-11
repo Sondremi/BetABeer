@@ -216,7 +216,7 @@ const GroupMembersScreen = () => {
   return (
     <View style={globalStyles.containerWeb}>
       <View style={[groupStyles.groupMembersHeaderBar, safeTop !== undefined && { paddingTop: safeTop }]}>
-        <TouchableOpacity onPress={navigateBackToGroup} style={groupStyles.heroImageBackButton}>
+        <TouchableOpacity onPress={navigateBackToGroup} style={[groupStyles.heroImageBackButton, safeTop !== undefined && { top: safeTop }]}>
           <Text style={globalStyles.iconBackButtonText}>←</Text>
         </TouchableOpacity>
         <View style={groupStyles.groupMembersHeaderTitleWrap}>
