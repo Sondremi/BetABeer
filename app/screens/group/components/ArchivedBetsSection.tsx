@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { groupStyles } from '../../../styles/components/groupStyles';
@@ -28,11 +27,11 @@ const ArchivedBetsSection = ({ bets, renderBet }: ArchivedBetsSectionProps) => {
           <Text style={globalStyles.sectionTitleLeft}>
             Avsluttede bets ({archivedBets.length})
           </Text>
-          <Ionicons
-            name={expanded ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color={theme.colors.textSecondary}
-          />
+          <View style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}>
+            <Text style={[globalStyles.outlineButtonGoldText, globalStyles.sectionToggleIconButtonText]}>
+              {expanded ? '▾' : '▸'}
+            </Text>
+          </View>
         </TouchableOpacity>
 
         {expanded && (

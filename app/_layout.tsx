@@ -163,7 +163,7 @@ function PersistedRouteStack() {
   }, [user?.id, (user as any)?.isGuest, loading, pathname, groupInviteId, router]);
 
   return (
-    <Stack initialRouteName="login">
+    <Stack initialRouteName="login" screenOptions={{ contentStyle: { paddingBottom: 0, paddingTop: 0, backgroundColor: '#181A20' } }}>
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen
         name="terms"

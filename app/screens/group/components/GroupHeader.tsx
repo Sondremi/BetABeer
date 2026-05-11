@@ -54,15 +54,17 @@ const GroupHeader = ({
   onUploadOrChangeGroupImage,
   onRemoveGroupImage,
 }: GroupHeaderProps) => {
-  const safeTop = Platform.OS === 'web' ? ('env(safe-area-inset-top)' as unknown as number) : 0;
+  const buttonTopStyle = Platform.OS === 'web'
+    ? { top: 'env(safe-area-inset-top)' as unknown as number }
+    : {};
 
   return (
-    <View style={[globalStyles.headerContainer, { marginTop: safeTop }]}>
+    <View style={globalStyles.headerContainer}>
       <Image source={currentGroup.image} style={globalStyles.groupHeaderImage} />
-      <TouchableOpacity onPress={onBackToProfile} style={groupStyles.heroImageBackButton}>
+      <TouchableOpacity onPress={onBackToProfile} style={[groupStyles.heroImageBackButton, buttonTopStyle]}>
         <Text style={globalStyles.iconBackButtonText}>←</Text>
       </TouchableOpacity>
-      <TouchableOpacity onPress={onOpenMembers} style={groupStyles.heroImageTopRightButton}>
+      <TouchableOpacity onPress={onOpenMembers} style={[groupStyles.heroImageTopRightButton, buttonTopStyle]}>
         <Image source={peopleIcon} style={globalStyles.primaryIcon} />
       </TouchableOpacity>
       <View style={[globalStyles.overlay, groupStyles.groupHeaderOverlayCompact]}>
@@ -99,7 +101,9 @@ const GroupHeader = ({
             </View>
           ) : (
             <View style={groupStyles.groupHeaderRow}>
-              <Text style={groupStyles.groupHeaderName}>{currentGroup.name}</Text>
+              <TouchableOpacity onPress={canEditGroupName ? onStartEditGroupName : undefined} activeOpacity={canEditGroupName ? 0.7 : 1}>
+                <Text style={groupStyles.groupHeaderName}>{currentGroup.name}</Text>
+              </TouchableOpacity>
               <View style={globalStyles.groupHeaderActions}>
                 {canEditGroupName && (
                   <TouchableOpacity onPress={onStartEditGroupName} style={globalStyles.groupActionIconButton}>

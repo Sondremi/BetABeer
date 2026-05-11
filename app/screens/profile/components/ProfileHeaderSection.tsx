@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { theme } from '../../../styles/theme';
 import { profileStyles } from '../../../styles/components/profileStyles';
 import { globalStyles } from '../../../styles/globalStyles';
@@ -33,8 +33,10 @@ const ProfileHeaderSection = ({
   onOpenImageModal,
   onOpenOnboarding,
   onOpenNotifications,
-}: ProfileHeaderSectionProps) => (
-  <View style={[globalStyles.centeredSection, profileStyles.compactCenteredSection, profileStyles.heroSection]}>
+}: ProfileHeaderSectionProps) => {
+  const safeTop = Platform.OS === 'web' ? ('max(env(safe-area-inset-top), 30px)' as unknown as number) : undefined;
+  return (
+  <View style={[globalStyles.centeredSection, profileStyles.compactCenteredSection, profileStyles.heroSection, safeTop !== undefined && { paddingTop: safeTop }]}>
     <View style={[globalStyles.premiumCard, profileStyles.profileHeroCard]}>
       <TouchableOpacity style={profileStyles.heroButton} onPress={onNavigateToSettings}>
         <Image source={SettingsIcon} style={globalStyles.primaryIcon} />
@@ -62,17 +64,18 @@ const ProfileHeaderSection = ({
           </View>
         )}
       </TouchableOpacity>
-      <View style={profileStyles.profileImageContainer}>
+      <TouchableOpacity style={profileStyles.profileImageContainer} onPress={onOpenImageModal} activeOpacity={0.8}>
         <Image source={profileImageSource} style={[globalStyles.circularImage, profileStyles.profileImage]} />
-        <TouchableOpacity style={profileStyles.editProfileImageButton} onPress={onOpenImageModal}>
+        <View style={profileStyles.editProfileImageButton}>
           <Image source={PencilIcon} style={globalStyles.primaryIcon} />
-        </TouchableOpacity>
-      </View>
+        </View>
+      </TouchableOpacity>
 
       <Text style={[globalStyles.largeBoldText, profileStyles.profileName]}>{displayName}</Text>
       <Text style={[globalStyles.secondaryText, globalStyles.betSelectionHintText]}>{username}</Text>
     </View>
   </View>
-);
+  );
+};
 
 export default ProfileHeaderSection;
