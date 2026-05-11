@@ -54,15 +54,17 @@ const GroupHeader = ({
   onUploadOrChangeGroupImage,
   onRemoveGroupImage,
 }: GroupHeaderProps) => {
-  const safeTop = Platform.OS === 'web' ? ('env(safe-area-inset-top)' as unknown as number) : 0;
+  const buttonTopStyle = Platform.OS === 'web'
+    ? { top: 'calc(env(safe-area-inset-top) + 8px)' as unknown as number }
+    : {};
 
   return (
-    <View style={[globalStyles.headerContainer, { marginTop: safeTop }]}>
+    <View style={globalStyles.headerContainer}>
       <Image source={currentGroup.image} style={globalStyles.groupHeaderImage} />
-      <TouchableOpacity onPress={onBackToProfile} style={groupStyles.heroImageBackButton}>
+      <TouchableOpacity onPress={onBackToProfile} style={[groupStyles.heroImageBackButton, buttonTopStyle]}>
         <Text style={globalStyles.iconBackButtonText}>←</Text>
       </TouchableOpacity>
-      <TouchableOpacity onPress={onOpenMembers} style={groupStyles.heroImageTopRightButton}>
+      <TouchableOpacity onPress={onOpenMembers} style={[groupStyles.heroImageTopRightButton, buttonTopStyle]}>
         <Image source={peopleIcon} style={globalStyles.primaryIcon} />
       </TouchableOpacity>
       <View style={[globalStyles.overlay, groupStyles.groupHeaderOverlayCompact]}>
