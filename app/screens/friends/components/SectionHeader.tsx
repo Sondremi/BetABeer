@@ -20,19 +20,20 @@ const SectionHeader = ({
   expandA11yLabel,
 }: SectionHeaderProps) => {
   return (
-    <View style={[globalStyles.sectionHeaderRow, collapsedHeader && globalStyles.collapsedHeaderRow]}>
+    <TouchableOpacity
+      style={[globalStyles.sectionHeaderRow, collapsedHeader && globalStyles.collapsedHeaderRow]}
+      onPress={onToggle}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={expanded ? collapseA11yLabel : expandA11yLabel}
+    >
       <Text style={globalStyles.sectionTitle}>{title}</Text>
-      <TouchableOpacity
-        style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}
-        onPress={onToggle}
-        accessibilityRole="button"
-        accessibilityLabel={expanded ? collapseA11yLabel : expandA11yLabel}
-      >
+      <View style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}>
         <Text style={[globalStyles.outlineButtonGoldText, globalStyles.sectionToggleIconButtonText]}>
           {expanded ? '▾' : '▸'}
         </Text>
-      </TouchableOpacity>
-    </View>
+      </View>
+    </TouchableOpacity>
   );
 };
 

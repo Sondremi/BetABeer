@@ -73,21 +73,21 @@ const ProfileBacSection = ({ userId, userInfo, setUserInfo }: ProfileBacSectionP
     <>
       <View style={[globalStyles.section, profileStyles.compactSection]}>
         <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
-          <View style={[globalStyles.sectionHeaderRow, !isExpanded && globalStyles.collapsedHeaderRow]}>
+          <TouchableOpacity
+            style={[globalStyles.sectionHeaderRow, !isExpanded && globalStyles.collapsedHeaderRow]}
+            onPress={toggleExpanded}
+            disabled={!isBacReady}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={isExpanded ? 'Minimer promillekalkulator' : 'Utvid promillekalkulator'}
+          >
             <Text style={globalStyles.sectionTitleLeft}>Promillekalkulator</Text>
-            <TouchableOpacity
-              style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}
-              onPress={toggleExpanded}
-              disabled={!isBacReady}
-              accessibilityState={{ disabled: !isBacReady }}
-              accessibilityRole="button"
-              accessibilityLabel={isExpanded ? 'Minimer promillekalkulator' : 'Utvid promillekalkulator'}
-            >
+            <View style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}>
               <Text style={[globalStyles.outlineButtonGoldText, globalStyles.sectionToggleIconButtonText]}>
                 {isExpanded ? '▾' : '▸'}
               </Text>
-            </TouchableOpacity>
-          </View>
+            </View>
+          </TouchableOpacity>
 
           {showCompactStats && (
             <View style={profileStyles.compactStatsBlock}>

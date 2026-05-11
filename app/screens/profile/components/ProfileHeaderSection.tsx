@@ -64,12 +64,12 @@ const ProfileHeaderSection = ({
           </View>
         )}
       </TouchableOpacity>
-      <View style={profileStyles.profileImageContainer}>
+      <TouchableOpacity style={profileStyles.profileImageContainer} onPress={onOpenImageModal} activeOpacity={0.8}>
         <Image source={profileImageSource} style={[globalStyles.circularImage, profileStyles.profileImage]} />
-        <TouchableOpacity style={profileStyles.editProfileImageButton} onPress={onOpenImageModal}>
+        <View style={profileStyles.editProfileImageButton}>
           <Image source={PencilIcon} style={globalStyles.primaryIcon} />
-        </TouchableOpacity>
-      </View>
+        </View>
+      </TouchableOpacity>
 
       <Text style={[globalStyles.largeBoldText, profileStyles.profileName]}>{displayName}</Text>
       <Text style={[globalStyles.secondaryText, globalStyles.betSelectionHintText]}>{username}</Text>

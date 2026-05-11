@@ -222,6 +222,7 @@ const GroupMembersScreen = () => {
         <View style={[groupStyles.groupMembersHeaderTitleWrap, { flex: 1 }]}>
           <Text style={groupStyles.groupHeaderName}>{group?.name || 'Gruppe'}</Text>
         </View>
+        <View style={{ width: theme.sizes.iconButton }} />
       </View>
 
       <ScrollView contentContainerStyle={[globalStyles.fullWidthScrollContent, groupStyles.pageScrollContent]} showsVerticalScrollIndicator={false}>

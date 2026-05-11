@@ -101,7 +101,9 @@ const GroupHeader = ({
             </View>
           ) : (
             <View style={groupStyles.groupHeaderRow}>
-              <Text style={groupStyles.groupHeaderName}>{currentGroup.name}</Text>
+              <TouchableOpacity onPress={canEditGroupName ? onStartEditGroupName : undefined} activeOpacity={canEditGroupName ? 0.7 : 1}>
+                <Text style={groupStyles.groupHeaderName}>{currentGroup.name}</Text>
+              </TouchableOpacity>
               <View style={globalStyles.groupHeaderActions}>
                 {canEditGroupName && (
                   <TouchableOpacity onPress={onStartEditGroupName} style={globalStyles.groupActionIconButton}>

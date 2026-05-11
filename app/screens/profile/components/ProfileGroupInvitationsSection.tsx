@@ -25,19 +25,20 @@ const ProfileGroupInvitationsSection = ({
 }: ProfileGroupInvitationsSectionProps) => (
   <View style={[globalStyles.section, profileStyles.compactSection]}>
     <View style={[globalStyles.premiumCard, globalStyles.sectionCard]}>
-      <View style={[profileStyles.groupsHeader, !isExpanded && globalStyles.collapsedHeaderRow]}>
+      <TouchableOpacity
+        style={[profileStyles.groupsHeader, !isExpanded && globalStyles.collapsedHeaderRow]}
+        onPress={onToggleExpanded}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={isExpanded ? 'Minimer gruppeinvitasjoner' : 'Utvid gruppeinvitasjoner'}
+      >
         <Text style={globalStyles.sectionTitleLeft}>Gruppeinvitasjoner</Text>
-        <TouchableOpacity
-          style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}
-          onPress={onToggleExpanded}
-          accessibilityRole="button"
-          accessibilityLabel={isExpanded ? 'Minimer gruppeinvitasjoner' : 'Utvid gruppeinvitasjoner'}
-        >
+        <View style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}>
           <Text style={[globalStyles.outlineButtonGoldText, globalStyles.sectionToggleIconButtonText]}>
             {isExpanded ? '▾' : '▸'}
           </Text>
-        </TouchableOpacity>
-      </View>
+        </View>
+      </TouchableOpacity>
       {isExpanded && invitations.length > 0 ? (
         <View style={[globalStyles.listContainer, profileStyles.listContainerCard]}>
           {invitations.map((item) => (

@@ -19,19 +19,20 @@ const ArchivedBetsSection = ({ bets, renderBet }: ArchivedBetsSectionProps) => {
   return (
     <View style={groupStyles.betListSection}>
       <View style={[groupStyles.actionCard, groupStyles.betListCard]}>
-        <View style={groupStyles.archivedSectionHeader}>
+        <TouchableOpacity
+          style={groupStyles.archivedSectionHeader}
+          onPress={() => setExpanded((prev) => !prev)}
+          activeOpacity={0.7}
+        >
           <Text style={globalStyles.sectionTitleLeft}>
             Avsluttede bets ({archivedBets.length})
           </Text>
-          <TouchableOpacity
-            style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}
-            onPress={() => setExpanded((prev) => !prev)}
-          >
+          <View style={[globalStyles.outlineButtonGold, globalStyles.sectionToggleIconButton]}>
             <Text style={[globalStyles.outlineButtonGoldText, globalStyles.sectionToggleIconButtonText]}>
               {expanded ? '▾' : '▸'}
             </Text>
-          </TouchableOpacity>
-        </View>
+          </View>
+        </TouchableOpacity>
 
         {expanded && (
           <View style={{ marginTop: theme.spacing.md }}>
