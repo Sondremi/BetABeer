@@ -1,6 +1,5 @@
 import React from 'react';
-import { Image, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Image, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { groupStyles } from '../../../styles/components/groupStyles';
 import { globalStyles } from '../../../styles/globalStyles';
 import { theme } from '../../../styles/theme';
@@ -55,10 +54,10 @@ const GroupHeader = ({
   onUploadOrChangeGroupImage,
   onRemoveGroupImage,
 }: GroupHeaderProps) => {
-  const { top } = useSafeAreaInsets();
+  const safeTop = Platform.OS === 'web' ? ('env(safe-area-inset-top)' as unknown as number) : 0;
 
   return (
-    <View style={[globalStyles.headerContainer, { marginTop: top }]}>
+    <View style={[globalStyles.headerContainer, { marginTop: safeTop }]}>
       <Image source={currentGroup.image} style={globalStyles.groupHeaderImage} />
       <TouchableOpacity onPress={onBackToProfile} style={groupStyles.heroImageBackButton}>
         <Text style={globalStyles.iconBackButtonText}>←</Text>

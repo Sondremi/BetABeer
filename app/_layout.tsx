@@ -2,7 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useGlobalSearchParams, usePathname, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppAlertProvider } from './context/AppAlertProvider';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { parseGroupInviteIdFromParams, setPendingGroupInviteId } from './services/groupInviteLinkService';
@@ -10,13 +9,11 @@ import { joinGroupFromInviteLink } from './services/groupService';
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <AuthProvider>
-        <AppAlertProvider>
-          <PersistedRouteStack />
-        </AppAlertProvider>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <AuthProvider>
+      <AppAlertProvider>
+        <PersistedRouteStack />
+      </AppAlertProvider>
+    </AuthProvider>
   );
 }
 
