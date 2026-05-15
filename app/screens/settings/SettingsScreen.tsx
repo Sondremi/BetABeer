@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import BeerLoader from '../../components/BeerLoader';
 import { GuestUpgradePrompt } from '../../components/GuestUpgradePrompt';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/firebase/authService';
@@ -226,11 +227,7 @@ const SettingsScreen = () => {
   };
 
   if (isLoading) {
-    return (
-      <View style={[globalStyles.container, globalStyles.centerContent]}>
-        <Text style={settingsStyles.loadingText}>Laster...</Text>
-      </View>
-    );
+    return <BeerLoader />;
   }
 
   if ((user as any)?.isGuest) {
