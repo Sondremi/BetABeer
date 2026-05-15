@@ -1,7 +1,7 @@
 // Drink and betting related types
 
 export type DrinkCategory = 'øl' | 'vin' | 'sprit';
-export type DrinkType = 'Øl' | 'Cider' | 'Hard selzer' | 'Vin' | 'Sprit' | 'Drink';
+export type DrinkType = 'Øl' | 'Cider' | 'Hard selzer' | 'Vin' | 'Sprit' | 'Drink' | 'Egendefinert';
 export type MeasureType = 'Slurker' | 'Shot' | 'Enhet' | 'Chug';
 
 export interface DrinkEntry {

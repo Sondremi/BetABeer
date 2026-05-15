@@ -8,10 +8,13 @@ const PlaceBetModal = (props: any) => {
     globalStyles,
     groupStyles,
     theme,
+    INPUT_LIMITS,
     selectedBetOption,
     drinkTypes,
     selectedDrinkType,
     setSelectedDrinkType,
+    customDrinkName,
+    setCustomDrinkName,
     measureTypes,
     selectedMeasureType,
     setSelectedMeasureType,
@@ -60,6 +63,26 @@ const PlaceBetModal = (props: any) => {
                 ))}
               </ScrollView>
             </View>
+
+            {selectedDrinkType === 'Egendefinert' && (
+              <View style={globalStyles.inputGroup}>
+                <Text style={globalStyles.label}>Navn på drikke</Text>
+                <View style={[globalStyles.inputShellDark, globalStyles.betSelectionHintText]}>
+                  <TextInput
+                    placeholder="Skriv inn drikke"
+                    placeholderTextColor={theme.colors.textSecondary}
+                    value={customDrinkName}
+                    onChangeText={(text) => setCustomDrinkName(text.slice(0, INPUT_LIMITS.drinkNameMax))}
+                    style={[globalStyles.input, groupStyles.inputInsideShell]}
+                    maxLength={INPUT_LIMITS.drinkNameMax}
+                    autoFocus
+                  />
+                </View>
+                {placeBetAttempted && customDrinkName.trim().length === 0 ? (
+                  <Text style={globalStyles.validationHelperText}>Skriv inn navn på drikken.</Text>
+                ) : null}
+              </View>
+            )}
 
             <View style={globalStyles.inputGroup}>
               <Text style={globalStyles.label}>Måleenhet</Text>

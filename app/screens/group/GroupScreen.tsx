@@ -86,6 +86,7 @@ const GroupScreen = () => {
   const [placeBetModalVisible, setPlaceBetModalVisible] = useState(false);
   const [selectedBetOption, setSelectedBetOption] = useState<{ bet: Bet; option: BettingOption } | null>(null);
   const [selectedDrinkType, setSelectedDrinkType] = useState<DrinkType>('Øl');
+  const [customDrinkName, setCustomDrinkName] = useState('');
   const [selectedMeasureType, setSelectedMeasureType] = useState<MeasureType>('Slurker');
   const [betAmount, setBetAmount] = useState('1');
   const [betAmountFocused, setBetAmountFocused] = useState(false);
@@ -179,7 +180,7 @@ const GroupScreen = () => {
   const currentGroup: Group & { image: any } = selectedGroup
     ? { ...selectedGroup, name: groupName, image: selectedGroup.image ?? ImageMissing }
     : { id: 'default', name: 'Gruppenavn', memberCount: 0, image: ImageMissing, createdBy: '', members: [] };
-  const drinkTypes: DrinkType[] = ['Øl', 'Cider', 'Hard selzer', 'Vin', 'Sprit', 'Drink' ];
+  const drinkTypes: DrinkType[] = ['Øl', 'Cider', 'Hard selzer', 'Vin', 'Sprit', 'Drink', 'Egendefinert'];
   const measureTypes: MeasureType[] = ['Slurker', 'Shot', 'Enhet', 'Chug'];
   const availableFriends = friends.filter(friend => !selectedGroup?.members.includes(friend.id));
   const shouldScrollMembers = memberData.length > 5;
@@ -212,6 +213,7 @@ const GroupScreen = () => {
       'Vin': 0.7,
       'Sprit': 0.4,
       'Drink': 0.6,
+      'Egendefinert': 1,
     };
 
     const rawMax = Math.floor(maxByMeasure[measureType] * drinkMultiplier[drinkType]);
@@ -221,6 +223,9 @@ const GroupScreen = () => {
   const placeBetMaxAmount = getMaxPlaceBetAmount(selectedDrinkType, selectedMeasureType);
 
   const placeBetValidationMessage = (() => {
+    if (selectedDrinkType === 'Egendefinert' && normalizeSingleLineText(customDrinkName).length === 0) {
+      return 'Skriv inn navn på drikken.';
+    }
     const amount = parseInt(betAmount, 10);
     if (!Number.isInteger(amount)) {
       return 'Skriv inn et gyldig heltall.';
@@ -833,6 +838,7 @@ const GroupScreen = () => {
     setSelectedBetOption({ bet, option });
     setBetAmount('1');
     setSelectedDrinkType('Øl');
+    setCustomDrinkName('');
     setSelectedMeasureType('Slurker');
     setHasInteractedPlaceBetAmount(false);
     setPlaceBetAttempted(false);
@@ -863,11 +869,14 @@ const GroupScreen = () => {
 
           const existingWagerIndex = wagers.findIndex(w => w.userId === user.id);
 
+          const storedDrinkType = selectedDrinkType === 'Egendefinert'
+            ? normalizeSingleLineText(customDrinkName) as DrinkType
+            : selectedDrinkType;
           const newWager: BetWager = {
             userId: user.id,
             username: user.username,
             optionId: selectedBetOption.option.id,
-            drinkType: selectedDrinkType,
+            drinkType: storedDrinkType,
             measureType: selectedMeasureType,
             amount: amount,
             timestamp: Date.now(),
@@ -1572,6 +1581,7 @@ const GroupScreen = () => {
         createGroupName={createGroupName}
         createGroupNameFocused={createGroupNameFocused}
         creatingGroup={creatingGroup}
+        customDrinkName={customDrinkName}
         distributionLoading={distributionLoading}
         distributions={distributions}
         distributeModalVisible={distributeModalVisible}
@@ -1641,6 +1651,7 @@ const GroupScreen = () => {
         setCreateGroupModalVisible={setCreateGroupModalVisible}
         setCreateGroupName={setCreateGroupName}
         setCreateGroupNameFocused={setCreateGroupNameFocused}
+        setCustomDrinkName={setCustomDrinkName}
         setEditBetAnonymous={setEditBetAnonymous}
         setEditBetIdx={setEditBetIdx}
         setEditBetModalVisible={setEditBetModalVisible}

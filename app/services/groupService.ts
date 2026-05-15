@@ -230,6 +230,7 @@ export const distributeDrinks = async (
     'Vin': { 'Slurker': 0, 'Shot': 0, 'Enhet': 0, 'Chug': 0 },
     'Sprit': { 'Slurker': 0, 'Shot': 0, 'Enhet': 0, 'Chug': 0 },
     'Drink': { 'Slurker': 0, 'Shot': 0, 'Enhet': 0, 'Chug': 0 },
+    'Egendefinert': { 'Slurker': 0, 'Shot': 0, 'Enhet': 0, 'Chug': 0 },
   };
   
   distributions.forEach(({ drinkType, measureType, amount }) => {
