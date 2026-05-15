@@ -4,7 +4,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import BeerLoader from '../../components/BeerLoader';
 import { GuestUpgradePrompt } from '../../components/GuestUpgradePrompt';
 import ImageCropModal from '../../components/ImageCropModal';
 import { useAuth } from '../../context/AuthContext';
@@ -562,20 +563,8 @@ const ProfileScreen: React.FC = () => {
     setSelectedInviteeIds([]);
   };
 
-  if (isLoading) {
-    return (
-      <View style={[globalStyles.container, globalStyles.centerContent]}>
-        <Text style={globalStyles.circularImage}>Laster...</Text>
-      </View>
-    );
-  }
-
-  if (loading) {
-    return (
-      <View style={[globalStyles.container, globalStyles.centerContent]}>
-        <Text style={globalStyles.largeBoldText}>Laster...</Text>
-      </View>
-    );
+  if (isLoading || loading) {
+    return <BeerLoader />;
   }
 
   if ((user as any)?.isGuest) {
