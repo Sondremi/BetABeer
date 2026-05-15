@@ -3,7 +3,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, FieldPath, getDoc, getDocs, getFirestore, increment, query, updateDoc, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import BeerLoader from '../../components/BeerLoader';
 import ImageCropModal from '../../components/ImageCropModal';
 import { useAuth } from '../../context/AuthContext';
 import { authService, MEDIA_UPLOAD_VERIFICATION_MESSAGE } from '../../services/firebase/authService';
@@ -1486,9 +1487,7 @@ const GroupScreen = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {!selectedGroup ? (
-        <View style={[globalStyles.container, groupStyles.emptyStateContainer]}> 
-          <Text style={[globalStyles.secondaryText, groupStyles.emptyStateText]}>Laster gruppe...</Text>
-        </View>
+        <BeerLoader />
       ) : (
         <ScrollView
           contentContainerStyle={[globalStyles.fullWidthScrollContent, groupStyles.pageScrollContent]}
